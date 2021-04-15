@@ -1,5 +1,5 @@
-theory BTree                 
-  imports Main "HOL-Data_Structures.Sorted_Less" "HOL-Data_Structures.Cmp"
+theory BPlusTree                 
+  imports Main "HOL-Data_Structures.Sorted_Less" "HOL-Data_Structures.Cmp" "HOL-Library.Multiset"
 begin
 
 (* some setup to cover up the redefinition of sorted in Sorted_Less
@@ -7,55 +7,67 @@ begin
 hide_const (open) Sorted_Less.sorted
 abbreviation "sorted_less \<equiv> Sorted_Less.sorted"
 
-section "Definition of the B-Tree"
+section "Definition of the B-Plus-Tree"
 
 subsection "Datatype definition"
 
-text "B-trees can be considered to have all data stored interleaved
-as child nodes and separating elements (also keys or indices).
-We define them to either be a Node that holds a list of pairs of children
-and indices or be a completely empty Leaf."
+text "B-Plus-Trees are basically B-Trees, that don't have empty Leafs but Leafs that contain
+the relevant data. "
 
 
-datatype 'a btree = Leaf | Node "('a btree * 'a) list" "'a btree"
+datatype 'a bplustree = LNode "'a list" | Node "('a bplustree * 'a) list" "'a bplustree"
 
-type_synonym 'a btree_list =  "('a btree * 'a) list"
-type_synonym 'a btree_pair =  "('a btree * 'a)"
+type_synonym 'a bplustree_list =  "('a bplustree * 'a) list"
+type_synonym 'a bplustree_pair =  "('a bplustree * 'a)"
 
 abbreviation subtrees where "subtrees xs \<equiv> (map fst xs)"
 abbreviation separators where "separators xs \<equiv> (map snd xs)"
 
 subsection "Inorder and Set"
 
-text "The set of B-tree elements is defined automatically."
+text "The set of B-Plus-tree needs to be manually defined, regarding only the leaves.
+This overrides the default instantiation."
 
-thm btree.set
-value "set_btree (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
+fun set_nodes :: "'a bplustree \<Rightarrow> 'a set" where
+  "set_nodes (LNode ks) = {}" |
+  "set_nodes (Node ts t) = \<Union>(set (map set_nodes (subtrees ts))) \<union> (set (separators ts)) \<union> set_nodes t"
 
-text "The inorder view is defined with the help of the concat function."
+fun set_leaves :: "'a bplustree \<Rightarrow> 'a set" where
+  "set_leaves (LNode ks) = set ks" |
+  "set_leaves (Node ts t) = \<Union>(set (map set_leaves (subtrees ts))) \<union> set_leaves t"
 
-fun inorder :: "'a btree \<Rightarrow> 'a list" where
-  "inorder Leaf = []" |
+text "The inorder is a view of only internal seperators"
+
+fun inorder :: "'a bplustree \<Rightarrow> 'a list" where
+  "inorder (LNode ks) = []" |
   "inorder (Node ts t) = concat (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts) @ inorder t"
 
-abbreviation "inorder_pair  \<equiv> \<lambda>(sub,sep). inorder sub @ [sep]"
-abbreviation "inorder_list ts \<equiv> concat (map inorder_pair ts)"
+abbreviation "inorder_list ts \<equiv> concat (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts)"
+
+text "The leaves view considers only its leafs."
+
+fun leaves :: "'a bplustree \<Rightarrow> 'a list" where
+  "leaves (LNode ks) = ks" |
+  "leaves (Node ts t) = concat (map leaves (subtrees ts)) @ leaves t"
+
+abbreviation "leaves_list ts \<equiv> concat (map leaves (subtrees ts))"
 
 (* this abbreviation makes handling the list much nicer *)
+thm leaves.simps
 thm inorder.simps
 
-value "inorder (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
+value "leaves (Node [(LNode [], (0::nat)), (Node [(LNode [], 1), (LNode [], 10)] (LNode []), 12), ((LNode []), 30), ((LNode []), 100)] (LNode []))"
 
 subsection "Height and Balancedness"
 
 class height =
   fixes height :: "'a \<Rightarrow> nat"
 
-instantiation btree :: (type) height
+instantiation bplustree :: (type) height
 begin
 
-fun height_btree :: "'a btree \<Rightarrow> nat" where
-  "height Leaf = 0" |
+fun height_bplustree :: "'a bplustree \<Rightarrow> nat" where
+  "height (LNode ks) = 0" |
   "height (Node ts t) = Suc (Max (height ` (set (subtrees ts@[t]))))"
 
 instance ..
@@ -64,15 +76,16 @@ end
 
 text "Balancedness is defined is close accordance to the definition by Ernst"
 
-fun bal:: "'a btree \<Rightarrow> bool" where
-  "bal Leaf = True" |
+fun bal:: "'a bplustree \<Rightarrow> bool" where
+  "bal (LNode ks) = True" |
   "bal (Node ts t) = (
     (\<forall>sub \<in> set (subtrees ts). height sub = height t) \<and>
     (\<forall>sub \<in> set (subtrees ts). bal sub) \<and> bal t
   )"
 
 
-value "height (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
+value "height (Node [(LNode [], (0::nat)), (Node [(LNode [], 1), (LNode [], 10)] (LNode []), 12), ((LNode []), 30), ((LNode []), 100)] (LNode []))"
+value "bal (Node [(LNode [], (0::nat)), (Node [(LNode [], 1), (LNode [], 10)] (LNode []), 12), ((LNode []), 30), ((LNode []), 100)] (LNode []))"
 
 
 subsection "Order"
@@ -81,11 +94,11 @@ text "The order of a B-tree is defined just as in the original paper by Bayer."
 
 (* alt1: following knuths definition to allow for any
    natural number as order and resolve ambiguity *)
-(* alt2: use range [k,2*k] allowing for valid btrees
+(* alt2: use range [k,2*k] allowing for valid bplustrees
    from k=1 onwards NOTE this is what I ended up implementing *)
 
-fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
-  "order k Leaf = True" |
+fun order:: "nat \<Rightarrow> 'a bplustree \<Rightarrow> bool" where
+  "order k (LNode ks) = ((length ks \<ge> k)  \<and> (length ks \<le> 2*k))" |
   "order k (Node ts t) = (
   (length ts \<ge> k)  \<and>
   (length ts \<le> 2*k) \<and>
@@ -94,9 +107,9 @@ fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
 
 text \<open>The special condition for the root is called \textit{root\_order}\<close>
 
-(* the invariant for the root of the btree *)
-fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
-  "root_order k Leaf = True" |
+(* the invariant for the root of the bplustree *)
+fun root_order:: "nat \<Rightarrow> 'a bplustree \<Rightarrow> bool" where
+  "root_order k (LNode ks) = (length ks \<le> 2*k)" |
   "root_order k (Node ts t) = (
   (length ts > 0) \<and>
   (length ts \<le> 2*k) \<and>
@@ -128,29 +141,39 @@ lemma finite_set_in_idem:
   shows "max a (Max (Set.insert a A)) = Max (Set.insert a A)"
   using Max_insert assms max.commute max.left_commute by fastforce
 
-lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
+lemma height_Leaf: "height t = 0 \<longleftrightarrow> (\<exists>ks. t = (LNode ks))"
   by (induction t) (auto)
 
-lemma height_btree_order:
+lemma height_bplustree_order:
   "height (Node (ls@[a]) t) = height (Node (a#ls) t)"
   by simp
 
-lemma height_btree_sub: 
+lemma height_bplustree_sub: 
   "height (Node ((sub,x)#ls) t) = max (height (Node ls t)) (Suc (height sub))"
   by simp
 
-lemma height_btree_last: 
+lemma height_bplustree_last: 
   "height (Node ((sub,x)#ts) t) = max (height (Node ts sub)) (Suc (height t))"
   by (induction ts) auto
 
 
-lemma set_btree_inorder: "set (inorder t) = set_btree t"
+lemma set_leaves_leaves: "set (leaves t) = set_leaves t"
   apply(induction t)
    apply(auto)
   done
 
+lemma set_nodes_nodes: "set (inorder t) = set_nodes t"
+  apply(induction t)
+   apply(auto simp add: rev_image_eqI)
+  done
 
-lemma child_subset: "p \<in> set t \<Longrightarrow> set_btree (fst p) \<subseteq> set_btree (Node t n)"
+
+lemma child_subset_leaves: "p \<in> set t \<Longrightarrow> set_leaves (fst p) \<subseteq> set_leaves (Node t n)"
+  apply(induction p arbitrary: t n)
+  apply(auto)
+  done
+
+lemma child_subset: "p \<in> set t \<Longrightarrow> set_nodes (fst p) \<subseteq> set_nodes (Node t n)"
   apply(induction p arbitrary: t n)
   apply(auto)
   done
@@ -165,7 +188,7 @@ lemma some_child_sub:
 
 
 lemma bal_all_subtrees_equal: "bal (Node ts t) \<Longrightarrow> (\<forall>s1 \<in> set (subtrees ts). \<forall>s2 \<in> set (subtrees ts). height s1 = height s2)"
-  by (metis BTree.bal.simps(2))
+  by (metis BPlusTree.bal.simps(2))
 
 
 lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t f = f"
@@ -202,7 +225,7 @@ lemma bal_substitute: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height t = height c;
   unfolding bal.simps
   by auto
 
-lemma bal_substitute_subtree: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
+lemma bal_substitute_subplustree: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
   using bal_substitute
   by auto
 
@@ -218,7 +241,7 @@ lemma order_impl_root_order: "\<lbrakk>k > 0; order k t\<rbrakk> \<Longrightarro
   done
 
 
-(* sorted inorder implies that some sublists are sorted. This can be followed directly *)
+(* sorted leaves implies that some sublists are sorted. This can be followed directly *)
 
 lemma sorted_inorder_list_separators: "sorted_less (inorder_list ts) \<Longrightarrow> sorted_less (separators ts)"
   apply(induction ts)
@@ -239,17 +262,44 @@ lemma sorted_inorder_list_subtrees:
 corollary sorted_inorder_subtrees: "sorted_less (inorder (Node ts t)) \<Longrightarrow> \<forall> sub \<in> set (subtrees ts). sorted_less (inorder sub)"
   using sorted_inorder_list_subtrees sorted_wrt_append by auto
 
-lemma sorted_inorder_list_induct_subtree:
+lemma sorted_inorder_list_induct_subplustree:
   "sorted_less (inorder_list (ls@(sub,sep)#rs)) \<Longrightarrow> sorted_less (inorder sub)"
   by (simp add: sorted_wrt_append)
 
-corollary sorted_inorder_induct_subtree:
+corollary sorted_inorder_induct_subplustree:
   "sorted_less (inorder (Node (ls@(sub,sep)#rs) t)) \<Longrightarrow> sorted_less (inorder sub)"
   by (simp add: sorted_wrt_append)
 
 lemma sorted_inorder_induct_last: "sorted_less (inorder (Node ts t)) \<Longrightarrow> sorted_less (inorder t)"
   by (simp add: sorted_wrt_append)
 
+text "Additional lemmas on the sortedness of the whole tree, which is
+correct alignment of navigation structure and leave data"
 
+fun inbetween where
+"inbetween f l Nil t u = f l t u" |
+"inbetween f l ((sub,sep)#xs) t u = (f l sub sep \<and> inbetween f sep xs t u)"
+
+thm fold_cong
+
+lemma cong_inbetween[fundef_cong]: "
+\<lbrakk>a = b; xs = ys; \<And>l' u' sub sep. (sub,sep) \<in> set ys \<Longrightarrow> f l' sub u' = g l' sub u'; \<And>l' u'. f l' a u' = g l' b u'\<rbrakk>
+  \<Longrightarrow> inbetween f l xs a u = inbetween g l ys b u"
+  apply(induction ys arbitrary: l a b u xs)
+  apply auto
+  apply fastforce+
+  done
+
+fun aligned where 
+"aligned l (LNode ks) u = (\<forall>x \<in> set ks. l < x \<and> x \<le> u)" |
+"aligned l (Node ts t) u = (inbetween aligned l ts t u)"
+
+thm aligned.simps
+
+lemma "aligned l (Node (ls@(sub', subl)#(sub,subsep)#rs) t) u \<Longrightarrow> aligned subl subsub subsep \<Longrightarrow>
+aligned l (Node (ls@(sub',subl)#(subsub,subsep)#rs) t) u" 
+  apply (induction ls arbitrary: l)
+  apply auto
+  done
 
 end
