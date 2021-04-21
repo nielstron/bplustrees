@@ -294,7 +294,12 @@ fun aligned where
 "aligned l (LNode ks) u = (\<forall>x \<in> set ks. l < x \<and> x \<le> u)" |
 "aligned l (Node ts t) u = (inbetween aligned l ts t u)"
 
+definition aligned_tree where "aligned_tree t = aligned bot t top"
+
 thm aligned.simps
+
+lemma "aligned l t u \<Longrightarrow> \<forall>x \<in> set (leaves t). l < x \<and> x \<le> u"
+oops
 
 lemma "aligned l (Node (ls@(sub', subl)#(sub,subsep)#rs) t) u \<Longrightarrow> aligned subl subsub subsep \<Longrightarrow>
 aligned l (Node (ls@(sub',subl)#(subsub,subsep)#rs) t) u" 

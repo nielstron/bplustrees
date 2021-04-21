@@ -7,7 +7,7 @@ section "Set interpretation"
 
 subsection "Auxiliary functions"
 
-fun split_half:: "('a bplustree\<times>'a) list \<Rightarrow> (('a bplustree\<times>'a) list \<times> ('a bplustree\<times>'a) list)" where
+fun split_half:: "_ list \<Rightarrow> _ list \<times> _ list" where
   "split_half xs = (take (length xs div 2) xs, drop (length xs div 2) xs)"
 
 
@@ -32,10 +32,14 @@ this would allow for key,pointer pairs to be inserted into the tree *)
 (* TODO what if the keys are the pointers? *)
 locale split =
   fixes split ::  "('a bplustree\<times>'a::linorder) list \<Rightarrow> 'a \<Rightarrow> (('a bplustree\<times>'a) list \<times> ('a bplustree\<times>'a) list)"
+  and insert_list ::  "('a::linorder) list \<Rightarrow> 'a \<Rightarrow> 'a list"
   assumes split_req:
     "\<lbrakk>split xs p = (ls,rs)\<rbrakk> \<Longrightarrow> xs = ls @ rs"
     "\<lbrakk>split xs p = (ls@[(sub,sep)],rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> sep < p"
     "\<lbrakk>split xs p = (ls,(sub,sep)#rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> p \<le> sep"
+  and insert_list_req:
+    "sorted_less ks \<Longrightarrow> sorted_less (insert_list ks k)"
+    "set (insert_list ks k) = set ks \<union> {k}"
 begin
 
 lemmas split_conc = split_req(1)
@@ -103,6 +107,15 @@ fun node\<^sub>i:: "nat \<Rightarrow> ('a bplustree \<times> 'a) list \<Rightarr
     )
   )"
 
+fun Lnode\<^sub>i:: "nat \<Rightarrow> 'a list \<Rightarrow> 'a up\<^sub>i" where
+  "Lnode\<^sub>i k ts = (
+  if length ts \<le> 2*k then T\<^sub>i (LNode ts)
+  else (
+    case split_half ts of (ls, sep#rs) \<Rightarrow>
+      Up\<^sub>i (LNode (ls@[sep])) sep (LNode rs)
+    )
+  )"
+
 lemma nodei_ti_simp: "node\<^sub>i k ts t = T\<^sub>i x \<Longrightarrow> x = Node ts t"
   apply (cases "length ts \<le> 2*k")
   apply (auto split!: list.splits)
@@ -110,18 +123,15 @@ lemma nodei_ti_simp: "node\<^sub>i k ts t = T\<^sub>i x \<Longrightarrow> x = No
 
 
 fun ins:: "nat \<Rightarrow> 'a \<Rightarrow> 'a bplustree \<Rightarrow> 'a up\<^sub>i" where
-  "ins k x Leaf = (Up\<^sub>i Leaf x Leaf)" |
+  "ins k x (LNode ks) = Lnode\<^sub>i k (insert_list ks x)" |
   "ins k x (Node ts t) = (
   case split ts x of
     (ls,(sub,sep)#rs) \<Rightarrow> 
-      (if sep = x then
-        T\<^sub>i (Node ts t)
-      else
         (case ins k x sub of 
           Up\<^sub>i l a r \<Rightarrow>
-             node\<^sub>i k (ls @ (l,a)#(r,sep)#rs) t | 
+             node\<^sub>i k (ls@(l,a)#(r,sep)#rs) t | 
           T\<^sub>i a \<Rightarrow>
-            T\<^sub>i (Node (ls @ (a,sep) # rs) t))) |
+            T\<^sub>i (Node (ls@(a,sep)#rs) t)) |
     (ls, []) \<Rightarrow>
       (case ins k x t of
          Up\<^sub>i l a r \<Rightarrow>
@@ -140,117 +150,6 @@ fun tree\<^sub>i::"'a up\<^sub>i \<Rightarrow> 'a bplustree" where
 fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a bplustree \<Rightarrow> 'a bplustree" where
   "insert k x t = tree\<^sub>i (ins k x t)"
 
-subsection "Deletion"
-
-text "The following deletion method is inspired by Bauer (70) and Fielding (??).
-Rather than stealing only a single node from the neighbour,
-the neighbour is fully merged with the potentially underflowing node.
-If the resulting node is still larger than allowed, the merged node is split
-again, using the rules known from insertion splits.
-If the resulting node has admissable size, it is simply kept in the tree."
-
-fun rebalance_middle_tree where
-  "rebalance_middle_tree k ls Leaf sep rs Leaf = (
-  Node (ls@(Leaf,sep)#rs) Leaf
-)" |
-  "rebalance_middle_tree k ls (Node mts mt) sep rs (Node tts tt) = (
-  if length mts \<ge> k \<and> length tts \<ge> k then 
-    Node (ls@(Node mts mt,sep)#rs) (Node tts tt)
-  else (
-    case rs of [] \<Rightarrow> (
-      case node\<^sub>i k (mts@(mt,sep)#tts) tt of
-       T\<^sub>i u \<Rightarrow>
-        Node ls u |
-       Up\<^sub>i l a r \<Rightarrow>
-        Node (ls@[(l,a)]) r) |
-    (Node rts rt,rsep)#rs \<Rightarrow> (
-      case node\<^sub>i k (mts@(mt,sep)#rts) rt of
-      T\<^sub>i u \<Rightarrow>
-        Node (ls@(u,rsep)#rs) (Node tts tt) |
-      Up\<^sub>i l a r \<Rightarrow>
-        Node (ls@(l,a)#(r,rsep)#rs) (Node tts tt))
-))"
-
-text "Deletion"
-
-text "All trees are merged with the right neighbour on underflow.
-Obviously for the last tree this would not work since it has no right neighbour.
-Therefore this tree, as the only exception, is merged with the left neighbour.
-However since we it does not make a difference, we treat the situation
-as if the second to last tree underflowed."
-
-fun rebalance_last_tree where
-  "rebalance_last_tree k ts t = (
-case last ts of (sub,sep) \<Rightarrow>
-   rebalance_middle_tree k (butlast ts) sub sep [] t
-)"
-
-text "Rather than deleting the minimal key from the right subplustree,
-we remove the maximal key of the left subplustree.
-This is due to the fact that the last tree can easily be accessed
-and the left neighbour is way easier to access than the right neighbour,
-it resides in the same pair as the separating element to be removed."
-
-
-
-fun split_max where
-  "split_max k (Node ts t) = (case t of Leaf \<Rightarrow> (
-  let (sub,sep) = last ts in 
-    (Node (butlast ts) sub, sep)
-)|
-_ \<Rightarrow> 
-case split_max k t of (sub, sep) \<Rightarrow>
-  (rebalance_last_tree k ts sub, sep)
-)"
-
-fun del where
-  "del k x Leaf = Leaf" |
-  "del k x (Node ts t) = (
-  case split ts x of 
-    (ls,[]) \<Rightarrow> 
-     rebalance_last_tree k ls (del k x t)
-  | (ls,(sub,sep)#rs) \<Rightarrow> (
-      if sep \<noteq> x then 
-        rebalance_middle_tree k ls (del k x sub) sep rs t
-      else if sub = Leaf then
-        Node (ls@rs) t
-      else let (sub_s, max_s) = split_max k sub in
-        rebalance_middle_tree k ls sub_s max_s rs t
-  )
-)"
-
-fun reduce_root where
-  "reduce_root Leaf = Leaf" |
-  "reduce_root (Node ts t) = (case ts of
-   [] \<Rightarrow> t |
-   _ \<Rightarrow> (Node ts t)
-)"
-
-
-fun delete where "delete k x t = reduce_root (del k x t)"
-
-
-text "An invariant for intermediate states at deletion.
-In particular we allow for an underflow to 0 subplustrees."
-
-fun almost_order where
-  "almost_order k Leaf = True" |
-  "almost_order k (Node ts t) = (
-  (length ts \<le> 2*k) \<and>
-  (\<forall>s \<in> set (subplustrees ts). order k s) \<and>
-   order k t
-)"
-
-
-text "A recursive property of the \"spine\" we want to walk along for splitting
-    off the maximum of the left subplustree."
-
-fun nonempty_lasttreebal where
-  "nonempty_lasttreebal Leaf = True" |
-  "nonempty_lasttreebal (Node ts t) = (
-    (\<exists>ls tsub tsep. ts = (ls@[(tsub,tsep)]) \<and> height tsub = height t) \<and>
-     nonempty_lasttreebal t
-  )"
 
 subsection "Proofs of functional correctness"
 
@@ -288,11 +187,21 @@ lemma isin_sorted: "sorted_less (xs@a#ys) \<Longrightarrow>
 
 (* lift to split *)
 
+lemma leaves_conc: "leaves (Node (ls@rs) t) = leaves_list ls @ leaves_list rs @ leaves t"
+  apply(induction ls)
+  apply auto
+  done
+
+lemma leaves_split: "split ts x = (ls,rs) \<Longrightarrow> leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
+  using leaves_conc split_conc by blast
 
 lemma isin_sorted_split:
   assumes "sorted_less (inorder (Node ts t))"
+    and "sorted_less (leaves (Node ts t))"
     and "split ts x = (ls, rs)"
-  shows "x \<in> set (inorder (Node ts t)) = (x \<in> set (inorder_list rs @ inorder t))"
+    and "aligned l (Node ts t) u"
+    and "l < x" "x \<le> u"
+  shows "x \<in> set (leaves (Node ts t)) = (x \<in> set (leaves_list rs @ leaves t))"
 proof (cases ls)
   case Nil
   then have "ts = rs"
@@ -302,16 +211,39 @@ next
   case Cons
   then obtain ls' sub sep where ls_tail_split: "ls = ls' @ [(sub,sep)]"
     by (metis list.simps(3) rev_exhaust surj_pair)
-  then have "sep < x"
+  then have x_sm_sep: "sep < x"
     using split_req(2)[of ts x ls' sub sep rs]
     using sorted_inorder_separators[OF assms(1)]
     using assms
     by simp
+  moreover have leaves_split: "leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
+    using assms(3) leaves_split by blast
   then show ?thesis
-    using assms(1) split_conc[OF assms(2)] ls_tail_split
-    using isin_sorted[of "inorder_list ls' @ inorder sub" sep "inorder_list rs @ inorder t" x]
-    by auto
+  proof (cases "leaves_list ls")
+    case Nil
+    then show ?thesis
+      using leaves_split by auto
+  next
+    case Cons
+    then obtain leavesls' l' where leaves_tail_split: "leaves_list ls = leavesls' @ [l']"
+      by (metis list.simps(3) rev_exhaust)
+    then have "l' < sep" (* TODO *)
+      sorry
+    then show ?thesis
+      using assms(2) ls_tail_split leaves_tail_split leaves_split x_sm_sep
+      using isin_sorted[of "leavesls'" l' "leaves_list rs @ leaves t" x]
+      by auto
+  qed
 qed
+
+lemma isin_sorted_split_leaves:
+  assumes "sorted_less (leaves (Node ts t))"
+    and "sorted_less (inorder (Node ts t))"
+    and "aligned l (Node ts t) u"
+    and "l < x" "x \<le> u"
+    and "split ts x = (ls, rs)"
+  shows "x \<in> set (leaves (Node ts t)) = (x \<in> set (leaves_list rs @ leaves t))"
+oops
 
 lemma isin_sorted_split_right:
   assumes "split ts x = (ls, (sub,sep)#rs)"
@@ -337,52 +269,30 @@ proof -
 qed
 
 
-theorem isin_set_inorder: "sorted_less (inorder t) \<Longrightarrow> isin t x = (x \<in> set (inorder t))"
+theorem isin_set_inorder: 
+  assumes "sorted_less (leaves (Node ts t))"
+    and "sorted_less (inorder (Node ts t))"
+    and "aligned l (Node ts t) u"
+    and "l < x" "x \<le> u"
+    and "split ts x = (ls, rs)"
+  shows "isin t x = (x \<in> set (leaves t))"
+  using assms
 proof(induction t x rule: isin.induct)
-  case (2 ts t x)
-  then obtain ls rs where list_split: "split ts x = (ls, rs)"
-    by (meson surj_pair)
-  then have list_conc: "ts = ls @ rs" 
-    using split_conc by auto
-  show ?case
+  case (1 ks y)
+  then show ?case by auto
+next
+  case (2 ts t y)
+  then obtain ls rs where "split ts y = (ls, rs)"
+    by (cases "split ts y")
+  then show ?case
   proof (cases rs)
     case Nil
-    then have "isin (Node ts t) x = isin t x"
-      by (simp add: list_split)
-    also have "\<dots> = (x \<in> set (inorder t))"
-      using "2.IH"(1) list_split Nil
-      using "2.prems" sorted_inorder_induct_last by auto
-    also have "\<dots> = (x \<in> set (inorder (Node ts t)))"
-      using isin_sorted_split[of ts t x ls rs]
-      using "2.prems" list_split list_conc Nil
-      by simp
-    finally show ?thesis .
+    then show ?thesis sorry
   next
     case (Cons a list)
-    then obtain sub sep where a_split: "a = (sub,sep)"
-      by (cases a)
-    then show ?thesis
-    proof (cases "x = sep")
-      case True
-      then show ?thesis
-        using list_conc Cons a_split list_split
-        by auto
-    next
-      case False
-      then have "isin (Node ts t) x = isin sub x"
-        using list_split Cons a_split False
-        by auto
-      also have "\<dots> = (x \<in> set (inorder sub))"
-        using "2.IH"(2)
-        using "2.prems" False a_split list_conc list_split local.Cons sorted_inorder_induct_subplustree by fastforce
-      also have "\<dots> = (x \<in> set (inorder (Node ts t)))"
-        using isin_sorted_split[OF "2.prems" list_split]
-        using isin_sorted_split_right "2.prems" list_split Cons a_split False
-        by simp
-      finally show ?thesis  .
+    then show ?thesis sorry
     qed
-  qed
-qed auto
+qed
 
 
 
@@ -979,6 +889,117 @@ lemma insert_order: "\<lbrakk>k > 0; root_order k t\<rbrakk> \<Longrightarrow> r
 lemma insert_inorder: "sorted_less (inorder t) \<Longrightarrow> inorder (insert k x t) = ins_list x (inorder t)"
   using ins_inorder
   by (simp add: tree\<^sub>i_inorder)
+
+subsection "Deletion"
+
+text "The following deletion method is inspired by Bauer (70) and Fielding (??).
+Rather than stealing only a single node from the neighbour,
+the neighbour is fully merged with the potentially underflowing node.
+If the resulting node is still larger than allowed, the merged node is split
+again, using the rules known from insertion splits.
+If the resulting node has admissable size, it is simply kept in the tree."
+
+fun rebalance_middle_tree where
+  "rebalance_middle_tree k ls Leaf sep rs Leaf = (
+  Node (ls@(Leaf,sep)#rs) Leaf
+)" |
+  "rebalance_middle_tree k ls (Node mts mt) sep rs (Node tts tt) = (
+  if length mts \<ge> k \<and> length tts \<ge> k then 
+    Node (ls@(Node mts mt,sep)#rs) (Node tts tt)
+  else (
+    case rs of [] \<Rightarrow> (
+      case node\<^sub>i k (mts@(mt,sep)#tts) tt of
+       T\<^sub>i u \<Rightarrow>
+        Node ls u |
+       Up\<^sub>i l a r \<Rightarrow>
+        Node (ls@[(l,a)]) r) |
+    (Node rts rt,rsep)#rs \<Rightarrow> (
+      case node\<^sub>i k (mts@(mt,sep)#rts) rt of
+      T\<^sub>i u \<Rightarrow>
+        Node (ls@(u,rsep)#rs) (Node tts tt) |
+      Up\<^sub>i l a r \<Rightarrow>
+        Node (ls@(l,a)#(r,rsep)#rs) (Node tts tt))
+))"
+
+
+text "All trees are merged with the right neighbour on underflow.
+Obviously for the last tree this would not work since it has no right neighbour.
+Therefore this tree, as the only exception, is merged with the left neighbour.
+However since we it does not make a difference, we treat the situation
+as if the second to last tree underflowed."
+
+fun rebalance_last_tree where
+  "rebalance_last_tree k ts t = (
+case last ts of (sub,sep) \<Rightarrow>
+   rebalance_middle_tree k (butlast ts) sub sep [] t
+)"
+
+text "Rather than deleting the minimal key from the right subplustree,
+we remove the maximal key of the left subplustree.
+This is due to the fact that the last tree can easily be accessed
+and the left neighbour is way easier to access than the right neighbour,
+it resides in the same pair as the separating element to be removed."
+
+
+
+fun split_max where
+  "split_max k (Node ts t) = (case t of Leaf \<Rightarrow> (
+  let (sub,sep) = last ts in 
+    (Node (butlast ts) sub, sep)
+)|
+_ \<Rightarrow> 
+case split_max k t of (sub, sep) \<Rightarrow>
+  (rebalance_last_tree k ts sub, sep)
+)"
+
+fun del where
+  "del k x Leaf = Leaf" |
+  "del k x (Node ts t) = (
+  case split ts x of 
+    (ls,[]) \<Rightarrow> 
+     rebalance_last_tree k ls (del k x t)
+  | (ls,(sub,sep)#rs) \<Rightarrow> (
+      if sep \<noteq> x then 
+        rebalance_middle_tree k ls (del k x sub) sep rs t
+      else if sub = Leaf then
+        Node (ls@rs) t
+      else let (sub_s, max_s) = split_max k sub in
+        rebalance_middle_tree k ls sub_s max_s rs t
+  )
+)"
+
+fun reduce_root where
+  "reduce_root Leaf = Leaf" |
+  "reduce_root (Node ts t) = (case ts of
+   [] \<Rightarrow> t |
+   _ \<Rightarrow> (Node ts t)
+)"
+
+
+fun delete where "delete k x t = reduce_root (del k x t)"
+
+
+text "An invariant for intermediate states at deletion.
+In particular we allow for an underflow to 0 subplustrees."
+
+fun almost_order where
+  "almost_order k Leaf = True" |
+  "almost_order k (Node ts t) = (
+  (length ts \<le> 2*k) \<and>
+  (\<forall>s \<in> set (subplustrees ts). order k s) \<and>
+   order k t
+)"
+
+
+text "A recursive property of the \"spine\" we want to walk along for splitting
+    off the maximum of the left subplustree."
+
+fun nonempty_lasttreebal where
+  "nonempty_lasttreebal Leaf = True" |
+  "nonempty_lasttreebal (Node ts t) = (
+    (\<exists>ls tsub tsep. ts = (ls@[(tsub,tsep)]) \<and> height tsub = height t) \<and>
+     nonempty_lasttreebal t
+  )"
 
 text "Deletion proofs"
 
