@@ -195,12 +195,12 @@ lemma leaves_conc: "leaves (Node (ls@rs) t) = leaves_list ls @ leaves_list rs @ 
 lemma leaves_split: "split ts x = (ls,rs) \<Longrightarrow> leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
   using leaves_conc split_conc by blast
 
+
+
 lemma isin_sorted_split:
-  assumes "sorted_less (inorder (Node ts t))"
+  assumes "aligned l (Node ts t) u"
     and "sorted_less (leaves (Node ts t))"
     and "split ts x = (ls, rs)"
-    and "aligned l (Node ts t) u"
-    and "l < x" "x \<le> u"
   shows "x \<in> set (leaves (Node ts t)) = (x \<in> set (leaves_list rs @ leaves t))"
 proof (cases ls)
   case Nil
@@ -213,9 +213,9 @@ next
     by (metis list.simps(3) rev_exhaust surj_pair)
   then have x_sm_sep: "sep < x"
     using split_req(2)[of ts x ls' sub sep rs]
-    using sorted_inorder_separators[OF assms(1)]
-    using assms
-    by simp
+    using aligned_sorted_separators[OF assms(1)]
+    using assms sorted_cons sorted_snoc 
+    by blast
   moreover have leaves_split: "leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
     using assms(3) leaves_split by blast
   then show ?thesis
@@ -227,8 +227,21 @@ next
     case Cons
     then obtain leavesls' l' where leaves_tail_split: "leaves_list ls = leavesls' @ [l']"
       by (metis list.simps(3) rev_exhaust)
-    then have "l' < sep" (* TODO *)
-      sorry
+    then have "l' \<le> sep"
+    proof -
+      have "l' \<in> set (leaves_list ls)"
+        using leaves_tail_split by force
+      then have "l' \<in> set (leaves (Node ls' sub))"
+        using ls_tail_split
+        by auto
+      moreover have "aligned l (Node ls' sub) sep" 
+        using assms split_conc[OF assms(3)] Cons ls_tail_split
+        using aligned_split_left[of l ls' sub sep rs t u]
+        by simp
+      ultimately show ?thesis
+        using aligned_leaves_inbetween[of l "Node ls' sub" sep]
+        by blast
+    qed
     then show ?thesis
       using assms(2) ls_tail_split leaves_tail_split leaves_split x_sm_sep
       using isin_sorted[of "leavesls'" l' "leaves_list rs @ leaves t" x]
@@ -236,64 +249,88 @@ next
   qed
 qed
 
-lemma isin_sorted_split_leaves:
-  assumes "sorted_less (leaves (Node ts t))"
-    and "sorted_less (inorder (Node ts t))"
-    and "aligned l (Node ts t) u"
-    and "l < x" "x \<le> u"
-    and "split ts x = (ls, rs)"
-  shows "x \<in> set (leaves (Node ts t)) = (x \<in> set (leaves_list rs @ leaves t))"
-oops
-
 lemma isin_sorted_split_right:
   assumes "split ts x = (ls, (sub,sep)#rs)"
-    and "sorted_less (inorder (Node ts t))"
-    and "sep \<noteq> x"
-  shows "x \<in> set (inorder_list ((sub,sep)#rs) @ inorder t) = (x \<in> set (inorder sub))"
+    and "sorted_less (leaves (Node ts t))"
+    and "aligned l (Node ts t) u"
+  shows "x \<in> set (leaves_list ((sub,sep)#rs) @ leaves t) = (x \<in> set (leaves sub))"
 proof -
-  from assms have "x < sep"
+  from assms have "x \<le> sep"
   proof -
     from assms have "sorted_less (separators ts)"
-      by (simp add: sorted_inorder_separators)
+      by (meson aligned_sorted_inorder sorted_cons sorted_inorder_separators sorted_snoc)
     then show ?thesis
       using split_req(3)
       using assms
       by fastforce
   qed
-  moreover have "sorted_less (inorder_list ((sub,sep)#rs) @ inorder t)"
-    using assms sorted_wrt_append split_conc
-    by fastforce
+  moreover have leaves_split: "leaves (Node ts t) = leaves_list ls @ leaves sub @ leaves_list rs @ leaves t"
+    using split_conc[OF assms(1)] by auto
   ultimately show ?thesis
-    using isin_sorted[of "inorder sub" "sep" "inorder_list rs @ inorder t" x]
-    by simp
+  proof (cases "leaves_list rs @ leaves t")
+    case Nil
+    then show ?thesis 
+      using leaves_split by auto
+  next
+    case (Cons r' rs')
+    then have "sep < r'"
+      by (metis aligned_leaves_inbetween aligned_split_right assms(1) assms(3) leaves.simps(2) list.set_intros(1) split.split_conc split_axioms)
+    then have  "x < r'"
+      using \<open>x \<le> sep\<close> by auto
+    moreover have "sorted_less (leaves_list ((sub,sep)#rs) @ leaves t)"
+      using assms sorted_wrt_append split_conc
+      by fastforce
+    ultimately show ?thesis
+      using isin_sorted[of "leaves sub" "r'" "rs'" x] Cons 
+      by auto
+  qed
 qed
 
 
 theorem isin_set_inorder: 
-  assumes "sorted_less (leaves (Node ts t))"
-    and "sorted_less (inorder (Node ts t))"
-    and "aligned l (Node ts t) u"
-    and "l < x" "x \<le> u"
-    and "split ts x = (ls, rs)"
+  assumes "sorted_less (leaves t)"
+    and "aligned l t u"
   shows "isin t x = (x \<in> set (leaves t))"
   using assms
-proof(induction t x rule: isin.induct)
-  case (1 ks y)
-  then show ?case by auto
-next
-  case (2 ts t y)
-  then obtain ls rs where "split ts y = (ls, rs)"
-    by (cases "split ts y")
-  then show ?case
+proof(induction t x arbitrary: l u rule: isin.induct)
+  case (2 ts t x)
+  then obtain ls rs where list_split: "split ts x = (ls, rs)"
+    by (meson surj_pair)
+  then have list_conc: "ts = ls @ rs" 
+    using split_conc by auto
+  show ?case
   proof (cases rs)
     case Nil
-    then show ?thesis sorry
+    then have "isin (Node ts t) x = isin t x"
+      by (simp add: list_split)
+    also have "\<dots> = (x \<in> set (leaves t))"
+      using "2.IH"(1)[of ls rs] list_split Nil
+      using "2.prems" sorted_leaves_induct_last align_last'
+      by metis
+    also have "\<dots> = (x \<in> set (leaves (Node ts t)))"
+      using isin_sorted_split
+      using "2.prems" list_split list_conc Nil
+      by simp
+    finally show ?thesis .
   next
     case (Cons a list)
-    then show ?thesis sorry
+    then obtain sub sep where a_split: "a = (sub,sep)"
+      by (cases a)
+      then have "isin (Node ts t) x = isin sub x"
+        using list_split Cons a_split
+        by auto
+      also have "\<dots> = (x \<in> set (leaves sub))"
+        using "2.IH"(2)[of ls rs "(sub,sep)" list sub sep]
+        using "2.prems" a_split list_conc list_split local.Cons sorted_leaves_induct_subplustree
+              align_sub
+        by (metis split_set(1))
+      also have "\<dots> = (x \<in> set (leaves (Node ts t)))"
+        using isin_sorted_split
+        using isin_sorted_split_right "2.prems" list_split Cons a_split
+        by simp
+      finally show ?thesis  .
     qed
-qed
-
+qed auto
 
 
 
