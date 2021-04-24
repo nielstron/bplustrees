@@ -235,7 +235,7 @@ lemma bal_substitute: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height t = height c;
   unfolding bal.simps
   by auto
 
-lemma bal_substitute_subplustree: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
+lemma bal_substitute_subtree: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
   using bal_substitute
   by auto
 
@@ -272,11 +272,11 @@ lemma sorted_inorder_list_subtrees:
 corollary sorted_inorder_subtrees: "sorted_less (inorder (Node ts t)) \<Longrightarrow> \<forall> sub \<in> set (subtrees ts). sorted_less (inorder sub)"
   using sorted_inorder_list_subtrees sorted_wrt_append by auto
 
-lemma sorted_inorder_list_induct_subplustree:
+lemma sorted_inorder_list_induct_subtree:
   "sorted_less (inorder_list (ls@(sub,sep)#rs)) \<Longrightarrow> sorted_less (inorder sub)"
   by (simp add: sorted_wrt_append)
 
-corollary sorted_inorder_induct_subplustree:
+corollary sorted_inorder_induct_subtree:
   "sorted_less (inorder (Node (ls@(sub,sep)#rs) t)) \<Longrightarrow> sorted_less (inorder sub)"
   by (simp add: sorted_wrt_append)
 
@@ -293,11 +293,11 @@ lemma sorted_leaves_list_subtrees:
 corollary sorted_leaves_subtrees: "sorted_less (leaves (Node ts t)) \<Longrightarrow> \<forall> sub \<in> set (subtrees ts). sorted_less (leaves sub)"
   using sorted_leaves_list_subtrees sorted_wrt_append by auto
 
-lemma sorted_leaves_list_induct_subplustree:
+lemma sorted_leaves_list_induct_subtree:
   "sorted_less (leaves_list (ls@(sub,sep)#rs)) \<Longrightarrow> sorted_less (leaves sub)"
   by (simp add: sorted_wrt_append)
 
-corollary sorted_leaves_induct_subplustree:
+corollary sorted_leaves_induct_subtree:
   "sorted_less (leaves (Node (ls@(sub,sep)#rs) t)) \<Longrightarrow> sorted_less (leaves sub)"
   by (simp add: sorted_wrt_append)
 
