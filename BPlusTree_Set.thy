@@ -998,6 +998,11 @@ lemma ins_list_contains_idem: "\<lbrakk>sorted_less xs; x \<in> set xs\<rbrakk> 
 lemma aligned_insert_list: "sorted_less ks \<Longrightarrow> l < x \<Longrightarrow> x \<le> u \<Longrightarrow> aligned l (LNode ks) u \<Longrightarrow> aligned l (LNode (insert_list ks x)) u"
   using insert_list_req by auto
 
+lemma align_subst_two: "aligned l (Node (ts@[(sub,sep)]) t) u \<Longrightarrow> aligned sep lt a \<Longrightarrow> aligned a rt u \<Longrightarrow> aligned l (Node (ts@[(sub,sep),(lt,a)]) rt) u" 
+  apply(induction ts arbitrary: l)
+  apply auto
+  done
+
 declare node\<^sub>i.simps [simp del]
 declare node\<^sub>i_leaves [simp add]
 
@@ -1038,10 +1043,7 @@ next
       apply(cases ts)
       using 2 list_conc Nil apply(simp)
       by (metis isin.cases list.distinct(1) rev_exhaust)
-    show ?thesis
-    proof (cases "ins k x t")
-      case (T\<^sub>i a)
-      have IH: "leaves a = ins_list x (leaves t) \<and> aligned_up\<^sub>i sep' (ins k x t) u"
+    have IH: "leaves_up\<^sub>i (ins k x t) = ins_list x (leaves t) \<and> aligned_up\<^sub>i sep' (ins k x t) u"
       proof - 
         (* we need to fulfill all these IH requirements *)
         note "2.IH"(1)[OF sym[OF list_split] Nil "2.prems"(1), of sep' u]
@@ -1054,9 +1056,14 @@ next
           using "2.prems"(2) \<open>ts = ts' @ [(sub', sep')]\<close> align_last by blast
         ultimately show ?thesis
           using  "2.IH"(1)[OF sym[OF list_split] Nil "2.prems"(1), of sep' u]
-          using "2.prems" list_split local.Nil sorted_leaves_induct_last T\<^sub>i
+          using "2.prems" list_split local.Nil sorted_leaves_induct_last
           by auto
       qed
+    show ?thesis
+    proof (cases "ins k x t")
+      case (T\<^sub>i a)
+      have IH: "leaves a = ins_list x (leaves t) \<and> aligned sep' a u"
+        using IH T\<^sub>i by force
 
       have "leaves_up\<^sub>i (ins k x (Node ts t)) = leaves_list ls @ leaves a"
         using list_split T\<^sub>i Nil by (auto simp add: list_conc)
@@ -1071,21 +1078,28 @@ next
         using Nil T\<^sub>i list_split list_conc by simp
       moreover have "aligned l (Node ts a) u"
         using "2.prems"(2)
-        by (metis IH T\<^sub>i \<open>ts = ts' @ [(sub', sep')]\<close> aligned_subst_last aligned_up\<^sub>i.simps(1))
+        by (metis IH \<open>ts = ts' @ [(sub', sep')]\<close> aligned_subst_last)
       ultimately show ?thesis by auto
     next
-      case (Up\<^sub>i l a r)
-      then have IH:"inorder_up\<^sub>i (Up\<^sub>i l a r) = ins_list x (inorder t)"
-        using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_induct_last by auto
+      case (Up\<^sub>i lt a rt)
+      then have IH:"leaves_up\<^sub>i (Up\<^sub>i lt a rt) = ins_list x (leaves t) \<and> aligned_up\<^sub>i sep' (Up\<^sub>i lt a rt) u"
+        using IH by auto
 
-      have "inorder_up\<^sub>i (ins k x (Node ts t)) = inorder_list ls @ inorder_up\<^sub>i (Up\<^sub>i l a r)"
+      have "leaves_up\<^sub>i (ins k x (Node ts t)) = leaves_list ls @ leaves_up\<^sub>i (Up\<^sub>i lt a rt)"
         using list_split Up\<^sub>i Nil by (auto simp add: list_conc)
-      also have "\<dots> = inorder_list ls @ ins_list x (inorder t)"
+      also have "\<dots> = leaves_list ls @ ins_list x (leaves t)"
         using IH by simp
-      also have "\<dots> = ins_list x (inorder (Node ts t))"
+      also have "\<dots> = ins_list x (leaves (Node ts t))"
         using ins_list_split
         using "2.prems" list_split local.Nil by auto
-      finally show ?thesis .
+      finally have "leaves_up\<^sub>i (ins k x (Node ts t)) = ins_list x (leaves (Node ts t))". 
+      moreover have "aligned_up\<^sub>i l (ins k x (Node ts t)) u = aligned_up\<^sub>i l (node\<^sub>i k (ts @ [(lt, a)]) rt) u"
+        using Nil Up\<^sub>i list_split list_conc node\<^sub>i_aligned by simp
+      moreover have "aligned l (Node (ts@[(lt,a)]) rt) u"
+        using "2.prems"(2) IH \<open>ts = ts' @ [(sub', sep')]\<close> align_subst_two by fastforce
+      ultimately show ?thesis
+        using node\<^sub>i_aligned
+        by auto
     qed
   next
     case (Cons h list)
