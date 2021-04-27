@@ -943,7 +943,7 @@ next
   qed
 qed
 
-lemma ins_list_split_right_general:
+lemma ins_list_split_right:
   assumes "split ts x = (ls, (sub,sep)#rs)"
     and "sorted_less (leaves (Node ts t))"
     and "aligned l (Node ts t) u"
@@ -1000,6 +1000,11 @@ lemma aligned_insert_list: "sorted_less ks \<Longrightarrow> l < x \<Longrightar
 
 lemma align_subst_two: "aligned l (Node (ts@[(sub,sep)]) t) u \<Longrightarrow> aligned sep lt a \<Longrightarrow> aligned a rt u \<Longrightarrow> aligned l (Node (ts@[(sub,sep),(lt,a)]) rt) u" 
   apply(induction ts arbitrary: l)
+  apply auto
+  done
+
+lemma align_subst_three: "aligned l (Node (ls@(subl,sepl)#(subr,sepr)#rs) t) u \<Longrightarrow> aligned sepl lt a \<Longrightarrow> aligned a rt sepr \<Longrightarrow> aligned l (Node (ls@(subl,sepl)#(lt,a)#(rt,sepr)#rs) t) u" 
+  apply(induction ls arbitrary: l)
   apply auto
   done
 
@@ -1106,48 +1111,130 @@ next
     then obtain sub sep where h_split: "h = (sub,sep)"
       by (cases h)
 
-    then have sorted_inorder_sub: "sorted_less (inorder sub)"
-      using "2.prems" list_conc local.Cons sorted_inorder_induct_subtree
+    then have sorted_inorder_sub: "sorted_less (leaves sub)"
+      using "2.prems" list_conc Cons sorted_leaves_induct_subtree
       by fastforce
+    moreover have order_sub: "order k sub" 
+      using "2.prems" list_conc Cons h_split
+      by auto
     then show ?thesis
-    proof(cases "x = sep")
-      case True
-      then have "x \<in> set (inorder (Node ts t))"
-        using list_conc h_split Cons by simp
-      then have "ins_list x (inorder (Node ts t)) = inorder (Node ts t)"
-        using "2.prems" ins_list_contains_idem by blast
-      also have "\<dots> = inorder_up\<^sub>i (ins k x (Node ts t))"
-        using list_split h_split Cons True by auto
-      finally show ?thesis by simp
+(* TODO way to show this cleanly without distinguishing cases for ls? *)
+    proof (cases ls)
+      case Nil
+      then have aligned_sub: "aligned l sub sep"
+        using "2.prems"(2) list_conc h_split Cons
+        by auto
+      then have IH: "leaves_up\<^sub>i (ins k x sub) = ins_list x (leaves sub) \<and> aligned_up\<^sub>i l (ins k x sub) sep"
+      proof -
+        have "x \<le> sep"
+          using "2.prems"(2) aligned_sorted_separators h_split list_split local.Cons sorted_cons sorted_snoc split.split_req(3) split_axioms
+          by blast
+        then show ?thesis
+        using "2.IH"(2)[OF sym[OF list_split] Cons sym[OF h_split], of l sep]
+          using "2.prems" list_split local.Nil aligned_sub sorted_inorder_sub order_sub
+          by auto
+      qed
+      then show ?thesis 
+      proof (cases "ins k x sub")
+        case (T\<^sub>i a)
+        have IH:"leaves a = ins_list x (leaves sub) \<and> aligned l a sep"
+          using T\<^sub>i IH by (auto)
+        have "leaves_up\<^sub>i (ins k x (Node ts t)) = leaves_list ls @ leaves a @ leaves_list list @ leaves t"
+          using h_split list_split T\<^sub>i Cons by simp
+        also have "\<dots> = leaves_list ls @ ins_list x (leaves sub) @ leaves_list list @ leaves t"
+          using IH by simp
+        also have "\<dots> = ins_list x (leaves (Node ts t))"
+          using ins_list_split ins_list_split_right
+          using list_split "2.prems" Cons h_split by auto
+        finally have "leaves_up\<^sub>i (ins k x (Node ts t)) = ins_list x (leaves (Node ts t))" .
+        moreover have "aligned_up\<^sub>i l (ins k x (Node ts t)) u = aligned l (Node ((a,sep)#list) t) u"
+          using Nil Cons list_conc list_split h_split T\<^sub>i by simp
+        moreover have "aligned l (Node ((a,sep)#list) t) u"
+          using aligned_sub "2.prems"(2) IH h_split list_conc Cons Nil
+          by auto
+        ultimately show ?thesis
+          by auto
+      next
+        case (Up\<^sub>i lt a rt)
+        then have IH:"leaves_up\<^sub>i (Up\<^sub>i lt a rt) = ins_list x (leaves sub) \<and> aligned_up\<^sub>i l (Up\<^sub>i lt a rt) sep"
+          using IH h_split list_split Cons sorted_inorder_sub
+          by auto
+        have "leaves_up\<^sub>i (ins k x (Node ts t)) = leaves_list ls @ leaves lt @ leaves rt @ leaves_list list @ leaves t"
+          using h_split list_split Up\<^sub>i Cons by simp
+        also have "\<dots> = leaves_list ls @ ins_list x (leaves sub) @ leaves_list list @ leaves t"
+          using IH by simp
+        also have "\<dots> = ins_list x (leaves (Node ts t))"
+          using ins_list_split ins_list_split_right
+          using list_split "2.prems" Cons h_split by auto
+        finally have "leaves_up\<^sub>i (ins k x (Node ts t)) = ins_list x (leaves (Node ts t))" .
+        moreover have "aligned_up\<^sub>i l (ins k x (Node ts t)) u = aligned_up\<^sub>i l (node\<^sub>i k ((lt,a)#(rt,sep)#list) t) u"
+          using Nil Cons list_conc list_split h_split Up\<^sub>i by simp
+        moreover have "aligned l (Node ((lt,a)#(rt,sep)#list) t) u"
+          using aligned_sub "2.prems"(2) IH h_split list_conc Cons Nil
+          by auto
+        ultimately show ?thesis
+          using node\<^sub>i_aligned by auto
+      qed
     next
-      case False
+      case ls_split': Cons
+      then obtain ls' sub' sep' where ls_split: "ls = ls'@[(sub',sep')]"
+        by (metis list.discI old.prod.exhaust snoc_eq_iff_butlast)
+      then have aligned_sub: "aligned sep' sub sep"
+        using "2.prems"(2) list_conc h_split Cons
+        using align_last aligned_split_left by blast
+      then have IH: "leaves_up\<^sub>i (ins k x sub) = ins_list x (leaves sub) \<and> aligned_up\<^sub>i sep' (ins k x sub) sep"
+      proof -
+        have "x \<le> sep"
+          using "2.prems"(2) aligned_sorted_separators h_split list_split local.Cons sorted_cons sorted_snoc split.split_req(3) split_axioms
+          by blast
+        moreover have "sep' < x"
+          using "2.prems"(2) aligned_sorted_separators list_split ls_split sorted_cons sorted_snoc split.split_req(2) split_axioms
+          by blast
+        ultimately show ?thesis
+        using "2.IH"(2)[OF sym[OF list_split] Cons sym[OF h_split], of sep' sep]
+          using "2.prems" list_split ls_split aligned_sub sorted_inorder_sub order_sub
+          by auto
+      qed
       then show ?thesis
       proof (cases "ins k x sub")
         case (T\<^sub>i a)
-        then have IH:"inorder a = ins_list x (inorder sub)"
-          using "2.IH"(2) "2.prems" list_split Cons sorted_inorder_sub h_split False
-          by auto
-        have "inorder_up\<^sub>i (ins k x (Node ts t)) = inorder_list ls @ inorder a @ sep # inorder_list list @ inorder t"
-          using h_split False list_split T\<^sub>i Cons by simp
-        also have "\<dots> = inorder_list ls @ ins_list x (inorder sub) @ sep # inorder_list list @ inorder t"
+        have IH:"leaves a = ins_list x (leaves sub) \<and> aligned sep' a sep"
+          using T\<^sub>i IH by (auto)
+        have "leaves_up\<^sub>i (ins k x (Node ts t)) = leaves_list ls @ leaves a @ leaves_list list @ leaves t"
+          using h_split list_split T\<^sub>i Cons by simp
+        also have "\<dots> = leaves_list ls @ ins_list x (leaves sub) @ leaves_list list @ leaves t"
           using IH by simp
-        also have "\<dots> = ins_list x (inorder (Node ts t))"
+        also have "\<dots> = ins_list x (leaves (Node ts t))"
           using ins_list_split ins_list_split_right
-          using list_split "2.prems" Cons h_split False by auto
-        finally show ?thesis .
+          using list_split "2.prems" Cons h_split by auto
+        finally have "leaves_up\<^sub>i (ins k x (Node ts t)) = ins_list x (leaves (Node ts t))" .
+        moreover have "aligned_up\<^sub>i l (ins k x (Node ts t)) u = aligned l (Node (ls'@(sub',sep')#(a,sep)#list) t) u"
+          using Nil Cons list_conc list_split h_split T\<^sub>i ls_split by simp
+        moreover have "aligned l (Node (ls'@(sub',sep')#(a,sep)#list) t) u"
+          using aligned_sub "2.prems"(2) IH h_split list_conc Cons Nil ls_split
+          using aligned_subst by fastforce
+        ultimately show ?thesis
+          by auto
       next
-        case (Up\<^sub>i l a r)
-        then have IH:"inorder_up\<^sub>i (Up\<^sub>i l a r) = ins_list x (inorder sub)"
-          using "2.IH"(2) False h_split list_split local.Cons sorted_inorder_sub
+        case (Up\<^sub>i lt a rt)
+        then have IH:"leaves_up\<^sub>i (Up\<^sub>i lt a rt) = ins_list x (leaves sub) \<and> aligned_up\<^sub>i sep' (Up\<^sub>i lt a rt) sep"
+          using IH h_split list_split Cons sorted_inorder_sub
           by auto
-        have "inorder_up\<^sub>i (ins k x (Node ts t)) = inorder_list ls @ inorder l @ a # inorder r  @ sep # inorder_list list @ inorder t"
-          using h_split False list_split Up\<^sub>i Cons by simp
-        also have "\<dots> = inorder_list ls @ ins_list x (inorder sub) @ sep # inorder_list list @ inorder t"
+        have "leaves_up\<^sub>i (ins k x (Node ts t)) = leaves_list ls @ leaves lt @ leaves rt @ leaves_list list @ leaves t"
+          using h_split list_split Up\<^sub>i Cons by simp
+        also have "\<dots> = leaves_list ls @ ins_list x (leaves sub) @ leaves_list list @ leaves t"
           using IH by simp
-        also have "\<dots> = ins_list x (inorder (Node ts t))"
+        also have "\<dots> = ins_list x (leaves (Node ts t))"
           using ins_list_split ins_list_split_right
-          using list_split "2.prems" Cons h_split False by auto
-        finally show ?thesis .
+          using list_split "2.prems" Cons h_split by auto
+        finally have "leaves_up\<^sub>i (ins k x (Node ts t)) = ins_list x (leaves (Node ts t))" .
+        moreover have "aligned_up\<^sub>i l (ins k x (Node ts t)) u = aligned_up\<^sub>i l (node\<^sub>i k (ls'@(sub',sep')#(lt,a)#(rt,sep)#list) t) u"
+          using Nil Cons list_conc list_split h_split Up\<^sub>i ls_split by simp
+        moreover have "aligned l (Node (ls'@(sub',sep')#(lt,a)#(rt,sep)#list) t) u"
+          using aligned_sub "2.prems"(2) IH h_split list_conc Cons Nil ls_split align_subst_three
+          by auto
+        ultimately show ?thesis
+          using node\<^sub>i_aligned by auto
       qed
     qed
   qed
