@@ -11,6 +11,9 @@ subsection "Auxiliary functions"
 fun split_half:: "_ list \<Rightarrow> _ list \<times> _ list" where
   "split_half xs = (take ((length xs + 1) div 2) xs, drop ((length xs + 1) div 2) xs)"
 
+lemma split_half_conc: "split_half xs = (ls, rs) = (xs = ls@rs \<and> length ls = (length xs + 1) div 2)"
+  by force
+
 lemma drop_not_empty: "xs \<noteq> [] \<Longrightarrow> drop (length xs div 2) xs \<noteq> []"
   apply(induction xs)
    apply(auto split!: list.splits)
@@ -47,6 +50,9 @@ locale split =
     "sorted_less ks \<Longrightarrow> sorted_less (insert_list ks k)"
     "set (insert_list ks k) = set ks \<union> {k}"
 begin
+
+lemma insert_list_ins_list: assumes "sorted_less ks" shows "insert_list ks k = ins_list k ks"
+  sorry
 
 lemma insert_list_length[simp]:
   assumes "sorted_less ks"
@@ -284,6 +290,13 @@ fun inorder_up\<^sub>i where
   "inorder_up\<^sub>i (T\<^sub>i t) = inorder t" |
   "inorder_up\<^sub>i (Up\<^sub>i l a r) = inorder l @ [a] @ inorder r"
 
+fun leaves_up\<^sub>i where
+  "leaves_up\<^sub>i (T\<^sub>i t) = leaves t" |
+  "leaves_up\<^sub>i (Up\<^sub>i l a r) = leaves l @ leaves r"
+
+fun aligned_up\<^sub>i where
+  "aligned_up\<^sub>i l (T\<^sub>i t) u = aligned l t u" |
+  "aligned_up\<^sub>i l (Up\<^sub>i lt a rt) u = (aligned l lt a \<and> aligned a rt u)"
 
 text "The following function merges two nodes and returns separately split nodes
    if an overflow occurs"
@@ -375,6 +388,14 @@ proof -
     by fastforce
 qed
 
+lemma Lnode\<^sub>i_cases: "length xs \<le> k \<or> (\<exists>ls sep rs. split_half xs = (ls@[sep],rs))"
+proof -
+  have "\<not> length xs \<le> k \<Longrightarrow> length xs \<ge> 1"
+    by linarith
+  then show ?thesis
+    using split_half_not_empty
+    by fastforce
+qed
 
 lemma root_order_tree\<^sub>i: "root_order_up\<^sub>i (Suc k) t = root_order (Suc k) (tree\<^sub>i t)"
   apply (cases t)
@@ -614,13 +635,15 @@ lemma node\<^sub>i_height: "height_up\<^sub>i (node\<^sub>i k ts t) = height (No
 proof(cases "length ts \<le> 2*k")
   case False
   then obtain ls sub sep rs where
-    split_half_ts: "split_half ts = (ls, (sub, sep) # rs)"
+    split_half_ts: "split_half ts = (ls@[(sub,sep)], rs)"
     by (meson node\<^sub>i_cases)
   then have "node\<^sub>i k ts t = Up\<^sub>i (Node ls (sub)) sep (Node rs t)"
     using False by simp
-  then show ?thesis
-    using split_half_ts
-    by (metis append_take_drop_id fst_conv height_list_split snd_conv split_half.elims)
+  then have "height_up\<^sub>i (node\<^sub>i k ts t) = height (Node (ls@(sub,sep)#rs) t)"
+    by (metis height_list_split)
+  also have "\<dots> = height (Node ts t)" 
+    by (metis (no_types, lifting) Pair_inject append_Cons append_eq_append_conv2 append_take_drop_id self_append_conv split_half.simps split_half_ts)
+  finally show ?thesis.
 qed simp
 
 
@@ -640,14 +663,73 @@ lemma node\<^sub>i_bal:
 proof(cases "length ts \<le> 2*k")
   case False
   then obtain ls sub sep rs where
-    split_half_ts: "split_half ts = (ls, (sub, sep) # rs)"
+    split_half_ts: "split_half ts = (ls@[(sub,sep)], rs)"
     by (meson node\<^sub>i_cases)
   then have "bal (Node (ls@(sub,sep)#rs) t)"
-    using assms append_take_drop_id[where n="length ts div 2" and xs=ts]
+    using assms append_take_drop_id[where n="(length ts + 1) div 2" and xs=ts]
     by auto
   then show ?thesis
     using split_half_ts assms False
     by (auto simp del: bal.simps bal_up\<^sub>i.simps dest!: bal_list_split[of ls sub sep rs t])
+qed simp
+
+lemma node\<^sub>i_aligned: 
+  assumes "aligned l (Node ts t) u"
+  shows "aligned_up\<^sub>i l (node\<^sub>i k ts t) u"
+  using assms
+proof (cases "length ts \<le> 2*k")
+  case False
+  then obtain ls sub sep rs where
+    split_half_ts: "split_half ts = (ls@[(sub,sep)], rs)"
+    by (meson node\<^sub>i_cases)
+  then have "aligned l (Node ls sub) sep"
+    by (metis aligned_split_left append.assoc append_Cons append_take_drop_id assms prod.sel(1) split_half.simps)
+  moreover have "aligned sep (Node rs t) u"
+    by (smt (z3) Pair_inject aligned_split_right append.assoc append_Cons append_Nil2 append_take_drop_id assms same_append_eq split_half.simps split_half_ts)
+  ultimately show ?thesis 
+    using split_half_ts False by auto
+qed simp
+
+lemma "sorted_less (xs@[x]) \<Longrightarrow> y \<in> set xs \<Longrightarrow> y < x"
+  using sorted_snoc_iff by auto
+
+lemma length_right_side: "length xs > 1 \<Longrightarrow> length (drop ((length xs + 1) div 2) xs) > 0"
+  by auto
+
+lemma Lnode\<^sub>i_aligned: 
+  assumes "aligned l (LNode ks) u"
+    and "sorted_less ks"
+    and "k > 0"
+  shows "aligned_up\<^sub>i l (Lnode\<^sub>i k ks) u"
+  using assms
+proof (cases "length ks \<le> 2*k")
+  case False
+  then obtain ls sep rs where split_half_ts: 
+    "take ((length ks + 1) div 2) ks = ls@[sep]"
+    "drop ((length ks + 1) div 2) ks = rs" 
+    using split_half_not_empty[of ks]
+    by auto                        
+  moreover have "sorted_less (ls@[sep])" 
+    by (metis append_take_drop_id assms(2) sorted_wrt_append split_half_ts(1))
+  ultimately have "aligned l (LNode (ls@[sep])) sep"
+    using split_half_conc[of ks "ls@[sep]" rs] assms sorted_snoc_iff[of ls sep]
+    by auto
+  moreover have "aligned sep (LNode rs) u"
+  proof -
+    have "length rs > 0"
+      using False assms(3) split_half_ts(2) by fastforce
+    then obtain sep' rs' where "rs = sep' # rs'"
+      by (cases rs) auto
+    moreover have "sep < sep'"
+      by (metis append_take_drop_id assms(2) calculation in_set_conv_decomp sorted_mid_iff sorted_snoc_iff split_half_ts(1) split_half_ts(2))
+    moreover have "sorted_less rs"
+      by (metis append_take_drop_id assms(2) sorted_wrt_append split_half_ts(2))
+    ultimately show ?thesis
+      using split_half_ts split_half_conc[of ks "ls@[sep]" rs] assms
+      by auto
+  qed
+  ultimately show ?thesis 
+    using split_half_ts False by auto
 qed simp
 
 lemma height_up\<^sub>i_merge: "height_up\<^sub>i (Up\<^sub>i l a r) = height t \<Longrightarrow> height (Node (ls@(t,x)#rs) tt) = height (Node (ls@(l,a)#(r,x)#rs) tt)"
@@ -658,7 +740,7 @@ proof(induction k x t rule: ins.induct)
   case (2 k x ts t)
   then obtain ls rs where split_list: "split ts x = (ls,rs)"
     by (meson surj_pair)
-  then have split_append: "ls@rs = ts"
+  then have split_append: "ts = ls@rs"
     using split_conc
     by auto
   then show ?case
@@ -685,36 +767,27 @@ proof(induction k x t rule: ins.induct)
   next
     case (Cons a list)
     then obtain sub sep where a_split: "a = (sub,sep)"
-      by (cases a)
+      by (cases a) auto
+    then have height_sub: "height_up\<^sub>i (ins k x sub) = height sub"
+      by (metis "2.IH"(2) a_split Cons split_list)
     then show ?thesis
-    proof (cases "x = sep")
-      case True
-      then show ?thesis
-        using Cons a_split 2 split_list
-        by (simp del: height_bplustree.simps)
+    proof (cases "ins k x sub")
+      case (T\<^sub>i a)
+      then have "height a = height sub"
+        using height_sub by auto
+      then have "height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@(a,sep)#rs) t)"
+        by auto
+      then show ?thesis 
+        using T\<^sub>i height_sub Cons 2 split_list a_split split_append
+        by (auto simp add: image_Un max.commute finite_set_ins_swap)
     next
-      case False
-      then have height_sub: "height_up\<^sub>i (ins k x sub) = height sub"
-        by (metis "2.IH"(2) a_split Cons split_list)
+      case (Up\<^sub>i l a r)
+      then have "height (Node (ls@(sub,sep)#list) t) = height (Node (ls@(l,a)#(r,sep)#list) t)"
+        using height_up\<^sub>i_merge height_sub
+        by fastforce
       then show ?thesis
-      proof (cases "ins k x sub")
-        case (T\<^sub>i a)
-        then have "height a = height sub"
-          using height_sub by auto
-        then have "height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@(a,sep)#rs) t)"
-          by auto
-        then show ?thesis 
-          using T\<^sub>i height_sub False Cons 2 split_list a_split split_append
-          by (auto simp add: image_Un max.commute finite_set_ins_swap)
-      next
-        case (Up\<^sub>i l a r)
-        then have "height (Node (ls@(sub,sep)#list) t) = height (Node (ls@(l,a)#(r,sep)#list) t)"
-          using height_up\<^sub>i_merge height_sub
-          by fastforce
-        then show ?thesis
-          using Up\<^sub>i False Cons 2 split_list a_split split_append
-          by (auto simp del: node\<^sub>i.simps simp add: node\<^sub>i_height image_Un max.commute finite_set_ins_swap)
-      qed
+        using Up\<^sub>i Cons 2 split_list a_split split_append
+        by (auto simp del: node\<^sub>i.simps simp add: node\<^sub>i_height image_Un max.commute finite_set_ins_swap)
     qed
   qed
 qed simp
@@ -726,7 +799,7 @@ proof(induction k x t rule: ins.induct)
   case (2 k x ts t)
   then obtain ls rs where split_res: "split ts x = (ls, rs)"
     by (meson surj_pair)
-  then have split_app: "ls@rs = ts"
+  then have split_app: "ts = ls@rs"
     using split_conc
     by fastforce
 
@@ -755,36 +828,28 @@ proof(induction k x t rule: ins.induct)
   next
     case (Cons a list)
     then obtain sub sep where a_prod: "a  = (sub, sep)" by (cases a)
-    then show ?thesis
-    proof (cases "x = sep")
-      case True
+    then have "bal_up\<^sub>i (ins k x sub)" using 2 split_res
+      using a_prod local.Cons split_app by auto
+    show ?thesis
+    proof (cases "ins k x sub")
+      case (T\<^sub>i x1)
+      then have  "height x1 = height t"
+        by (metis "2.prems" a_prod add_diff_cancel_left' bal_split_left(1) bal_split_left(2) height_bal_tree height_up\<^sub>i.simps(1) ins_height local.Cons plus_1_eq_Suc split_app)
       then show ?thesis
-        using a_prod 2 split_res Cons by simp
+        using split_app Cons T\<^sub>i 2 split_res a_prod
+        by auto
     next
-      case False
-      then have "bal_up\<^sub>i (ins k x sub)" using 2 split_res
-        using a_prod local.Cons split_app by auto
-      show ?thesis
-      proof (cases "ins k x sub")
-        case (T\<^sub>i x1)
-        then have  "height x1 = height t"
-          by (metis "2.prems" a_prod add_diff_cancel_left' bal_split_left(1) bal_split_left(2) height_bal_tree height_up\<^sub>i.simps(1) ins_height local.Cons plus_1_eq_Suc split_app)
-        then show ?thesis
-          using split_app Cons T\<^sub>i 2 split_res a_prod
-          by auto
-      next
-        case (Up\<^sub>i l a r)
-          (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
-        then have
-          "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). bal x"
-          using Up\<^sub>i split_app Cons 2 \<open>bal_up\<^sub>i (ins k x sub)\<close> by auto
-        moreover have "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). height x = height t"
-          using False Up\<^sub>i split_app Cons 2 \<open>bal_up\<^sub>i (ins k x sub)\<close> ins_height split_res a_prod
-          apply auto
-          by (metis height_up\<^sub>i.simps(2) sup.idem sup_nat_def)
-        ultimately show ?thesis using Up\<^sub>i Cons 2 split_res a_prod
-          by (simp del: node\<^sub>i.simps add: node\<^sub>i_bal)
-      qed
+      case (Up\<^sub>i l a r)
+        (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
+      then have
+        "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). bal x"
+        using Up\<^sub>i split_app Cons 2 \<open>bal_up\<^sub>i (ins k x sub)\<close> by auto
+      moreover have "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). height x = height t"
+        using Up\<^sub>i split_app Cons 2 \<open>bal_up\<^sub>i (ins k x sub)\<close> ins_height split_res a_prod
+        apply auto
+        by (metis height_up\<^sub>i.simps(2) sup.idem sup_nat_def)
+      ultimately show ?thesis using Up\<^sub>i Cons 2 split_res a_prod
+        by (simp del: node\<^sub>i.simps add: node\<^sub>i_bal)
     qed
   qed
 qed simp
@@ -792,27 +857,30 @@ qed simp
 (* ins acts as ins_list wrt inorder *)
 
 (* "simple enough" to be automatically solved *)
-lemma node\<^sub>i_inorder: "inorder_up\<^sub>i (node\<^sub>i k ts t) = inorder (Node ts t)"
-  apply(cases "length ts \<le> 2*k")
-   apply (auto split!: list.splits)
-    (* we want to only transform in one direction here.. *)
-  supply R = sym[OF append_take_drop_id, of "map _ ts" "(length ts div 2)"]
-  thm R
-  apply(subst R)
-  apply (simp del: append_take_drop_id add: take_map drop_map)
-  done
+lemma node\<^sub>i_leaves: "leaves_up\<^sub>i (node\<^sub>i k ts t) = leaves (Node ts t)"
+proof (cases "length ts \<le> 2*k")
+  case False
+  then obtain ls sub sep rs where
+    split_half_ts: "split_half ts = (ls@[(sub,sep)], rs)"
+    by (meson node\<^sub>i_cases)
+  then have "leaves_up\<^sub>i (node\<^sub>i k ts t) = leaves_list ls @ leaves sub @ leaves_list rs @ leaves t"
+    using False by auto
+  also have "\<dots> = leaves (Node ts t)"
+    using split_half_ts split_half_conc[of ts "ls@[(sub,sep)]" rs] by auto
+  finally show ?thesis.
+qed simp
 
-corollary node\<^sub>i_inorder_simps:
-  "node\<^sub>i k ts t = T\<^sub>i t' \<Longrightarrow> inorder t' = inorder (Node ts t)"
-  "node\<^sub>i k ts t = Up\<^sub>i l a r \<Longrightarrow> inorder l @ a # inorder r = inorder (Node ts t)"
-   apply (metis inorder_up\<^sub>i.simps(1) node\<^sub>i_inorder)
-  by (metis append_Cons inorder_up\<^sub>i.simps(2) node\<^sub>i_inorder self_append_conv2)
+corollary node\<^sub>i_leaves_simps:
+  "node\<^sub>i k ts t = T\<^sub>i t' \<Longrightarrow> leaves t' = leaves (Node ts t)"
+  "node\<^sub>i k ts t = Up\<^sub>i l a r \<Longrightarrow> leaves l @ leaves r = leaves (Node ts t)"
+   apply (metis leaves_up\<^sub>i.simps(1) node\<^sub>i_leaves)
+  by (metis leaves_up\<^sub>i.simps(2) node\<^sub>i_leaves)
 
 
-lemma ins_sorted_inorder: "sorted_less (inorder t) \<Longrightarrow> (inorder_up\<^sub>i (ins k (x::('a::linorder)) t)) = ins_list x (inorder t)"
+lemma ins_sorted_inorder: "sorted_less (leaves t) \<Longrightarrow> (leaves_up\<^sub>i (ins k (x::('a::linorder)) t)) = ins_list x (leaves t)"
   apply(induction k x t rule: ins.induct)
   using split_axioms apply (auto split!: prod.splits list.splits up\<^sub>i.splits simp del: node\<^sub>i.simps
-      simp add:  node\<^sub>i_inorder node\<^sub>i_inorder_simps)
+      simp add:  node\<^sub>i_leaves node\<^sub>i_leaves_simps)
     (* from here on we prefer an explicit proof, showing how to apply the IH  *)
   oops
 
@@ -821,9 +889,10 @@ lemma ins_sorted_inorder: "sorted_less (inorder t) \<Longrightarrow> (inorder_up
  "inorder_list ts" as "xs @ [a]" and always having to use the implicit properties of split*)
 
 lemma ins_list_split:
-  assumes "split ts x = (ls, rs)"
-    and "sorted_less (inorder (Node ts t))"
-  shows "ins_list x (inorder (Node ts t)) = inorder_list ls @ ins_list x (inorder_list rs @ inorder t)"
+  assumes "aligned l (Node ts t) u"
+    and "sorted_less (leaves (Node ts t))"
+    and "split ts x = (ls, rs)"
+  shows "ins_list x (leaves (Node ts t)) = leaves_list ls @ ins_list x (leaves_list rs @ leaves t)"
 proof (cases ls)
   case Nil
   then show ?thesis
@@ -832,47 +901,89 @@ next
   case Cons
   then obtain ls' sub sep where ls_tail_split: "ls = ls' @ [(sub,sep)]"
     by (metis list.distinct(1) rev_exhaust surj_pair)
-  moreover have "sep < x"
+  have sorted_inorder: "sorted_less (inorder (Node ts t))"
+    using aligned_sorted_inorder assms(1) sorted_cons sorted_snoc by blast
+  moreover have x_sm_sep: "sep < x"
     using split_req(2)[of ts x ls' sub sep rs]
-    using sorted_inorder_separators
-    using assms(1) assms(2) ls_tail_split
+    using sorted_inorder_separators[of ts t] sorted_inorder
+    using assms ls_tail_split
     by auto
-  moreover have "sorted_less (inorder_list ls)"
-    using assms sorted_wrt_append split_conc by fastforce
-  ultimately show ?thesis using assms(2) split_conc[OF assms(1)]
-    using ins_list_sorted[of "inorder_list ls' @ inorder sub" sep]
-    by auto
+  moreover have leaves_split: "leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
+    using assms(3) leaves_split by blast
+  then show ?thesis
+  proof (cases "leaves_list ls")
+    case Nil
+    then show ?thesis
+      by (metis append_self_conv2 leaves_split)
+  next
+    case Cons
+    then obtain leavesls' l' where leaves_tail_split: "leaves_list ls = leavesls' @ [l']"
+      by (metis list.simps(3) rev_exhaust)
+    then have "l' \<le> sep"
+    proof -
+      have "l' \<in> set (leaves_list ls)"
+        using leaves_tail_split by force
+      then have "l' \<in> set (leaves (Node ls' sub))"
+        using ls_tail_split
+        by auto
+      moreover have "aligned l (Node ls' sub) sep" 
+        using assms split_conc[OF assms(3)] Cons ls_tail_split
+        using aligned_split_left[of l ls' sub sep rs t u]
+        by simp
+      ultimately show ?thesis
+        using aligned_leaves_inbetween[of l "Node ls' sub" sep]
+        by blast
+    qed
+    moreover have "sorted_less (leaves_list ls)"
+      using assms(2) leaves_split sorted_wrt_append by auto
+    ultimately show ?thesis
+      using assms(2) ls_tail_split leaves_tail_split leaves_split x_sm_sep
+      using ins_list_sorted[of leavesls' l' x "leaves_list rs@leaves t"]
+      by auto
+  qed
 qed
 
 lemma ins_list_split_right_general:
   assumes "split ts x = (ls, (sub,sep)#rs)"
-    and "sorted_less (inorder_list ts)"
-    and "sep \<noteq> x"
-  shows "ins_list x (inorder_list ((sub,sep)#rs) @ zs) = ins_list x (inorder sub) @ sep # inorder_list rs @ zs"
+    and "sorted_less (leaves (Node ts t))"
+    and "aligned l (Node ts t) u"
+  shows "ins_list x (leaves_list ((sub,sep)#rs) @ leaves t) = ins_list x (leaves sub) @ leaves_list rs @ leaves t"
 proof -
-  from assms have "x < sep"
+  from assms have x_sm_sep: "x \<le> sep"
   proof -
     from assms have "sorted_less (separators ts)"
-      by (simp add: sorted_inorder_list_separators)
+      using aligned_sorted_separators sorted_cons sorted_snoc by blast
     then show ?thesis
       using split_req(3)
       using assms
-      by fastforce
+      by blast
   qed
-  moreover have "sorted_less (inorder_pair (sub,sep))"
-    by (metis (no_types, lifting) assms(1) assms(2) concat.simps(2) concat_append list.simps(9) map_append sorted_wrt_append split_conc)
-  ultimately show ?thesis
-    using ins_list_sorted[of "inorder sub" "sep"]
-    by auto
+  then show ?thesis
+  proof (cases "leaves_list rs @ leaves t")
+    case Nil
+    moreover have "leaves_list ((sub,sep)#rs) @ leaves t = leaves sub @ leaves_list rs @ leaves t"
+      by simp
+    ultimately show ?thesis 
+      by (metis self_append_conv)
+  next
+    case (Cons r' rs')
+    then have "sep < r'"
+      by (metis aligned_leaves_inbetween aligned_split_right assms(1) assms(3) leaves.simps(2) list.set_intros(1) split.split_conc split_axioms)
+    then have  "x < r'"
+      using \<open>x \<le> sep\<close> by auto
+    moreover have "sorted_less (leaves sub @ [r'])"
+    proof -
+      have "sorted_less (leaves_list ls @ leaves sub @ leaves_list rs @ leaves t)"
+        using assms(1) assms(2) split.leaves_split split_axioms by fastforce
+      then show ?thesis
+        using assms 
+        by (metis Cons sorted_mid_iff sorted_wrt_append)
+    qed
+    ultimately show ?thesis
+      using ins_list_sorted[of "leaves sub" r' x rs'] Cons
+      by auto
+  qed
 qed
-
-(* this fits the actual use cases better *)
-corollary ins_list_split_right:
-  assumes "split ts x = (ls, (sub,sep)#rs)"
-    and "sorted_less (inorder (Node ts t))"
-    and "sep \<noteq> x"
-  shows "ins_list x (inorder_list ((sub,sep)#rs) @ inorder t) = ins_list x (inorder sub) @ sep # inorder_list rs @ inorder t"
-  using assms sorted_wrt_append split.ins_list_split_right_general split_axioms by fastforce
 
 
 (* a simple lemma, missing from the standard as of now *)
@@ -884,14 +995,36 @@ lemma ins_list_idem_eq_isin: "sorted_less xs \<Longrightarrow> x \<in> set xs \<
 lemma ins_list_contains_idem: "\<lbrakk>sorted_less xs; x \<in> set xs\<rbrakk> \<Longrightarrow> (ins_list x xs = xs)"
   using ins_list_idem_eq_isin by auto
 
+lemma aligned_insert_list: "sorted_less ks \<Longrightarrow> l < x \<Longrightarrow> x \<le> u \<Longrightarrow> aligned l (LNode ks) u \<Longrightarrow> aligned l (LNode (insert_list ks x)) u"
+  using insert_list_req by auto
 
 declare node\<^sub>i.simps [simp del]
-declare node\<^sub>i_inorder [simp add]  
+declare node\<^sub>i_leaves [simp add]
 
-lemma ins_inorder: "sorted_less (inorder t) \<Longrightarrow> (inorder_up\<^sub>i (ins k x t)) = ins_list x (inorder t)"
-proof(induction k x t rule: ins.induct)
-  case (1 k x)
-  then show ?case by auto
+lemma ins_inorder: 
+  assumes "k > 0"
+    and "aligned l t u"
+    and "sorted_less (leaves t)"
+    and "order k t"
+    and "l < x" "x \<le> u"
+  shows "(leaves_up\<^sub>i (ins k x t)) = ins_list x (leaves t) \<and> aligned_up\<^sub>i l (ins k x t) u"
+  using assms
+proof(induction k x t arbitrary: l u rule: ins.induct)
+  case (1 k x ks)
+  then show ?case
+  proof (safe)
+    from 1 show "leaves_up\<^sub>i (ins k x (LNode ks)) = ins_list x (leaves (LNode ks))"
+      using Lnode\<^sub>i_aligned[of l ks u k] 
+      by (auto simp add: insert_list_ins_list)
+  next
+    from 1 have "aligned l (LNode (insert_list ks x)) u" 
+      by (metis aligned_insert_list leaves.simps(1))
+    moreover have "sorted_less (insert_list ks x)"
+      using "1.prems"(3) split.insert_list_req(1) split_axioms by auto
+    ultimately show "aligned_up\<^sub>i l (ins k x (LNode ks)) u"
+      using Lnode\<^sub>i_aligned[of l "insert_list ks x" u k] 1
+      by (auto simp del: Lnode\<^sub>i.simps split_half.simps)
+  qed
 next
   case (2 k x ts t)
   then obtain ls rs where list_split: "split ts x = (ls,rs)"
@@ -901,21 +1034,45 @@ next
   then show ?case
   proof (cases rs)
     case Nil
-    then show ?thesis
+    then obtain ts' sub' sep' where "ts = ts'@[(sub',sep')]"
+      apply(cases ts)
+      using 2 list_conc Nil apply(simp)
+      by (metis isin.cases list.distinct(1) rev_exhaust)
+    show ?thesis
     proof (cases "ins k x t")
       case (T\<^sub>i a)
-      then have IH:"inorder a = ins_list x (inorder t)"
-        using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_induct_last
-        by auto
+      have IH: "leaves a = ins_list x (leaves t) \<and> aligned_up\<^sub>i sep' (ins k x t) u"
+      proof - 
+        (* we need to fulfill all these IH requirements *)
+        note "2.IH"(1)[OF sym[OF list_split] Nil "2.prems"(1), of sep' u]
+        have "sorted_less (leaves t)"
+          using "2.prems"(3) sorted_leaves_induct_last by blast
+        moreover have "sep' < x"
+          using split_req[of ts x] list_split
+          by (metis "2.prems"(2) \<open>ts = ts' @ [(sub', sep')]\<close> aligned_sorted_separators local.Nil self_append_conv sorted_cons sorted_snoc)
+        moreover have "aligned sep' t u"
+          using "2.prems"(2) \<open>ts = ts' @ [(sub', sep')]\<close> align_last by blast
+        ultimately show ?thesis
+          using  "2.IH"(1)[OF sym[OF list_split] Nil "2.prems"(1), of sep' u]
+          using "2.prems" list_split local.Nil sorted_leaves_induct_last T\<^sub>i
+          by auto
+      qed
 
-      have "inorder_up\<^sub>i (ins k x (Node ts t)) = inorder_list ls @ inorder a"
+      have "leaves_up\<^sub>i (ins k x (Node ts t)) = leaves_list ls @ leaves a"
         using list_split T\<^sub>i Nil by (auto simp add: list_conc)
-      also have "\<dots> = inorder_list ls @ (ins_list x (inorder t))"
+      also have "\<dots> = leaves_list ls @ (ins_list x (leaves t))"
         by (simp add: IH)
-      also have "\<dots> = ins_list x (inorder (Node ts t))"
+      also have "\<dots> = ins_list x (leaves (Node ts t))"
         using ins_list_split
-        using "2.prems" list_split Nil by auto
-      finally show ?thesis .
+        using "2.prems" list_split Nil
+        by auto
+      finally have t0: "leaves_up\<^sub>i (ins k x (Node ts t)) = ins_list x (leaves (Node ts t))" .
+      moreover have "aligned_up\<^sub>i l (ins k x (Node ts t)) u = aligned l (Node ts a) u"
+        using Nil T\<^sub>i list_split list_conc by simp
+      moreover have "aligned l (Node ts a) u"
+        using "2.prems"(2)
+        by (metis IH T\<^sub>i \<open>ts = ts' @ [(sub', sep')]\<close> aligned_subst_last aligned_up\<^sub>i.simps(1))
+      ultimately show ?thesis by auto
     next
       case (Up\<^sub>i l a r)
       then have IH:"inorder_up\<^sub>i (Up\<^sub>i l a r) = ins_list x (inorder t)"

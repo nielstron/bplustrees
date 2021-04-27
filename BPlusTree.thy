@@ -467,9 +467,19 @@ lemma aligned_split_right: "aligned l (Node (ls@(sub,sep)#rs) t) u \<Longrightar
   apply auto
   done
 
-lemma "aligned l (Node (ls@(sub', subl)#(sub,subsep)#rs) t) u \<Longrightarrow> aligned subl subsub subsep \<Longrightarrow>
+lemma aligned_subst: "aligned l (Node (ls@(sub', subl)#(sub,subsep)#rs) t) u \<Longrightarrow> aligned subl subsub subsep \<Longrightarrow>
 aligned l (Node (ls@(sub',subl)#(subsub,subsep)#rs) t) u" 
   apply (induction ls arbitrary: l)
+  apply auto
+  done
+
+lemma aligned_subst_emptyls: "aligned l (Node ((sub,subsep)#rs) t) u \<Longrightarrow> aligned l subsub subsep \<Longrightarrow>
+aligned l (Node ((subsub,subsep)#rs) t) u" 
+  by auto
+
+lemma aligned_subst_last: "aligned l (Node (ts'@[(sub', sep')]) t) u \<Longrightarrow> aligned sep' t' u \<Longrightarrow>
+  aligned l (Node (ts'@[(sub', sep')]) t') u" 
+  apply (induction ts' arbitrary: l)
   apply auto
   done
 
