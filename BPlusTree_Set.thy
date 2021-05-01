@@ -1360,9 +1360,23 @@ again, using the rules known from insertion splits.
 If the resulting node has admissable size, it is simply kept in the tree."
 
 fun rebalance_middle_tree where
-  "rebalance_middle_tree k ls Leaf sep rs Leaf = (
-  Node (ls@(Leaf,sep)#rs) Leaf
-)" |
+  "rebalance_middle_tree k ls (LNode ms) sep rs (LNode ts) = (
+  if length ms \<ge> k \<and> length ts \<ge> k then 
+    Node (ls@(LNode ms,sep)#rs) (LNode ts)
+  else (
+    case rs of [] \<Rightarrow> (
+      case Lnode\<^sub>i k (ms@ts) of
+       T\<^sub>i u \<Rightarrow>
+        Node ls u |
+       Up\<^sub>i l a r \<Rightarrow>
+        Node (ls@[(l,a)]) r) |
+    (LNode rrs,rsep)#rs \<Rightarrow> (
+      case Lnode\<^sub>i k (ms@rrs) of
+      T\<^sub>i u \<Rightarrow>
+        Node (ls@(u,rsep)#rs) (LNode ts) |
+      Up\<^sub>i l a r \<Rightarrow>
+        Node (ls@(l,a)#(r,rsep)#rs) (LNode ts))
+))" |
   "rebalance_middle_tree k ls (Node mts mt) sep rs (Node tts tt) = (
   if length mts \<ge> k \<and> length tts \<ge> k then 
     Node (ls@(Node mts mt,sep)#rs) (Node tts tt)
