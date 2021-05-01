@@ -1324,18 +1324,31 @@ lemma tree\<^sub>i_inorder: "inorder_up\<^sub>i u = inorder (tree\<^sub>i u)"
    apply auto
   done
 
+lemma tree\<^sub>i_leaves: "leaves_up\<^sub>i u = leaves (tree\<^sub>i u)"
+  apply (cases u)
+   apply auto
+  done
+
+lemma tree\<^sub>i_aligned: "aligned_up\<^sub>i l a u \<Longrightarrow> aligned l (tree\<^sub>i a) u"
+  apply (cases a)
+   apply auto
+  done
+
 lemma insert_bal: "bal t \<Longrightarrow> bal (insert k x t)"
   using ins_bal
   by (simp add: tree\<^sub>i_bal)
 
-lemma insert_order: "\<lbrakk>k > 0; root_order k t\<rbrakk> \<Longrightarrow> root_order k (insert k x t)"
+lemma insert_order: "\<lbrakk>k > 0; sorted_less (leaves t); root_order k t\<rbrakk> \<Longrightarrow> root_order k (insert k x t)"
   using ins_root_order
   by (simp add: tree\<^sub>i_order)
 
 
-lemma insert_inorder: "sorted_less (inorder t) \<Longrightarrow> inorder (insert k x t) = ins_list x (inorder t)"
-  using ins_inorder
-  by (simp add: tree\<^sub>i_inorder)
+lemma insert_inorder: 
+  assumes "k > 0" "order k t" "sorted_less (leaves t)" "aligned l t u" "l < x" "x \<le> u"
+  shows "leaves (insert k x t) = ins_list x (leaves t)"
+    and "aligned l (insert k x t) u"
+  using ins_inorder assms
+  by (simp_all add: tree\<^sub>i_leaves tree\<^sub>i_aligned)
 
 subsection "Deletion"
 
