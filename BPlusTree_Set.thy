@@ -28,6 +28,33 @@ lemma split_half_not_empty: "length xs \<ge> 1 \<Longrightarrow> \<exists>ls a r
   using take_not_empty
   by (metis (no_types, hide_lams) Ex_list_of_length One_nat_def le_trans length_Cons list.size(4) nat_1_add_1 not_one_le_zero rev_exhaust split_half.simps take0 take_all_iff)
 
+(* obsolete fact *)
+lemma insert_list_length[simp]:
+  assumes "sorted_less ks"
+    and "set (insert_list k ks) = set ks \<union> {k}"
+    and "sorted_less ks \<Longrightarrow> sorted_less (insert_list k ks)"
+  shows "length (insert_list k ks) = length ks + (if k \<in> set ks then 0 else 1)"
+proof -
+  have "distinct (insert_list k ks)"
+    by (metis assms(1,3) strict_sorted_iff strict_sorted_sorted_wrt)
+  then have "length (insert_list k ks) = card (set (insert_list k ks))"
+    by (simp add: distinct_card)
+  also have "\<dots> = card (set ks \<union> {k})"
+    using assms(2) by presburger
+  also have "\<dots> = card (set ks) + (if k \<in> set ks then 0 else 1)"
+    by (cases "k \<in> set ks") (auto simp add: insert_absorb)
+  also have "\<dots> = length ks + (if k \<in> set ks then 0 else 1)"
+    by (metis assms(1) distinct_card strict_sorted_iff strict_sorted_sorted_wrt)
+  finally show ?thesis.
+qed
+
+lemma ins_list_length[simp]:
+  assumes "sorted_less ks"
+  shows "length (ins_list k ks) = length ks + (if k \<in> set ks then 0 else 1)"
+  using insert_list_length[of ks ins_list k]
+  by (simp add: assms set_ins_list sorted_ins_list)
+
+
 subsection "The split function locale"
 
 text "Here, we abstract away the inner workings of the split function
@@ -41,35 +68,29 @@ this would allow for key,pointer pairs to be inserted into the tree *)
 (* TODO what if the keys are the pointers? *)
 locale split =
   fixes split ::  "('a bplustree\<times>'a::linorder) list \<Rightarrow> 'a \<Rightarrow> (('a bplustree\<times>'a) list \<times> ('a bplustree\<times>'a) list)"
-  and insert_list ::  "('a::linorder) list \<Rightarrow> 'a \<Rightarrow> 'a list"
+  and insert_list ::  "'a \<Rightarrow> ('a::linorder) list \<Rightarrow> 'a list"
   assumes split_req:
     "\<lbrakk>split xs p = (ls,rs)\<rbrakk> \<Longrightarrow> xs = ls @ rs"
     "\<lbrakk>split xs p = (ls@[(sub,sep)],rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> sep < p"
     "\<lbrakk>split xs p = (ls,(sub,sep)#rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> p \<le> sep"
   and insert_list_req:
-    "sorted_less ks \<Longrightarrow> sorted_less (insert_list ks k)"
-    "set (insert_list ks k) = set ks \<union> {k}"
+    (* TODO locale that derives such a function from a split function similar to the above *)
+    "sorted_less ks \<Longrightarrow> insert_list k ks = ins_list k ks"
 begin
-
-lemma insert_list_ins_list: assumes "sorted_less ks" shows "insert_list ks k = ins_list k ks"
-  sorry
 
 lemma insert_list_length[simp]:
   assumes "sorted_less ks"
-  shows "length (insert_list ks k) = length ks + (if k \<in> set ks then 0 else 1)"
-proof -
-  have "distinct (insert_list ks k)"
-    by (metis assms insert_list_req(1) strict_sorted_iff strict_sorted_sorted_wrt)
-  then have "length (insert_list ks k) = card (set (insert_list ks k))"
-    by (simp add: distinct_card)
-  also have "\<dots> = card (set ks \<union> {k})"
-    using insert_list_req(2) by presburger
-  also have "\<dots> = card (set ks) + (if k \<in> set ks then 0 else 1)"
-    by (cases "k \<in> set ks") (auto simp add: insert_absorb)
-  also have "\<dots> = length ks + (if k \<in> set ks then 0 else 1)"
-    by (metis assms distinct_card strict_sorted_iff strict_sorted_sorted_wrt)
-  finally show ?thesis.
-qed
+  shows "length (insert_list k ks) = length ks + (if k \<in> set ks then 0 else 1)"
+  using ins_list_length insert_list_req
+  by (simp add: assms)
+
+lemma set_insert_list[simp]:
+  "sorted_less ks \<Longrightarrow> set (insert_list k ks) = set ks \<union> {k}"
+  by (simp add: insert_list_req set_ins_list)
+
+lemma sorted_insert_list[simp]:
+  "sorted_less ks \<Longrightarrow> sorted_less (insert_list k ks)"
+  by (simp add: insert_list_req sorted_ins_list)
 
 lemmas split_conc = split_req(1)
 lemmas split_sorted = split_req(2,3)
@@ -333,7 +354,7 @@ lemma Lnodei_ti_simp: "Lnode\<^sub>i k ts = T\<^sub>i x \<Longrightarrow> x = LN
   done
 
 fun ins:: "nat \<Rightarrow> 'a \<Rightarrow> 'a bplustree \<Rightarrow> 'a up\<^sub>i" where
-  "ins k x (LNode ks) = Lnode\<^sub>i k (insert_list ks x)" |
+  "ins k x (LNode ks) = Lnode\<^sub>i k (insert_list x ks)" |
   "ins k x (Node ts t) = (
   case split ts x of
     (ls,(sub,sep)#rs) \<Rightarrow> 
@@ -549,7 +570,7 @@ lemma ins_order:
 proof(induction k x t rule: ins.induct)
   case (1 k x ts)
   then show ?case
-    by (auto simp add: Lnode\<^sub>i_order min_absorb2) (* this proof requires both sorted_less and k > 0 *)
+    by auto (* this proof requires both sorted_less and k > 0 *)
 next
   case (2 k x ts t)
   then obtain ls rs where split_res: "split ts x = (ls, rs)"
@@ -995,8 +1016,9 @@ lemma ins_list_idem_eq_isin: "sorted_less xs \<Longrightarrow> x \<in> set xs \<
 lemma ins_list_contains_idem: "\<lbrakk>sorted_less xs; x \<in> set xs\<rbrakk> \<Longrightarrow> (ins_list x xs = xs)"
   using ins_list_idem_eq_isin by auto
 
-lemma aligned_insert_list: "sorted_less ks \<Longrightarrow> l < x \<Longrightarrow> x \<le> u \<Longrightarrow> aligned l (LNode ks) u \<Longrightarrow> aligned l (LNode (insert_list ks x)) u"
-  using insert_list_req by auto
+lemma aligned_insert_list: "sorted_less ks \<Longrightarrow> l < x \<Longrightarrow> x \<le> u \<Longrightarrow> aligned l (LNode ks) u \<Longrightarrow> aligned l (LNode (insert_list x ks)) u"
+  using insert_list_req
+  by (simp add: set_ins_list)
 
 lemma align_subst_two: "aligned l (Node (ts@[(sub,sep)]) t) u \<Longrightarrow> aligned sep lt a \<Longrightarrow> aligned a rt u \<Longrightarrow> aligned l (Node (ts@[(sub,sep),(lt,a)]) rt) u" 
   apply(induction ts arbitrary: l)
@@ -1023,18 +1045,18 @@ proof(induction k x t arbitrary: l u rule: ins.induct)
   case (1 k x ks)
   then show ?case
   proof (safe, goal_cases)
-    case 1
-    then show ?case
-      using Lnode\<^sub>i_aligned[of l ks u k] 
-      by (auto simp add: insert_list_ins_list)
+    case _: 1
+    then show ?case   
+      using 1 insert_list_req by auto
   next
     case 2
-    from 1 have "aligned l (LNode (insert_list ks x)) u" 
+    from 1 have "aligned l (LNode (insert_list x ks)) u" 
       by (metis aligned_insert_list leaves.simps(1))
-    moreover have "sorted_less (insert_list ks x)"
-      using "1.prems"(3) split.insert_list_req(1) split_axioms by auto
+    moreover have "sorted_less (insert_list x ks)"
+      using "1.prems"(3) split.insert_list_req split_axioms
+      by auto
     ultimately show ?case
-      using Lnode\<^sub>i_aligned[of l "insert_list ks x" u k] 1
+      using Lnode\<^sub>i_aligned[of l "insert_list x ks" u k] 1
       by (auto simp del: Lnode\<^sub>i.simps split_half.simps)
   qed
 next
