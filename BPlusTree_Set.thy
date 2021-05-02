@@ -1415,35 +1415,30 @@ and the left neighbour is way easier to access than the right neighbour,
 it resides in the same pair as the separating element to be removed."
 
 
-
+(* TODO do we need this anymore? *)
 fun split_max where
-  "split_max k (Node ts t) = (case t of Leaf \<Rightarrow> (
-  let (sub,sep) = last ts in 
-    (Node (butlast ts) sub, sep)
-)|
-_ \<Rightarrow> 
-case split_max k t of (sub, sep) \<Rightarrow>
-  (rebalance_last_tree k ts sub, sep)
+  "split_max k (LNode xs) = (
+  let sep = last xs in 
+    (LNode (butlast xs), sep)
+)" |
+"split_max k (Node ts t) = (
+  case split_max k t of (sub, sep) \<Rightarrow>
+    (rebalance_last_tree k ts sub, sep)
 )"
 
 fun del where
-  "del k x Leaf = Leaf" |
+  "del k x (LNode xs) = (LNode (del_list x xs))" |
   "del k x (Node ts t) = (
   case split ts x of 
     (ls,[]) \<Rightarrow> 
      rebalance_last_tree k ls (del k x t)
   | (ls,(sub,sep)#rs) \<Rightarrow> (
-      if sep \<noteq> x then 
-        rebalance_middle_tree k ls (del k x sub) sep rs t
-      else if sub = Leaf then
-        Node (ls@rs) t
-      else let (sub_s, max_s) = split_max k sub in
-        rebalance_middle_tree k ls sub_s max_s rs t
+     rebalance_middle_tree k ls (del k x sub) sep rs t
   )
 )"
 
 fun reduce_root where
-  "reduce_root Leaf = Leaf" |
+  "reduce_root (LNode xs) = (LNode xs)" |
   "reduce_root (Node ts t) = (case ts of
    [] \<Rightarrow> t |
    _ \<Rightarrow> (Node ts t)
@@ -1457,7 +1452,7 @@ text "An invariant for intermediate states at deletion.
 In particular we allow for an underflow to 0 subtrees."
 
 fun almost_order where
-  "almost_order k Leaf = True" |
+  "almost_order k (LNode xs) = (length xs \<le> 2*k)" |
   "almost_order k (Node ts t) = (
   (length ts \<le> 2*k) \<and>
   (\<forall>s \<in> set (subtrees ts). order k s) \<and>
@@ -1469,7 +1464,7 @@ text "A recursive property of the \"spine\" we want to walk along for splitting
     off the maximum of the left subtree."
 
 fun nonempty_lasttreebal where
-  "nonempty_lasttreebal Leaf = True" |
+  "nonempty_lasttreebal (LNode xs) = (\<exists>ls tsep. xs = (ls@[tsep]))" |
   "nonempty_lasttreebal (Node ts t) = (
     (\<exists>ls tsub tsep. ts = (ls@[(tsub,tsep)]) \<and> height tsub = height t) \<and>
      nonempty_lasttreebal t
@@ -1487,8 +1482,21 @@ lemma rebalance_middle_tree_height:
   shows "height (rebalance_middle_tree k ls sub sep rs t) = height (Node (ls@(sub,sep)#rs) t)"
 proof (cases "height t")
   case 0
-  then have "t = Leaf" "sub = Leaf" using height_Leaf assms by auto
-  then show ?thesis by simp
+  then obtain ts subs where "t = LNode ts" "sub = LNode subs" using height_Leaf assms
+    by metis
+  moreover have "rs = (rsub,rsep) # list \<Longrightarrow> rsub = Node rts rt \<Longrightarrow> False"
+    for rsub rsep list rts rt
+  proof (goal_cases)
+    case 1
+    then have "height rsub = height t"
+      using assms(2) by auto
+    then have "height rsub = 0"
+      using 0 by simp
+    then show ?case
+      using "1"(2) height_Leaf by blast
+  qed 
+  ultimately show ?thesis
+    by (auto split!: list.splits bplustree.splits)
 next
   case (Suc nat)
   then obtain tts tt where t_node: "t = Node tts tt"
