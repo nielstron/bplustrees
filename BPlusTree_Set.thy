@@ -1840,10 +1840,37 @@ lemma rebalance_last_tree_bal: "\<lbrakk>bal (Node ts t); ts \<noteq> []\<rbrakk
   apply(auto simp del: bal.simps rebalance_middle_tree.simps)
   done
 
+lemma LNode_merge_aligned: "aligned l (LNode ms) m \<Longrightarrow> aligned m (LNode rs) r \<Longrightarrow> aligned l (LNode (ms@rs)) r"
+  by auto
+
+lemma aligned_subst_last_merge: "aligned l (Node (ts'@[(sub', sep'),(sub,sep)]) t) u \<Longrightarrow> aligned sep' t' u \<Longrightarrow>
+  aligned l (Node (ts'@[(sub', sep')]) t') u" 
+  apply (induction ts' arbitrary: l)
+  apply auto
+  done
+
+lemma aligned_subst_last_merge_two: "aligned l (Node (ts@[(sub',sep'),(sub,sep)]) t) u \<Longrightarrow> aligned sep' lt a \<Longrightarrow> aligned a rt u \<Longrightarrow> aligned l (Node (ts@[(sub',sep'),(lt,a)]) rt) u" 
+  apply(induction ts arbitrary: l)
+  apply auto
+  done
+
+lemma aligned_subst_merge: "aligned l (Node (ls@(lsub, lsep)#(sub,sep)#(rsub,rsep)#rs) t) u \<Longrightarrow> aligned lsep sub' rsep \<Longrightarrow>
+  aligned l (Node (ls@(lsub, lsep)#(sub', rsep)#rs) t) u" 
+  apply (induction ls arbitrary: l)
+  apply auto
+  done
+
+lemma aligned_subst_merge_two: "aligned l (Node (ls@(lsub, lsep)#(sub,sep)#(rsub,rsep)#rs) t) u \<Longrightarrow> aligned lsep sub' a \<Longrightarrow>
+  aligned a rsub' rsep \<Longrightarrow> aligned l (Node (ls@(lsub, lsep)#(sub',a)#(rsub', rsep)#rs) t) u" 
+  apply(induction ls arbitrary: l)
+  apply auto
+  done
 
 lemma rebalance_middle_tree_aligned:
   assumes "aligned l (Node (ls@(sub,sep)#rs) t) u"
     and "height t = height sub"
+    and "sorted_less (leaves (Node (ls@(sub,sep)#rs) t))"
+    and "k > 0"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
   shows "aligned l (rebalance_middle_tree k ls sub sep rs t) u"
 proof (cases t)
@@ -1862,52 +1889,81 @@ proof (cases t)
     case False
     then show ?thesis
     proof (cases rs)
-      case Nil
-      have "aligned_up\<^sub>i l (Lnode\<^sub>i k (mxs@txs)) u = aligned l (LNode (mxs@txs)) u"
-        using Lnode\<^sub>i_aligned by blast
-      also have "\<dots> = 0"
-        by simp
-      also have "\<dots> = height t"
-        using height_bal_tree sub_heights(3) l_node by fastforce
-      finally have "height_up\<^sub>i (Lnode\<^sub>i k (mxs@txs)) = height t" .
-      moreover have "bal_up\<^sub>i (Lnode\<^sub>i k (mxs@txs))"
-        by (simp add: bal_up\<^sub>i.elims(3) height_Leaf height_up\<^sub>i.simps(2) max_nat.neutr_eq_iff)
-      ultimately show ?thesis
-        apply (cases "Lnode\<^sub>i k (mxs@txs)")
-        using assms Nil sub_node l_node by auto
-    next
-      case (Cons r rs)
-      then obtain rsub rsep where r_split: "r = (rsub,rsep)" by (cases r)
-      then have rsub_height: "height rsub = height t" "bal rsub"
-        using assms Cons by auto
-      then obtain rxs where r_node: "rsub = LNode rxs"
-        apply(cases rsub) using assms l_node by auto
-      have "height_up\<^sub>i (Lnode\<^sub>i k (mxs@rxs)) = height (LNode (mxs@rxs))"
-        using Lnode\<^sub>i_height by blast
-      also have "\<dots> = 0"
-        by auto
-      also have "\<dots> = height rsub"
-        using height_bal_tree r_node rsub_height(2) by fastforce
-      finally have 1: "height_up\<^sub>i (Lnode\<^sub>i k (mxs@rxs)) = height rsub" .
-      moreover have 2: "bal_up\<^sub>i (Lnode\<^sub>i k (mxs@rxs))"
-        by simp
-      ultimately show ?thesis
-      proof (cases "Lnode\<^sub>i k (mxs@rxs)")
-        case (T\<^sub>i u)
-        then have "bal (Node (ls@(u,rsep)#rs) t)"
-          using 1 2 Cons assms l_node subtrees_split sub_heights r_split rsub_height
-          unfolding bal.simps by (auto simp del: height_bplustree.simps)
+      case rs_nil: Nil
+      then have sorted_leaves: "sorted_less (mxs@txs)"
+        using assms(3) rs_nil l_node sub_node sorted_wrt_append
+        by auto 
+      then show ?thesis
+      proof (cases ls)
+        case ls_nil: Nil
+        then have "aligned l (LNode (mxs@txs)) u"
+          using l_node sub_node assms rs_nil False
+          using assms
+          by auto
+        then  have "aligned_up\<^sub>i l (Lnode\<^sub>i k (mxs@txs)) u"
+          using Lnode\<^sub>i_aligned sorted_leaves assms by blast
         then show ?thesis
-          using Cons assms l_node sub_node r_split r_node False T\<^sub>i
-          by (auto simp del: node\<^sub>i.simps bal.simps)
+          using False l_node sub_node rs_nil ls_nil
+          by (auto simp del: Lnode\<^sub>i.simps split!: up\<^sub>i.split)
       next
-        case (Up\<^sub>i l a r)
-        then have "bal (Node (ls@(l,a)#(r,rsep)#rs) t)"
-          using 1 2 Cons assms l_node subtrees_split sub_heights r_split rsub_height
-          unfolding bal.simps by (auto simp del: height_bplustree.simps)
+        case Cons
+        then obtain ls' lssub lssep where ls_Cons: "ls = ls'@[(lssub,lssep)]"
+          by (metis list.discI old.prod.exhaust snoc_eq_iff_butlast)
+        then have "aligned lssep (LNode (mxs@txs)) u"
+          using LNode_merge_aligned
+          using align_last aligned_split_left assms(1) l_node rs_nil sub_node
+          by blast
+        moreover have "sorted_less (mxs@txs)"
+          using assms(3) rs_nil l_node sub_node
+          by (auto simp add: sorted_wrt_append) 
+        ultimately have "aligned_up\<^sub>i lssep (Lnode\<^sub>i k (mxs@txs)) u"
+          using Lnode\<^sub>i_aligned assms(4) by blast
         then show ?thesis
-          using Cons assms l_node sub_node r_split r_node False Up\<^sub>i
-          by (auto simp del: node\<^sub>i.simps bal.simps)
+          using False l_node sub_node rs_nil ls_Cons assms
+          using aligned_subst_last_merge[of l ls' lssub lssep sub sep t u]
+          using aligned_subst_last_merge_two[of l ls' lssub lssep sub sep t u]
+          by (auto simp del: Lnode\<^sub>i.simps split!: up\<^sub>i.split)
+      qed
+    next
+      case rs_Cons: (Cons r rs)
+      then obtain rsub rsep where r_split[simp]: "r = (rsub,rsep)" by (cases r)
+      then have "height rsub = 0"
+        using \<open>\<And>thesis. (\<And>mxs. sub = LNode mxs \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> assms(2) assms(5) rs_Cons
+        by fastforce
+      then obtain rxs where rs_LNode[simp]: "rsub = LNode rxs"
+        by (cases rsub) auto
+      then have sorted_leaves: "sorted_less (mxs@rxs)"
+        using assms(3) rs_Cons sub_node sorted_wrt_append r_split
+        by (auto simp add: sorted_wrt_append) 
+      then show ?thesis
+      proof (cases ls)
+        case ls_nil: Nil
+        then have "aligned l (LNode (mxs@rxs)) rsep"
+          using sub_node assms rs_Cons False
+          by auto
+        then  have "aligned_up\<^sub>i l (Lnode\<^sub>i k (mxs@rxs)) rsep"
+          using Lnode\<^sub>i_aligned sorted_leaves assms by blast
+        then show ?thesis
+          using False l_node sub_node rs_Cons ls_nil assms
+          by (auto simp del: Lnode\<^sub>i.simps split!: up\<^sub>i.split)
+      next
+        case Cons
+        then obtain ls' lsub lsep where ls_Cons: "ls = ls'@[(lsub,lsep)]"
+          by (metis list.discI old.prod.exhaust snoc_eq_iff_butlast)
+        then have "aligned lsep (LNode (mxs@rxs)) rsep"
+          using LNode_merge_aligned
+          using align_last aligned_split_left assms(1) l_node rs_Cons sub_node
+          by (metis aligned.elims(2) aligned_split_right bplustree.distinct(1) bplustree.inject(2) inbetween.simps(2) r_split rs_LNode)
+        moreover have "sorted_less (mxs@rxs)"
+          using assms(3) rs_Cons l_node sub_node
+          by (auto simp add: sorted_wrt_append) 
+        ultimately have "aligned_up\<^sub>i lsep (Lnode\<^sub>i k (mxs@rxs)) rsep"
+          using Lnode\<^sub>i_aligned assms(4) by blast
+        then show ?thesis
+          using False l_node sub_node rs_Cons ls_Cons assms
+          using aligned_subst_merge[of l ls' lsub lsep sub sep rsub rsep rs]
+          using aligned_subst_merge_two[of l ls' lsub lsep sub sep rsub rsep rs t u]
+          by (auto simp del: Lnode\<^sub>i.simps split!: up\<^sub>i.split)
       qed
     qed
   qed
