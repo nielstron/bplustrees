@@ -119,7 +119,7 @@ text \<open>The special condition for the root is called \textit{root\_order}\<c
 
 (* the invariant for the root of the bplustree *)
 fun root_order:: "nat \<Rightarrow> 'a bplustree \<Rightarrow> bool" where
-  "root_order k (LNode ks) = (length ks > 0 \<and> length ks \<le> 2*k)" |
+  "root_order k (LNode ks) = (length ks \<le> 2*k)" |
   "root_order k (Node ts t) = (
   (length ts > 0) \<and>
   (length ts \<le> 2*k) \<and>
