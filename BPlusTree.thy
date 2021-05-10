@@ -332,8 +332,6 @@ lemma sorted_less_merge: "sorted_less (as@[a]) \<Longrightarrow> sorted_less (a#
   done
 
 
-definition aligned_tree where "aligned_tree t = aligned bot t top"
-
 thm aligned.simps
 
 lemma leaves_cases: "x \<in> set (leaves (Node ts t)) \<Longrightarrow> (\<exists>(sub,sep) \<in> set ts. x \<in> set (leaves sub)) \<or> x \<in> set (leaves t)"
@@ -462,6 +460,7 @@ lemma aligned_split_left: "aligned l (Node (ls@(sub,sep)#rs) t) u \<Longrightarr
   apply auto
   done
 
+
 lemma aligned_split_right: "aligned l (Node (ls@(sub,sep)#rs) t) u \<Longrightarrow> aligned sep (Node rs t) u"
   apply(induction ls arbitrary: l)
   apply auto
@@ -481,6 +480,154 @@ lemma aligned_subst_last: "aligned l (Node (ts'@[(sub', sep')]) t) u \<Longright
   aligned l (Node (ts'@[(sub', sep')]) t') u" 
   apply (induction ts' arbitrary: l)
   apply auto
+  done
+
+fun Laligned :: "'a ::linorder bplustree \<Rightarrow> _" where 
+"Laligned (LNode ks) u = (\<forall>x \<in> set ks. x \<le> u)" |
+"Laligned (Node ts t) u = (case ts of [] \<Rightarrow> (Laligned t u) |
+ (sub,sep)#ts' \<Rightarrow> ((Laligned sub sep) \<and> inbetween aligned sep ts' t u))"
+
+lemma Laligned_nonempty_Node: "Laligned (Node ((sub,sep)#ts') t) u =
+  ((Laligned sub sep) \<and> inbetween aligned sep ts' t u)"
+  by simp
+
+lemma aligned_imp_Laligned: "aligned l t u \<Longrightarrow> Laligned t u"
+  apply (induction l t u rule: aligned.induct)
+  apply simp
+  subgoal for l ts t u
+    apply(cases ts)
+     apply auto
+    apply blast
+    done
+  done
+
+lemma Laligned_split_left: "Laligned (Node (ls@(sub,sep)#rs) t) u \<Longrightarrow> Laligned (Node ls sub) sep"
+  apply(cases ls)
+  apply (auto dest!: aligned_imp_Laligned)
+  apply (meson aligned.simps(2) aligned_split_left)
+  done
+
+lemma Laligned_split_right: "Laligned (Node (ls@(sub,sep)#rs) t) u \<Longrightarrow> aligned sep (Node rs t) u"
+  apply(cases ls)
+  apply (auto split!: list.splits dest!: aligned_imp_Laligned)
+  apply (meson aligned.simps(2) aligned_split_right)
+  done
+
+lemma Lalign_sub: "Laligned (Node ((a,b)#ts) t) u \<Longrightarrow> (sub,sep) \<in> set ts \<Longrightarrow> \<exists>l' \<in> set (separators ts) \<union> {b}. aligned l' sub sep" 
+  apply(induction ts arbitrary: a b)
+    apply (auto dest!: aligned_imp_Laligned)
+  done
+
+lemma Lalign_last: "Laligned (Node (ts@[(sub,sep)]) t) u \<Longrightarrow> aligned sep t u" 
+  by (cases ts) (auto simp add: align_last)
+
+lemma Lalign_last': "Laligned (Node ((a,b)#ts) t) u \<Longrightarrow> \<exists>l' \<in> set (separators ts) \<union> {b}. aligned l' t u" 
+  apply(induction ts arbitrary: a b)
+  apply (auto dest!: aligned_imp_Laligned)
+  done
+
+lemma Lalign_Llast: "Laligned (Node ts t) u \<Longrightarrow> Laligned t u" 
+  apply(cases ts)
+  apply auto
+  using aligned_imp_Laligned Lalign_last' Laligned_nonempty_Node
+  by metis
+
+
+lemma Laligned_sorted_inorder: "Laligned t u \<Longrightarrow> sorted_less ((inorder t)@[u])" 
+proof(induction t u rule: Laligned.induct)
+  case (1 ks u)
+  then show ?case by auto
+next
+  case (2 ts t u)
+  then show ?case 
+    apply (cases ts)
+    apply auto
+    by (metis aligned.simps(2) aligned_sorted_inorder append_assoc inorder.simps(2) sorted_less_merge)
+qed
+
+
+lemma Laligned_sorted_separators: "Laligned (Node ts t) u \<Longrightarrow> sorted_less ((separators ts)@[u])" 
+  by (smt (verit, del_insts) Laligned_sorted_inorder separators_in_inorder sorted_inorder_separators sorted_wrt_append subset_eq)
+
+lemma Laligned_leaves_inbetween: "Laligned t u \<Longrightarrow> \<forall>x \<in> set (leaves t). x \<le> u"
+proof (induction t u rule: Laligned.induct)
+  case (1 ks u)
+  then show ?case by auto
+next
+  case (2 ts t u)
+  have *: "sorted_less (inorder (Node ts t)@[u])"
+    using "2.prems" Laligned_sorted_inorder by blast
+  show ?case
+  proof (cases ts)
+    case Nil
+    show ?thesis
+    proof 
+      fix x assume "x \<in> set (leaves (Node ts t))"
+      then have "x \<in> set (leaves t)"
+        using Nil by auto
+      moreover have "Laligned t u"
+        using "2.prems" Nil by auto
+      ultimately show "x \<le> u"
+        using "2.IH"(1) Nil
+        by simp
+    qed
+  next
+    case (Cons h ts')
+    then obtain a b where h_split: "h = (a,b)"
+      by (cases h)
+    show ?thesis 
+    proof
+    fix x assume "x \<in> set (leaves (Node ts t))"
+    then consider (first) "x \<in> set (leaves a)" | (sub) "\<exists>(sub,sep) \<in> set ts'. x \<in> set (leaves sub)" | (last) "x \<in> set (leaves t)"
+      using Cons h_split by fastforce
+    then show "x \<le> u"
+      proof (cases)
+        case first
+        moreover have "Laligned a b"
+          using "2.prems" Cons h_split by auto
+        moreover have "b \<le> u"
+          by (metis "*" h_split less_imp_le list.set_intros(1) local.Cons separators_in_inorder some_child_sub(2) sorted_wrt_append subsetD)
+        ultimately show ?thesis
+          using "2.IH"(2)[OF Cons sym[OF h_split]]
+          by auto
+      next
+        case sub
+        then guess sub sep by auto 
+        then obtain l' where "aligned l' sub sep" "l' \<in> set (separators ts') \<union> {b}"
+          using "2.prems" Lalign_sub h_split local.Cons by blast
+        then have "\<forall>x \<in> set (leaves sub). l' < x \<and> x \<le> sep"
+          by (meson aligned_leaves_inbetween)
+        moreover from * have  "sep \<le> u"
+          by (metis "2.prems" Laligned_sorted_separators \<open>(sub, sep) \<in> set ts'\<close> insert_iff less_imp_le list.set(2) local.Cons some_child_sub(2) sorted_wrt_append)
+        ultimately show ?thesis
+          by (meson \<open>x \<in> set (leaves sub)\<close> order.strict_trans1 order.trans)
+      next
+        case last
+        then obtain l' where "aligned l' t u" "l' \<in> set (separators ts') \<union> {b}"
+          using "2.prems" Lalign_last' h_split local.Cons by blast
+        then have "\<forall>x \<in> set (leaves t). l' < x \<and> x \<le> u"
+          by (meson aligned_leaves_inbetween)
+        then show ?thesis
+          by (meson \<open>x \<in> set (leaves t)\<close> order.strict_trans1 order.trans)
+      qed
+    qed
+  qed
+qed
+ 
+lemma Laligned_leaves_list_inbetween: "Laligned (Node ts t) u \<Longrightarrow> \<forall>x \<in> set (leaves_list ts). x \<le> u"
+  by (metis Un_iff Laligned_leaves_inbetween leaves.simps(2) set_append)
+
+lemma Laligned_subst_last: "Laligned (Node (ts'@[(sub', sep')]) t) u \<Longrightarrow> aligned sep' t' u \<Longrightarrow>
+  Laligned (Node (ts'@[(sub', sep')]) t') u" 
+  apply (cases ts')
+  apply (auto)
+  by (meson aligned.simps(2) aligned_subst_last)
+
+lemma Laligned_subst: "Laligned (Node (ls@(sub', subl)#(sub,subsep)#rs) t) u \<Longrightarrow> aligned subl subsub subsep \<Longrightarrow>
+Laligned (Node (ls@(sub',subl)#(subsub,subsep)#rs) t) u" 
+  apply (induction ls)
+  apply auto
+  apply (meson aligned.simps(2) aligned_subst)
   done
 
 end
