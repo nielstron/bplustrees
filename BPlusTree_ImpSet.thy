@@ -93,6 +93,7 @@ locale imp_split = abs_split: BPlusTree_Set.split split
     "('a bplustree \<times> 'a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
   fixes imp_split:: "('a btnode ref \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
+    and imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
   assumes imp_split_rule [sep_heap_rules]:"sorted_less (separators ts) \<Longrightarrow>
    <is_pfa c tsi (a,n)
   * blist_assn k ts tsi> 
@@ -101,6 +102,12 @@ locale imp_split = abs_split: BPlusTree_Set.split split
     is_pfa c tsi (a,n)
     * blist_assn k ts tsi
     * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
+  and isin_list_req [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
+   <is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+    imp_isin_list x (a',n') 
+  <\<lambda>b. 
+    is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi
+    * \<up>(b = isin_list x ks)>\<^sub>t"
 begin
 
 subsection "Membership"
@@ -111,7 +118,7 @@ partial_function (heap) isin :: "'a btnode ref \<Rightarrow> 'a \<Rightarrow>  b
     "isin p x = do {
   node \<leftarrow> !p;
   (case node of
-     Btleaf xs \<Rightarrow> return False |
+     Btleaf xs \<Rightarrow> imp_isin_list x xs |
      Btnode ts t \<Rightarrow> do {
        i \<leftarrow> imp_split ts x;
        tsl \<leftarrow> pfa_length ts;
@@ -124,12 +131,100 @@ partial_function (heap) isin :: "'a btnode ref \<Rightarrow> 'a \<Rightarrow>  b
     }
 )}"
 
+lemma  "Laligned t u \<Longrightarrow> sorted_less (leaves t) \<Longrightarrow>
+   <bplustree_assn k t ti>
+     isin ti x
+   <\<lambda>r. bplustree_assn k t ti * \<up>(abs_split.isin t x = r)>\<^sub>t"
+proof(induction t x arbitrary: ti rule: abs_split.isin.induct)
+  case (1 x)
+  then show ?case
+    apply(subst isin.simps)
+    apply sep_auto
+    done
+next
+  case (2 ts t x)
+  then obtain ls rs where list_split[simp]: "split ts x = (ls,rs)"
+    by (cases "split ts x")
+  then show ?case
+  proof (cases rs)
+    (* NOTE: induction condition trivial here *)
+    case [simp]: Nil
+    show ?thesis
+      apply(subst isin.simps)
+      apply(sep_auto)
+      
+      using "2.prems" Laligned_sorted_inorder[of "Node ts t" u] sorted_inorder_separators[of ts t] sorted_wrt_append apply blast
+      apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+      apply(rule hoare_triple_preI)
+      apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+      using 2(3) apply(sep_auto heap: "2.IH"(1)[of ls "[]"] simp add: sorted_wrt_append)
+      done
+  next
+    case [simp]: (Cons h rrs)
+    obtain sub sep where h_split[simp]: "h = (sub,sep)"
+      by (cases h)
+    show ?thesis
+    proof (cases "sep = x")
+      (* NOTE: no induction required here, only vacuous counter cases generated *)
+      case [simp]: True
+      then show ?thesis
+        apply(simp split: list.splits prod.splits)
+        apply(subst isin.simps)
+        using "2.prems" sorted_inorder_separators apply(sep_auto)
+         apply(rule hoare_triple_preI)
+         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
+        apply(rule hoare_triple_preI)
+        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+        done
+    next
+      case [simp]: False
+      show ?thesis
+        apply(simp split: list.splits prod.splits)
+        apply safe
+        using False apply simp
+        apply(subst isin.simps)
+        using "2.prems" sorted_inorder_separators 
+        apply(sep_auto)
+          (*eliminate vacuous case*)
+          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
+          (* simplify towards induction step *)
+         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
+
+(* NOTE show that z = (suba, sepa) *)
+         apply(rule norm_pre_ex_rule)+
+         apply(rule hoare_triple_preI)
+        subgoal for p tsi n ti xsi suba sepa zs1 z zs2 _
+          apply(subgoal_tac "z = (suba, sepa)", simp)
+          using 2(3) apply(sep_auto
+              heap:"2.IH"(2)[of ls rs h rrs sub sep]
+              simp add: sorted_wrt_append)
+          using list_split Cons h_split apply simp_all
+            (* proof that previous assumptions hold later *)
+           apply(rule P_imp_Q_implies_P)
+           apply(rule ent_ex_postI[where x="(tsi,n)"])
+           apply(rule ent_ex_postI[where x="ti"])
+           apply(rule ent_ex_postI[where x="(zs1 @ (suba, sepa) # zs2)"])
+           apply(rule ent_ex_postI[where x="zs1"])
+           apply(rule ent_ex_postI[where x="z"])
+           apply(rule ent_ex_postI[where x="zs2"])
+           apply sep_auto
+            (* prove subgoal_tac assumption *)
+          apply (metis (no_types, lifting) list_assn_aux_ineq_len list_assn_len nth_append_length star_false_left star_false_right)
+          done
+            (* eliminate last vacuous case *)
+        apply(rule hoare_triple_preI)
+        apply(auto simp add: split_relation_def dest!: mod_starD list_assn_len)[]
+        done
+    qed
+  qed
+qed
+
 subsection "Insertion"
 
 
 datatype 'b btupi = 
-  T\<^sub>i "'b btnode ref option" |
-  Up\<^sub>i "'b btnode ref option" "'b" "'b btnode ref option"
+  T\<^sub>i "'b btnode option" |
+  Up\<^sub>i "'b btnode option" "'b" "'b btnode option"
 
 fun btupi_assn where
   "btupi_assn k (abs_split.T\<^sub>i l) (T\<^sub>i li) =

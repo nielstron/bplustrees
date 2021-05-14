@@ -3657,7 +3657,7 @@ theorem insert_list_set:
   using insert_sorted_split_list_right[of xs x]
   by (auto split!: list.splits prod.splits)
 
-lemma delete_sorted_list_split:
+lemma delete_sorted_split_list:
 assumes "sorted_less xs"
     and "split_list xs x = (ls, rs)"
   shows "del_list x xs = ls @ del_list x rs"

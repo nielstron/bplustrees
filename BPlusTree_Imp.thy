@@ -43,24 +43,6 @@ instance btnode :: (heap) heap
 
 text "The refinement relationship to abstract B-trees."
 
-fun btree_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> assn" where
-  "btree_assn k (LNode xs) a = 
- (\<exists>\<^sub>A xsi xsi'.
-      a \<mapsto>\<^sub>r Btleaf xsi
-    * is_pfa (2*k) xsi' xsi
-    * list_assn (id_assn) xs xsi'
-  )" |
-  "btree_assn k (Node ts t) a = 
- (\<exists>\<^sub>A tsi ti tsi'.
-      a \<mapsto>\<^sub>r Btnode tsi ti
-    * btree_assn k t ti
-    * is_pfa (2*k) tsi' tsi
-    * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi'
-    )"
-
-text "With the current definition of deletion, we would
-also need to directly reason on nodes and not only on references
-to them."
 
 fun btnode_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode \<Rightarrow> assn" where
   "btnode_assn k (LNode xs) (Btleaf xsi) = 
@@ -70,12 +52,12 @@ fun btnode_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode
   )" |
   "btnode_assn k (Node ts t) (Btnode tsi ti) = 
  (\<exists>\<^sub>A tsi'.
-      btree_assn k t ti
+      bplustree_assn k t ti
     * is_pfa (2*k) tsi' tsi
-    * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi'
+    * list_assn ((bplustree_assn k) \<times>\<^sub>a id_assn) ts tsi'
     )" |
   "btnode_assn _ _ _ = false"
 
-abbreviation "blist_assn k \<equiv> list_assn ((btree_assn k) \<times>\<^sub>a id_assn)"
+abbreviation "blist_assn k \<equiv> list_assn ((bplustree_assn k) \<times>\<^sub>a id_assn)"
 
 end

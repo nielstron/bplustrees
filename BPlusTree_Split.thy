@@ -38,118 +38,80 @@ global_interpretation bplustree_linear_search: split_full linear_split linear_sp
 text "Some examples follow to show that the implementation works
       and the above lemmas make sense. The examples are visualized in the thesis."
 
+
+
 abbreviation "bplustree\<^sub>i \<equiv> bplustree_ls_insert"
 abbreviation "bplustree\<^sub>d \<equiv> bplustree_ls_delete"
 
-value "let k=2::nat; x::nat bplustree = (Node [(Node [(LNode [1,2], 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+typedef uint32 = "{n::nat. n \<le> 2 ^ 32}" 
+  by auto
+
+setup_lifting type_definition_uint32
+
+instantiation uint32 :: linorder
+begin
+
+lift_definition less_eq_uint32 :: "uint32 \<Rightarrow> uint32 \<Rightarrow> bool"
+  is "(less_eq::nat \<Rightarrow> nat \<Rightarrow> bool)" .
+
+lift_definition less_uint32 :: "uint32 \<Rightarrow> uint32 \<Rightarrow> bool"
+  is "(less::nat \<Rightarrow> nat \<Rightarrow> bool)" .
+
+instance
+  by standard (transfer; auto)+
+end
+
+instantiation uint32 :: order_top
+begin
+
+lift_definition top_uint32 :: uint32 is "2^32::nat"
+  by simp
+
+
+instance 
+  by standard (transfer; simp)
+end
+
+
+instantiation uint32 :: numeral
+begin
+
+lift_definition one_uint32 :: uint32 is "1::nat"
+  by auto
+
+lift_definition plus_uint32 :: "uint32 \<Rightarrow> uint32 \<Rightarrow> uint32"
+  is "\<lambda>a b. min (a + b) (2^32)"
+  by simp
+
+instance by standard (transfer; auto)
+end
+
+
+(* the below will take ages to evaluate
+
+lemma [code]: "(2^32::nat) = 4294967296" 
+  by simp
+
+value "2^32::nat"
+*)
+(*
+value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [21,22,23]))) in
       root_order k x"
-value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [21,22,23]))) in
       bal x"
-value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
       sorted_less (inorder x)"
-value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
       x"
-value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
       bplustree\<^sub>i k 9 x"
-value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x)"
-value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       bplustree\<^sub>d k 10 (bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x))"
-value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       bplustree\<^sub>d k 3 (bplustree\<^sub>d k 10 (bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x)))"
 
-text "For completeness, we also proved an explicit proof of the locale
-requirements."
-
-lemma some_child_sm: "linear_split_help t y xs = (ls,(sub,sep)#rs) \<Longrightarrow> y \<le> sep"
-  apply(induction t y xs rule: linear_split_help.induct)
-   apply(simp_all)
-  by (metis Pair_inject le_less_linear list.inject)
-
-
-
-lemma linear_split_append: "linear_split_help xs p ys = (ls,rs) \<Longrightarrow> ls@rs = ys@xs"
-  apply(induction xs p ys rule: linear_split_help.induct)
-   apply(simp_all)
-  by (metis Pair_inject)
-
-lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (ls,rs); sorted_less (separators (ys@xs)); \<forall>sep \<in> set (separators ys). p > sep\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (separators ls). p > sep"
-  apply(induction xs p ys rule: linear_split_help.induct)
-   apply(simp_all)
-  by (metis prod.inject)+
-
-value "linear_split [((Leaf::nat bplustree), 2)] (1::nat)"
-
-(* TODO still has format for older proof *)
-lemma linear_split_gr:
-  "\<lbrakk>linear_split_help xs p ys = (ls,rs); sorted_less (separators (ys@xs)); \<forall>(sub,sep) \<in> set ys. p > sep\<rbrakk> \<Longrightarrow> 
-(case rs of [] \<Rightarrow> True | (_,sep)#_ \<Rightarrow> p \<le> sep)"
-  apply(cases rs)
-  by (auto simp add: some_child_sm)
-
-
-lemma linear_split_req:
-  assumes  "linear_split xs p = (ls,(sub,sep)#rs)"
-    and "sorted_less (separators xs)"
-  shows  "p \<le> sep"
-  using assms linear_split_gr by fastforce
-
-lemma linear_split_req2:
-  assumes  "linear_split xs p = (ls@[(sub,sep)],rs)"
-    and "sorted_less (separators xs)"
-  shows  "sep < p"
-  using linear_split_sm[of xs p "[]" "ls@[(sub,sep)]" rs]
-  using assms(1) assms(2)
-  by (metis Nil_is_map_conv Un_iff append_self_conv2 empty_iff empty_set linear_split.elims prod_set_simps(2) separators_split snd_eqD snds.intros)
-
-
-interpretation split linear_split
-  by (simp add: linear_split_req linear_split_req2 linear_split_append split_def)
-
-
-subsection "Binary split"
-
-text "It is possible to define a binary split predicate.
-      However, even proving that it terminates is uncomfortable."
-
-function (sequential) binary_split_help:: "(_\<times>'a::linorder) list \<Rightarrow> (_\<times>'a) list \<Rightarrow> (_\<times>'a) list \<Rightarrow> 'a \<Rightarrow>  ((_\<times>_) list \<times> (_\<times>_) list)" where
-  "binary_split_help ls [] rs x = (ls,rs)" |
-  "binary_split_help ls as rs x = (let (mls, mrs) = split_half as in (
-  case mrs of (sub,sep)#mrrs \<Rightarrow> (
-    if x < sep then binary_split_help ls mls (mrs@rs) x
-    else if x > sep then binary_split_help (ls@mls@[(sub,sep)]) mrrs rs x
-    else (ls@mls, mrs@rs)
-    )
-  )
-)"
-  by pat_completeness auto
-termination
-  apply(relation "measure (\<lambda>(ls,xs,rs,x). length xs)")
-    apply (auto)
-  by (metis append_take_drop_id length_Cons length_append lessI trans_less_add2)
-
-
-fun binary_split where
-  "binary_split as x = binary_split_help [] as [] x"
-
-text "We can show that it will return sublists that concatenate to
-      the original list again but will not show that it fulfils sortedness properties."
-
-lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls@rs)"
-  apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
-   apply (auto simp add: drop_not_empty split!: list.splits )
-  subgoal for ls a b va rs  x lsa rsa aa ba x22
-    apply(cases "cmp x ba")
-      apply auto
-      apply (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
-     apply (metis append_take_drop_id)
-    by (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
-  done
-
-lemma "\<lbrakk>sorted_less (separators (as@bs@cs)); binary_split_help as bs cs x = (ls,rs); \<forall>y \<in> set (separators as). y < x\<rbrakk>
-\<Longrightarrow> \<forall>y \<in> set (separators ls). y < x"
-  oops
-
-
+*)
 
 end
