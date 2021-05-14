@@ -172,7 +172,7 @@ lemma leaves_split: "split ts x = (ls,rs) \<Longrightarrow> leaves (Node ts t) =
 
 
 lemma isin_sorted_split:
-  assumes "aligned l (Node ts t) u"
+  assumes "Laligned (Node ts t) u"
     and "sorted_less (leaves (Node ts t))"
     and "split ts x = (ls, rs)"
   shows "x \<in> set (leaves (Node ts t)) = (x \<in> set (leaves_list rs @ leaves t))"
@@ -187,7 +187,7 @@ next
     by (metis list.simps(3) rev_exhaust surj_pair)
   then have x_sm_sep: "sep < x"
     using split_req(2)[of ts x ls' sub sep rs]
-    using aligned_sorted_separators[OF assms(1)]
+    using Laligned_sorted_separators[OF assms(1)]
     using assms sorted_cons sorted_snoc 
     by blast
   moreover have leaves_split: "leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
@@ -208,12 +208,12 @@ next
       then have "l' \<in> set (leaves (Node ls' sub))"
         using ls_tail_split
         by auto
-      moreover have "aligned l (Node ls' sub) sep" 
+      moreover have "Laligned (Node ls' sub) sep" 
         using assms split_conc[OF assms(3)] Cons ls_tail_split
-        using aligned_split_left[of l ls' sub sep rs t u]
+        using Laligned_split_left[of ls' sub sep rs t u]
         by simp
       ultimately show ?thesis
-        using aligned_leaves_inbetween[of l "Node ls' sub" sep]
+        using Laligned_leaves_inbetween[of "Node ls' sub" sep]
         by blast
     qed
     then show ?thesis
@@ -226,13 +226,13 @@ qed
 lemma isin_sorted_split_right:
   assumes "split ts x = (ls, (sub,sep)#rs)"
     and "sorted_less (leaves (Node ts t))"
-    and "aligned l (Node ts t) u"
+    and "Laligned (Node ts t) u"
   shows "x \<in> set (leaves_list ((sub,sep)#rs) @ leaves t) = (x \<in> set (leaves sub))"
 proof -
   from assms have "x \<le> sep"
   proof -
     from assms have "sorted_less (separators ts)"
-      by (meson aligned_sorted_inorder sorted_cons sorted_inorder_separators sorted_snoc)
+      by (meson Laligned_sorted_inorder sorted_cons sorted_inorder_separators sorted_snoc)
     then show ?thesis
       using split_req(3)
       using assms
@@ -248,7 +248,7 @@ proof -
   next
     case (Cons r' rs')
     then have "sep < r'"
-      by (metis aligned_leaves_inbetween aligned_split_right assms(1) assms(3) leaves.simps(2) list.set_intros(1) split.split_conc split_axioms)
+      by (metis Laligned_split_right aligned_leaves_inbetween assms(1) assms(3) leaves.simps(2) list.set_intros(1) split.split_conc split_axioms)
     then have  "x < r'"
       using \<open>x \<le> sep\<close> by auto
     moreover have "sorted_less (leaves_list ((sub,sep)#rs) @ leaves t)"
@@ -284,7 +284,7 @@ proof(induction t x arbitrary: l u rule: isin.induct)
     also have "\<dots> = (x \<in> set (leaves (Node ts t)))"
       using isin_sorted_split
       using "2.prems" list_split list_conc Nil
-      by simp
+      by (metis aligned_imp_Laligned leaves.simps(2) leaves_conc same_append_eq self_append_conv)
     finally show ?thesis .
   next
     case (Cons a list)
@@ -301,12 +301,54 @@ proof(induction t x arbitrary: l u rule: isin.induct)
       also have "\<dots> = (x \<in> set (leaves (Node ts t)))"
         using isin_sorted_split
         using isin_sorted_split_right "2.prems" list_split Cons a_split
-        by simp
+        using aligned_imp_Laligned by blast
       finally show ?thesis  .
     qed
 qed auto
 
 
+theorem isin_set_Linorder: 
+  assumes "sorted_less (leaves t)"
+    and "Laligned t u"
+  shows "isin t x = (x \<in> set (leaves t))"
+  using assms
+proof(induction t x arbitrary: u rule: isin.induct)
+  case (2 ts t x)
+  then obtain ls rs where list_split: "split ts x = (ls, rs)"
+    by (meson surj_pair)
+  then have list_conc: "ts = ls @ rs" 
+    using split_conc by auto
+  show ?case
+  proof (cases rs)
+    case Nil
+    then have "isin (Node ts t) x = isin t x"
+      by (simp add: list_split)
+    also have "\<dots> = (x \<in> set (leaves t))"
+      by (metis "2.IH"(1) "2.prems"(1) "2.prems"(2) Lalign_Llast list_split local.Nil sorted_leaves_induct_last)
+    also have "\<dots> = (x \<in> set (leaves (Node ts t)))"
+      using isin_sorted_split
+      using "2.prems" list_split list_conc Nil
+      by simp
+    finally show ?thesis .
+  next
+    case (Cons a list)
+    then obtain sub sep where a_split: "a = (sub,sep)"
+      by (cases a)
+      then have "isin (Node ts t) x = isin sub x"
+        using list_split Cons a_split
+        by auto
+      also have "\<dots> = (x \<in> set (leaves sub))"
+        using "2.IH"(2)[of ls rs "(sub,sep)" list sub sep]
+        using "2.prems" a_split list_conc list_split local.Cons sorted_leaves_induct_subtree
+              align_sub
+        by (metis Lalign_Llast Laligned_split_left)
+      also have "\<dots> = (x \<in> set (leaves (Node ts t)))"
+        using isin_sorted_split
+        using isin_sorted_split_right "2.prems" list_split Cons a_split
+        by simp
+      finally show ?thesis  .
+    qed
+qed auto
 
 subsection "Insertion"
 
@@ -1720,6 +1762,11 @@ lemma tree\<^sub>i_aligned: "aligned_up\<^sub>i l a u \<Longrightarrow> aligned 
    apply auto
   done
 
+lemma tree\<^sub>i_Laligned: "Laligned_up\<^sub>i a u \<Longrightarrow> Laligned (tree\<^sub>i a) u"
+  apply (cases a)
+   apply auto
+  done
+
 lemma insert_bal: "bal t \<Longrightarrow> bal (insert k x t)"
   using ins_bal
   by (simp add: tree\<^sub>i_bal)
@@ -1729,17 +1776,25 @@ lemma insert_order: "\<lbrakk>k > 0; sorted_less (leaves t); root_order k t\<rbr
   by (simp add: tree\<^sub>i_order)
 
 
-lemma insert_inorder_help: 
+lemma insert_inorder: 
   assumes "k > 0" "order k t" "sorted_less (leaves t)" "aligned l t u" "l < x" "x \<le> u"
   shows "leaves (insert k x t) = ins_list x (leaves t)"
     and "aligned l (insert k x t) u"
   using ins_inorder assms
   by (simp_all add: tree\<^sub>i_leaves tree\<^sub>i_aligned)
 
-lemma insert_inorder: 
-  assumes "k > 0" "order k t" "sorted_less (leaves t)" "aligned bot t top" "x \<noteq> bot"
-  shows "aligned bot (insert k x t) top"
-  by (meson assms(1) assms(2) assms(3) assms(4) assms(5) bot.not_eq_extremum insert_inorder_help(2) top_greatest)
+lemma insert_Linorder: 
+  assumes "k > 0" "order k t" "sorted_less (leaves t)" "Laligned t u" "x \<le> u"
+  shows "leaves (insert k x t) = ins_list x (leaves t)"
+    and "Laligned (insert k x t) u"
+  using ins_Linorder insert_inorder assms
+  by (simp_all add: tree\<^sub>i_leaves tree\<^sub>i_Laligned)
+
+corollary insert_Linorder_top:
+  assumes "k > 0" "order k t" "sorted_less (leaves t)" "Laligned t top"
+  shows "leaves (insert k x t) = ins_list x (leaves t)"
+    and "Laligned (insert k x t) top"
+  using insert_Linorder top_greatest assms by simp_all
 
 subsection "Deletion"
 
