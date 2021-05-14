@@ -85,28 +85,49 @@ subsection "The split function locale"
 text "Here, we abstract away the inner workings of the split function
       for B-tree operations."
 
+locale split_tree =
+  fixes split ::  "('a bplustree\<times>'a::{linorder,order_top}) list \<Rightarrow> 'a \<Rightarrow> (('a bplustree\<times>'a) list \<times> ('a bplustree\<times>'a) list)"
+  assumes split_req:
+    "\<lbrakk>split xs p = (ls,rs)\<rbrakk> \<Longrightarrow> xs = ls @ rs"
+    "\<lbrakk>split xs p = (ls@[(sub,sep)],rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> sep < p"
+    "\<lbrakk>split xs p = (ls,(sub,sep)#rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> p \<le> sep"
+begin
+  lemmas split_conc = split_req(1)
+  lemmas split_sorted = split_req(2,3)
+  
+  
+  lemma [termination_simp]:"(ls, (sub, sep) # rs) = split ts y \<Longrightarrow>
+        size sub < Suc (size_list (\<lambda>x. Suc (size (fst x))) ts  + size l)"
+    using split_conc[of ts y ls "(sub,sep)#rs"] by auto
+end
 
 (* TODO what if we define a function "list_split" that returns
  a split list for mapping arbitrary f (separators) and g (subtrees)
 s.th. f :: 'a \<Rightarrow> ('b::linorder) and g :: 'a \<Rightarrow> 'a bplustree
 this would allow for key,pointer pairs to be inserted into the tree *)
 (* TODO what if the keys are the pointers? *)
-locale split =
-  fixes split ::  "('a bplustree\<times>'a::{linorder,order_top,order_bot}) list \<Rightarrow> 'a \<Rightarrow> (('a bplustree\<times>'a) list \<times> ('a bplustree\<times>'a) list)"
-  and insert_list ::  "'a \<Rightarrow> ('a::{linorder,order_top,order_bot}) list \<Rightarrow> 'a list"
-  assumes split_req:
-    "\<lbrakk>split xs p = (ls,rs)\<rbrakk> \<Longrightarrow> xs = ls @ rs"
-    "\<lbrakk>split xs p = (ls@[(sub,sep)],rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> sep < p"
-    "\<lbrakk>split xs p = (ls,(sub,sep)#rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> p \<le> sep"
-  and insert_list_req:
+locale split = split_tree: split_tree split
+  for split::
+    "('a bplustree \<times> 'a::{linorder,order_top}) list \<Rightarrow> 'a
+       \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
+  fixes isin_list ::  "'a \<Rightarrow> ('a::{linorder,order_top}) list \<Rightarrow> bool"
+  and insert_list ::  "'a \<Rightarrow> ('a::{linorder,order_top}) list \<Rightarrow> 'a list"
+  and delete_list ::  "'a \<Rightarrow> ('a::{linorder,order_top}) list \<Rightarrow> 'a list"
+  assumes insert_list_req:
     (* TODO locale that derives such a function from a split function similar to the above *)
-    "sorted_less ks \<Longrightarrow> insert_list k ks = ins_list k ks"
+    "sorted_less ks \<Longrightarrow> isin_list x ks = (x \<in> set ks)"
+    "sorted_less ks \<Longrightarrow> insert_list x ks = ins_list x ks"
+    "sorted_less ks \<Longrightarrow> delete_list x ks = del_list x ks"
 begin
+
+lemmas split_req = split_tree.split_req
+lemmas split_conc = split_tree.split_req(1)
+lemmas split_sorted = split_tree.split_req(2,3)
 
 lemma insert_list_length[simp]:
   assumes "sorted_less ks"
   shows "length (insert_list k ks) = length ks + (if k \<in> set ks then 0 else 1)"
-  using ins_list_length insert_list_req
+  using insert_list_req
   by (simp add: assms)
 
 lemma set_insert_list[simp]:
@@ -117,13 +138,20 @@ lemma sorted_insert_list[simp]:
   "sorted_less ks \<Longrightarrow> sorted_less (insert_list k ks)"
   by (simp add: insert_list_req sorted_ins_list)
 
-lemmas split_conc = split_req(1)
-lemmas split_sorted = split_req(2,3)
+lemma delete_list_length[simp]:
+  assumes "sorted_less ks"
+  shows "length (delete_list k ks) = length ks - (if k \<in> set ks then 1 else 0)"
+  using insert_list_req
+  by (simp add: assms)
 
+lemma set_delete_list[simp]:
+  "sorted_less ks \<Longrightarrow> set (delete_list k ks) = set ks - {k}"
+  by (simp add: insert_list_req set_del_list)
 
-lemma [termination_simp]:"(ls, (sub, sep) # rs) = split ts y \<Longrightarrow>
-      size sub < Suc (size_list (\<lambda>x. Suc (size (fst x))) ts  + size l)"
-  using split_conc[of ts y ls "(sub,sep)#rs"] by auto
+lemma sorted_delete_list[simp]:
+  "sorted_less ks \<Longrightarrow> sorted_less (delete_list k ks)"
+  by (simp add: insert_list_req sorted_del_list)
+
 
 
 fun invar_inorder where "invar_inorder k t = (bal t \<and> root_order k t)"
@@ -133,12 +161,12 @@ definition "empty_bplustree = (LNode [])"
 subsection "Membership"
 
 fun isin:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> bool" where
-  "isin (LNode ks) y = (y \<in> set ks)" |
-  "isin (Node ts t) y = (
-      case split ts y of (_,(sub,sep)#rs) \<Rightarrow> (
-             isin sub y
+  "isin (LNode ks) x = (isin_list x ks)" |
+  "isin (Node ts t) x = (
+      case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
+             isin sub x
       )
-   | (_,[]) \<Rightarrow> isin t y
+   | (_,[]) \<Rightarrow> isin t x
   )"
 
 text "Isin proof"
@@ -304,7 +332,7 @@ proof(induction t x arbitrary: l u rule: isin.induct)
         using aligned_imp_Laligned by blast
       finally show ?thesis  .
     qed
-qed auto
+qed (auto simp add: insert_list_req)
 
 
 theorem isin_set_Linorder: 
@@ -348,7 +376,7 @@ proof(induction t x arbitrary: u rule: isin.induct)
         by simp
       finally show ?thesis  .
     qed
-qed auto
+qed (auto simp add: insert_list_req)
 
 corollary isin_set_Linorder_top: 
   assumes "sorted_less (leaves t)"
@@ -854,7 +882,7 @@ lemma height_up\<^sub>i_merge: "height_up\<^sub>i (Up\<^sub>i l a r) = height t 
 lemma ins_height: "height_up\<^sub>i (ins k x t) = height t"
 proof(induction k x t rule: ins.induct)
   case (2 k x ts t)
-  then obtain ls rs where split_list: "split ts x = (ls,rs)"
+  then obtain ls rs where split: "split ts x = (ls,rs)"
     by (meson surj_pair)
   then have split_append: "ts = ls@rs"
     using split_conc
@@ -863,7 +891,7 @@ proof(induction k x t rule: ins.induct)
   proof (cases rs)
     case Nil
     then have height_sub: "height_up\<^sub>i (ins k x t) = height t"
-      using 2 by (simp add: split_list)
+      using 2 by (simp add: split)
     then show ?thesis
     proof (cases "ins k x t")
       case (T\<^sub>i a)
@@ -871,13 +899,13 @@ proof(induction k x t rule: ins.induct)
         using height_sub
         by simp
       then show ?thesis
-        using T\<^sub>i Nil split_list split_append
+        using T\<^sub>i Nil split split_append
         by simp
     next
       case (Up\<^sub>i l a r)
       then have "height (Node ls t) = height (Node (ls@[(l,a)]) r)"
         using height_bplustree_order height_sub by (induction ls) auto
-      then show ?thesis using 2 Nil split_list Up\<^sub>i split_append
+      then show ?thesis using 2 Nil split Up\<^sub>i split_append
         by (simp del: node\<^sub>i.simps add: node\<^sub>i_height)
     qed
   next
@@ -885,7 +913,7 @@ proof(induction k x t rule: ins.induct)
     then obtain sub sep where a_split: "a = (sub,sep)"
       by (cases a) auto
     then have height_sub: "height_up\<^sub>i (ins k x sub) = height sub"
-      by (metis "2.IH"(2) a_split Cons split_list)
+      by (metis "2.IH"(2) a_split Cons split)
     then show ?thesis
     proof (cases "ins k x sub")
       case (T\<^sub>i a)
@@ -894,7 +922,7 @@ proof(induction k x t rule: ins.induct)
       then have "height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@(a,sep)#rs) t)"
         by auto
       then show ?thesis 
-        using T\<^sub>i height_sub Cons 2 split_list a_split split_append
+        using T\<^sub>i height_sub Cons 2 split a_split split_append
         by (auto simp add: image_Un max.commute finite_set_ins_swap)
     next
       case (Up\<^sub>i l a r)
@@ -902,7 +930,7 @@ proof(induction k x t rule: ins.induct)
         using height_up\<^sub>i_merge height_sub
         by fastforce
       then show ?thesis
-        using Up\<^sub>i Cons 2 split_list a_split split_append
+        using Up\<^sub>i Cons 2 split a_split split_append
         by (auto simp del: node\<^sub>i.simps simp add: node\<^sub>i_height image_Un max.commute finite_set_ins_swap)
     qed
   qed
@@ -1874,7 +1902,7 @@ it resides in the same pair as the separating element to be removed."
 
 
 fun del where
-  "del k x (LNode xs) = (LNode (del_list x xs))" |
+  "del k x (LNode xs) = (LNode (delete_list x xs))" |
   "del k x (Node ts t) = (
   case split ts x of 
     (ls,[]) \<Rightarrow> 
@@ -2102,12 +2130,12 @@ lemma node\<^sub>i_bal_up\<^sub>i:
   using assms
 proof(cases "length ts \<le> 2*k")
   case False
-  then obtain ls sub sep rs where split_list: "split_half ts = (ls@[(sub,sep)], rs)"
+  then obtain ls sub sep rs where split: "split_half ts = (ls@[(sub,sep)], rs)"
     using node\<^sub>i_cases by blast
   then have "node\<^sub>i k ts t = Up\<^sub>i (Node ls sub) sep (Node rs t)"
     using False by auto
   moreover have "ts = ls@(sub,sep)#rs"
-    by (metis append_Cons append_Nil2 append_eq_append_conv2 local.split_list same_append_eq split_half_conc)
+    by (metis append_Cons append_Nil2 append_eq_append_conv2 local.split same_append_eq split_half_conc)
   ultimately show ?thesis
     using bal_list_merge[of ls sub sep rs t] assms
     by (simp del: bal.simps bal_up\<^sub>i.simps)
@@ -2884,7 +2912,7 @@ next
       by (simp add: order_impl_root_order sorted_wrt_append)
     moreover obtain lls lsub lsep where ls_split: "ls = lls@[(lsub,lsep)]"
       using 2 Nil list_split
-      by (metis BPlusTree_Set.split_def append.right_neutral list.size(3) not_less_zero old.prod.exhaust rev_exhaust root_order.simps(2) split_axioms)
+      by (metis append_Nil length_0_conv less_nat_zero_code old.prod.exhaust rev_exhaust root_order.simps(2) split_conc)
     moreover have "height t = height (del k x t)" using del_height 2
       by (simp add: order_impl_root_order)
     moreover have "length ls = length ts"
@@ -3054,7 +3082,7 @@ lemma del_inorder:
 proof (induction k x t arbitrary: l u rule: del.induct)
   case (1 k x xs)
   then have "leaves (del k x (LNode xs)) = del_list x (leaves (LNode xs))"
-    by simp
+    by (simp add: insert_list_req)
   moreover have "aligned l (del k x (LNode xs)) u"
   proof -
     have "l < u"
@@ -3062,7 +3090,7 @@ proof (induction k x t arbitrary: l u rule: del.induct)
     moreover have "\<forall>x \<in> set xs - {x}. l < x \<and> x \<le> u"
       using "1.prems"(5) by auto
     ultimately show ?thesis
-      using set_del_list
+      using set_del_list insert_list_req
       by (metis "1"(4) aligned.simps(1) del.simps(1) leaves.simps(1))
   qed
   ultimately show ?case
@@ -3225,13 +3253,13 @@ lemma del_Linorder:
 proof (induction k x t arbitrary: u rule: del.induct)
   case (1 k x xs)
   then have "leaves (del k x (LNode xs)) = del_list x (leaves (LNode xs))"
-    by simp
+    by (simp add: insert_list_req)
   moreover have "Laligned (del k x (LNode xs)) u"
   proof -
     have "\<forall>x \<in> set xs - {x}. x \<le> u"
       using "1.prems"(5) by auto
     then show ?thesis
-      using set_del_list
+      using set_del_list insert_list_req
       by (metis "1"(4) Laligned.simps(1) del.simps(1) leaves.simps(1))
   qed
   ultimately show ?case
@@ -3478,5 +3506,220 @@ declare node\<^sub>i.simps[simp del]
 
 end
 
+  (* copied from comment in List_Ins_Del *)
+lemma sorted_ConsD: "sorted_less (y # xs) \<Longrightarrow> x \<le> y \<Longrightarrow> x \<notin> set xs"
+  by (auto simp: sorted_Cons_iff)
+
+lemma sorted_snocD: "sorted_less (xs @ [y]) \<Longrightarrow> y \<le> x \<Longrightarrow> x \<notin> set xs"
+  by (auto simp: sorted_snoc_iff)
+
+
+lemmas isin_simps2 = sorted_lems sorted_ConsD sorted_snocD
+  (*-----------------------------*)
+
+lemma isin_sorted: "sorted_less (xs@a#ys) \<Longrightarrow>
+  (x \<in> set (xs@a#ys)) = (if x < a then x \<in> set xs else x \<in> set (a#ys))"
+  by (auto simp: isin_simps2)
+
+locale split_list =
+  fixes split ::  "('a::{linorder,order_top}) list \<Rightarrow> 'a \<Rightarrow> 'a list \<times> 'a list"
+  assumes split_req:
+    "\<lbrakk>split ks p = (kls,krs)\<rbrakk> \<Longrightarrow> ks = kls @ krs"
+    "\<lbrakk>split ks p = (kls@[sep],krs); sorted_less ks\<rbrakk> \<Longrightarrow> sep < p"
+    "\<lbrakk>split ks p = (kls,(sep)#krs); sorted_less ks\<rbrakk> \<Longrightarrow> p \<le> sep"
+begin
+
+fun isin_list :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
+  "isin_list x ks = (case split ks x of 
+    (ls,Nil) \<Rightarrow> False |
+    (ls,sep#rs) \<Rightarrow> sep = x
+)"
+
+fun insert_list where
+  "insert_list x ks = (case split ks x of 
+    (ls,Nil) \<Rightarrow> ls@[x] |
+    (ls,sep#rs) \<Rightarrow> if sep = x then ks else ls@x#sep#rs
+)"
+
+fun delete_list where
+  "delete_list x ks = (case split ks x of 
+    (ls,Nil) \<Rightarrow> ks |
+    (ls,sep#rs) \<Rightarrow> if sep = x then ls@rs else ks
+)"
+
+lemmas split_conc = split_req(1)
+lemmas split_sorted = split_req(2,3)
+
+
+(* lift to split *)
+
+lemma isin_sorted_split:
+assumes "sorted_less xs"
+    and "split xs x = (ls, rs)"
+  shows "(x \<in> set xs) = (x \<in> set rs)"
+proof (cases ls)
+  case Nil
+  then have "xs = rs"
+    using assms by (auto dest!: split_conc)
+  then show ?thesis by simp
+next
+  case Cons
+  then obtain ls' sep where ls_tail_split: "ls = ls' @ [sep]"
+    by (metis list.simps(3) rev_exhaust)
+  then have x_sm_sep: "sep < x"
+    using split_req(2)[of xs x ls' sep rs]
+    using assms sorted_cons sorted_snoc 
+    by blast
+  moreover have "xs = ls@rs"
+    using assms split_conc by simp
+  ultimately show ?thesis
+    using isin_sorted[of ls' sep rs]
+    using assms ls_tail_split
+    by auto
+qed
+
+lemma isin_sorted_split_right:
+  assumes "split ts x = (ls, sep#rs)"
+    and "sorted_less ts"
+  shows "x \<in> set (sep#rs) = (x = sep)"
+proof (cases rs)
+  case Nil
+  then show ?thesis
+    by simp
+next
+  case (Cons sep' rs)
+  from assms have "x < sep'"
+    by (metis le_less less_trans list.set_intros(1) local.Cons sorted_Cons_iff sorted_wrt_append split_conc split_sorted(2))
+  moreover have "ts = ls@sep#sep'#rs"
+    using split_conc[OF assms(1)] Cons by auto
+  moreover have "sorted_less (sep#sep'#rs)" 
+    using Cons assms calculation(2) sorted_wrt_append by blast
+  ultimately show ?thesis
+    using isin_sorted[of "[sep]" sep' rs x] Cons
+    by simp
+qed
+
+
+theorem isin_list_set: 
+  assumes "sorted_less xs"
+  shows "isin_list x xs = (x \<in> set xs)"
+  using assms
+  using isin_sorted_split[of xs x]
+  using isin_sorted_split_right[of xs x]
+  by (auto split!: list.splits)
+
+lemma insert_sorted_split:
+assumes "sorted_less xs"
+    and "split xs x = (ls, rs)"
+  shows "ins_list x xs = ls @ ins_list x rs"
+proof (cases ls)
+  case Nil
+  then have "xs = rs"
+    using assms by (auto dest!: split_conc)
+  then show ?thesis 
+    using Nil by simp
+next
+  case Cons
+  then obtain ls' sep where ls_tail_split: "ls = ls' @ [sep]"
+    by (metis list.simps(3) rev_exhaust)
+  then have x_sm_sep: "sep < x"
+    using split_req(2)[of xs x ls' sep rs]
+    using assms sorted_cons sorted_snoc 
+    by blast
+  moreover have "xs = ls@rs"
+    using assms split_conc by simp
+  ultimately show ?thesis
+    using ins_list_sorted[of ls' sep x rs]
+    using assms ls_tail_split sorted_wrt_append[of "(<)" ls rs]
+    by auto
+qed
+
+lemma insert_sorted_split_right:
+  assumes "split ts x = (ls, sep#rs)"
+    and "sorted_less ts"
+    and "x \<noteq> sep"
+  shows "ins_list x (sep#rs) = (x#sep#rs)"
+proof -
+  have "x < sep"
+    by (meson assms(1) assms(2) assms(3) le_neq_trans split_sorted(2))
+  then show ?thesis
+    using ins_list_sorted[of "[]" sep]
+    using assms
+    by auto
+qed
+
+
+theorem insert_list_set: 
+  assumes "sorted_less xs"
+  shows "insert_list x xs = ins_list x xs"
+  using assms split_conc
+  using insert_sorted_split[of xs x]
+  using insert_sorted_split_right[of xs x]
+  by (auto split!: list.splits prod.splits)
+
+lemma delete_sorted_split:
+assumes "sorted_less xs"
+    and "split xs x = (ls, rs)"
+  shows "del_list x xs = ls @ del_list x rs"
+proof (cases ls)
+  case Nil
+  then have "xs = rs"
+    using assms by (auto dest!: split_conc)
+  then show ?thesis 
+    using Nil by simp
+next
+  case Cons
+  then obtain ls' sep where ls_tail_split: "ls = ls' @ [sep]"
+    by (metis list.simps(3) rev_exhaust)
+  then have x_sm_sep: "sep < x"
+    using split_req(2)[of xs x ls' sep rs]
+    using assms sorted_cons sorted_snoc 
+    by blast
+  moreover have "xs = ls@rs"
+    using assms split_conc by simp
+  ultimately show ?thesis
+    using del_list_sorted[of ls' sep rs]
+    using assms ls_tail_split sorted_wrt_append[of "(<)" ls rs]
+    by auto
+qed
+
+lemma delete_sorted_split_right:
+  assumes "split ts x = (ls, sep#rs)"
+    and "sorted_less ts"
+    and "x \<noteq> sep"
+  shows "del_list x (sep#rs) = sep#rs"
+proof -
+  have "sorted_less (sep#rs)"
+    by (metis assms(1) assms(2) sorted_wrt_append split_list.split_conc split_list_axioms)
+  moreover have "x < sep"
+    by (meson assms(1) assms(2) assms(3) le_neq_trans split_sorted(2))
+  ultimately show ?thesis
+    using del_list_sorted[of "[]" sep rs x]
+    by simp
+qed
+
+
+theorem delete_list_set: 
+  assumes "sorted_less xs"
+  shows "delete_list x xs = del_list x xs"
+  using assms split_conc[of xs x]
+  using delete_sorted_split[of xs x]
+  using delete_sorted_split_right[of xs x]
+  by (auto split!: list.splits prod.splits)
+
+end
+
+locale split_full = split_tree: split_tree split + split_list split_list
+    for split::
+      "('a bplustree \<times> 'a::{linorder,order_top}) list \<Rightarrow> 'a
+         \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list"
+    and split_list::
+      "'a::{linorder,order_top} list \<Rightarrow> 'a
+         \<Rightarrow> 'a list \<times> 'a list"
+begin
+
+sublocale split split isin_list insert_list delete_list 
+  using isin_list_set insert_list_set delete_list_set
+  by unfold_locales auto
 
 end
