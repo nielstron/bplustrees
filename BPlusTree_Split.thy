@@ -1,5 +1,5 @@
-theory BTree_Split
-  imports BTree_Set
+theory BPlusTree_Split
+  imports BPlusTree_Set
 begin
 
 section "Abstract split functions"
@@ -9,66 +9,54 @@ subsection "Linear split"
 text "Finally we show that the split axioms are feasible
        by providing an example split function"
 
-(*TODO: at some point this better be replaced with something binary search like *)
-fun linear_split_help:: "(_\<times>'a::linorder) list \<Rightarrow> _ \<Rightarrow> (_\<times>_) list \<Rightarrow>  ((_\<times>_) list \<times> (_\<times>_) list)" where
-  "linear_split_help [] x prev = (prev, [])" |
-  "linear_split_help ((sub, sep)#xs) x prev = (if sep < x then linear_split_help xs x (prev @ [(sub, sep)]) else (prev, (sub,sep)#xs))"
-
-fun linear_split:: "(_\<times>'a::linorder) list \<Rightarrow> _ \<Rightarrow> ((_\<times>_) list \<times> (_\<times>_) list)" where
-  "linear_split xs x = linear_split_help xs x []"
-
 text "Linear split is similar to well known functions, therefore a quick proof can be done."
 
-lemma linear_split_alt: "linear_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
-proof -
+fun linear_split where "linear_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
+fun linear_split_list where "linear_split_list xs x = (takeWhile (\<lambda>s. s<x) xs, dropWhile (\<lambda>s. s<x) xs)"
 
-  have "linear_split_help xs x prev = (prev @ takeWhile (\<lambda>(_, s). s < x) xs, dropWhile (\<lambda>(_, s). s < x) xs)"
-    for prev
-    apply (induction xs arbitrary: prev)
-     apply auto
-    done
-  thus ?thesis by auto
-qed
-
-global_interpretation btree_linear_search: split linear_split
+global_interpretation bplustree_linear_search: split_full linear_split linear_split_list
   (* the below definitions are required to be set here for evaluating example code... *)
-  defines btree_ls_isin = btree_linear_search.isin 
-    and btree_ls_ins = btree_linear_search.ins
-    and btree_ls_insert = btree_linear_search.insert
-    and btree_ls_del = btree_linear_search.del
-    and btree_ls_delete = btree_linear_search.delete
+  defines bplustree_ls_isin = bplustree_linear_search.isin 
+    and bplustree_ls_ins = bplustree_linear_search.ins
+    and bplustree_ls_insert = bplustree_linear_search.insert
+    and bplustree_ls_del = bplustree_linear_search.del
+    and bplustree_ls_delete = bplustree_linear_search.delete
   apply unfold_locales
-  unfolding linear_split_alt
+  unfolding linear_split.simps
     apply (auto split: list.splits)
   subgoal
     by (metis (no_types, lifting) case_prodD in_set_conv_decomp takeWhile_eq_all_conv takeWhile_idem)
   subgoal
     by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
+  subgoal
+    by (metis Nil_is_append_conv last_in_set last_snoc list.simps(3) set_takeWhileD)
+  subgoal
+    by (metis hd_dropWhile le_less_linear list.sel(1) list.simps(3))
   done
 
 
 text "Some examples follow to show that the implementation works
       and the above lemmas make sense. The examples are visualized in the thesis."
 
-abbreviation "btree\<^sub>i \<equiv> btree_ls_insert"
-abbreviation "btree\<^sub>d \<equiv> btree_ls_delete"
+abbreviation "bplustree\<^sub>i \<equiv> bplustree_ls_insert"
+abbreviation "bplustree\<^sub>d \<equiv> bplustree_ls_delete"
 
-value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::nat bplustree = (Node [(Node [(LNode [1,2], 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       root_order k x"
-value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       bal x"
-value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       sorted_less (inorder x)"
-value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       x"
-value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
-      btree\<^sub>i k 9 x"
-value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
-      btree\<^sub>i k 1 (btree\<^sub>i k 9 x)"
-value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
-      btree\<^sub>d k 10 (btree\<^sub>i k 1 (btree\<^sub>i k 9 x))"
-value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
-      btree\<^sub>d k 3 (btree\<^sub>d k 10 (btree\<^sub>i k 1 (btree\<^sub>i k 9 x)))"
+value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      bplustree\<^sub>i k 9 x"
+value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x)"
+value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      bplustree\<^sub>d k 10 (bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x))"
+value "let k=2::nat; x::nat bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      bplustree\<^sub>d k 3 (bplustree\<^sub>d k 10 (bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x)))"
 
 text "For completeness, we also proved an explicit proof of the locale
 requirements."
@@ -90,7 +78,7 @@ lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (ls,rs); sorted_les
    apply(simp_all)
   by (metis prod.inject)+
 
-value "linear_split [((Leaf::nat btree), 2)] (1::nat)"
+value "linear_split [((Leaf::nat bplustree), 2)] (1::nat)"
 
 (* TODO still has format for older proof *)
 lemma linear_split_gr:
