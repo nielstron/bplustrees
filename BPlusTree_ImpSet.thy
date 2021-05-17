@@ -81,6 +81,9 @@ lemma split_half_rule[sep_heap_rules]: "<
   apply(sep_auto dest!: list_assn_len mod_starD)
   done
 
+lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
+  by simp
+
 subsection "The imperative split locale"
 
 text "This locale extends the abstract split locale,
@@ -131,7 +134,7 @@ partial_function (heap) isin :: "'a btnode ref \<Rightarrow> 'a \<Rightarrow>  b
     }
 )}"
 
-lemma  "Laligned t u \<Longrightarrow> sorted_less (leaves t) \<Longrightarrow>
+lemma  "sorted_less (inorder t) \<Longrightarrow> sorted_less (leaves t) \<Longrightarrow>
    <bplustree_assn k t ti>
      isin ti x
    <\<lambda>r. bplustree_assn k t ti * \<up>(abs_split.isin t x = r)>\<^sub>t"
@@ -153,54 +156,38 @@ next
       apply(subst isin.simps)
       apply(sep_auto)
       
-      using "2.prems" Laligned_sorted_inorder[of "Node ts t" u] sorted_inorder_separators[of ts t] sorted_wrt_append apply blast
+      using "2.prems"  sorted_inorder_separators[of ts t] sorted_wrt_append apply blast
+      apply(sep_auto)
       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
       apply(rule hoare_triple_preI)
       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+      using 2(3) apply(sep_auto heap: "2.IH"(1)[of ls "[]"] simp add: sorted_wrt_append)
+      using "2.prems"(2) sorted_leaves_induct_last apply blast
       using 2(3) apply(sep_auto heap: "2.IH"(1)[of ls "[]"] simp add: sorted_wrt_append)
       done
   next
     case [simp]: (Cons h rrs)
     obtain sub sep where h_split[simp]: "h = (sub,sep)"
       by (cases h)
-    show ?thesis
-    proof (cases "sep = x")
-      (* NOTE: no induction required here, only vacuous counter cases generated *)
-      case [simp]: True
       then show ?thesis
         apply(simp split: list.splits prod.splits)
         apply(subst isin.simps)
-        using "2.prems" sorted_inorder_separators apply(sep_auto)
-         apply(rule hoare_triple_preI)
-         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
-        apply(rule hoare_triple_preI)
-        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-        done
-    next
-      case [simp]: False
-      show ?thesis
-        apply(simp split: list.splits prod.splits)
-        apply safe
-        using False apply simp
-        apply(subst isin.simps)
         using "2.prems" sorted_inorder_separators 
         apply(sep_auto)
-          (*eliminate vacuous case*)
-          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
           (* simplify towards induction step *)
          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
 
 (* NOTE show that z = (suba, sepa) *)
          apply(rule norm_pre_ex_rule)+
          apply(rule hoare_triple_preI)
-        subgoal for p tsi n ti xsi suba sepa zs1 z zs2 _
+        subgoal for tsi n ti tsi' suba sepa zs1 z zs2
           apply(subgoal_tac "z = (suba, sepa)", simp)
           using 2(3) apply(sep_auto
               heap:"2.IH"(2)[of ls rs h rrs sub sep]
               simp add: sorted_wrt_append)
           using list_split Cons h_split apply simp_all
+          apply(rule P_imp_Q_implies_P)
             (* proof that previous assumptions hold later *)
-           apply(rule P_imp_Q_implies_P)
            apply(rule ent_ex_postI[where x="(tsi,n)"])
            apply(rule ent_ex_postI[where x="ti"])
            apply(rule ent_ex_postI[where x="(zs1 @ (suba, sepa) # zs2)"])
@@ -215,7 +202,6 @@ next
         apply(rule hoare_triple_preI)
         apply(auto simp add: split_relation_def dest!: mod_starD list_assn_len)[]
         done
-    qed
   qed
 qed
 
@@ -223,8 +209,8 @@ subsection "Insertion"
 
 
 datatype 'b btupi = 
-  T\<^sub>i "'b btnode option" |
-  Up\<^sub>i "'b btnode option" "'b" "'b btnode option"
+  T\<^sub>i "'b btnode ref" |
+  Up\<^sub>i "'b btnode ref" "'b" "'b btnode ref"
 
 fun btupi_assn where
   "btupi_assn k (abs_split.T\<^sub>i l) (T\<^sub>i li) =
@@ -235,16 +221,16 @@ fun btupi_assn where
 
 
 
-definition node\<^sub>i :: "nat \<Rightarrow> ('a btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
+definition node\<^sub>i :: "nat \<Rightarrow> ('a btnode ref \<times> 'a) pfarray \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btupi Heap" where
   "node\<^sub>i k a ti \<equiv> do {
     n \<leftarrow> pfa_length a;
     if n \<le> 2*k then do {
       a' \<leftarrow> pfa_shrink_cap (2*k) a;
       l \<leftarrow> ref (Btnode a' ti);
-      return (T\<^sub>i (Some l))
+      return (T\<^sub>i l)
     }
     else do {
-      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
+      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref \<times> 'a) pfarray Heap);
       i \<leftarrow> split_half a;
       m \<leftarrow> pfa_get a i;
       b' \<leftarrow> pfa_drop a (i+1) b;
@@ -253,7 +239,7 @@ definition node\<^sub>i :: "nat \<Rightarrow> ('a btnode ref option \<times> 'a)
       let (sub,sep) = m in do {
         l \<leftarrow> ref (Btnode a'' sub);
         r \<leftarrow> ref (Btnode b' ti);
-        return (Up\<^sub>i (Some l) sep (Some r))
+        return (Up\<^sub>i l sep r)
       }
     }
 }"
