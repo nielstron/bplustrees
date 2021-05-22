@@ -154,8 +154,6 @@ lemma sorted_delete_list[simp]:
 
 
 
-fun invar_inorder where "invar_inorder k t = (bal t \<and> root_order k t)"
-
 definition "empty_bplustree = (LNode [])"
 
 subsection "Membership"

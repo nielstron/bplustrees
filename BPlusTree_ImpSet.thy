@@ -539,7 +539,7 @@ lemma ins_rule:
   "k > 0 \<Longrightarrow>
   sorted_less (inorder t) \<Longrightarrow>
   sorted_less (leaves t) \<Longrightarrow>
-  order k t \<Longrightarrow>
+  root_order k t \<Longrightarrow>
   <bplustree_assn k t ti>
   ins k x ti
   <\<lambda>r. btupi_assn k (abs_split.ins k x t) r>\<^sub>t"
@@ -585,7 +585,7 @@ next
         subgoal for tsil tsin tti tsi'
           thm "2.IH"(1)[of ls rrs tti]
           using "2.prems" sorted_leaves_induct_last
-          using  Nil list_split T\<^sub>i abs_split.split_conc[OF list_split]
+          using  Nil list_split T\<^sub>i abs_split.split_conc[OF list_split] order_impl_root_order 
           apply(sep_auto split!: list.splits simp add: split_relation_alt
               heap add: "2.IH"(1)[of ls rrs tti])
           subgoal for ai
@@ -617,7 +617,7 @@ next
         subgoal for tsil tsin tti tsi' i tsin'
           thm "2.IH"(1)[of ls rrs tti]
           using "2.prems" sorted_leaves_induct_last
-          using  Nil list_split Up\<^sub>i abs_split.split_conc[OF list_split]
+          using  Nil list_split Up\<^sub>i abs_split.split_conc[OF list_split] order_impl_root_order
           apply(sep_auto split!: list.splits 
               simp add: split_relation_alt
               heap add: "2.IH"(1)[of ls rrs tti])
@@ -692,6 +692,7 @@ next
              apply (vcg heap: "2.IH"(2))
             using "2.prems" sorted_leaves_induct_subtree \<open>sorted_less (inorder sub)\<close>
                 apply(auto split!: btupi.splits) 
+            using "2.prems"(1) order_impl_root_order apply blast
               (* careful progression for manual value insertion *)
              apply vcg
               apply simp
@@ -712,9 +713,10 @@ next
               done
             apply(auto dest!: mod_starD list_assn_len)
             done
-          subgoal for p tsil tsin ti zs1 subi sepi zs2 _ _ suba
+          subgoal for p tsil tsin ti zs1 subi sepi zs2 _ 
             apply(auto dest!:  mod_starD list_assn_len)[]
             done
+          done
       next
         case (Up\<^sub>i l w r)
         then show ?thesis
@@ -756,6 +758,7 @@ next
              apply (sep_auto heap: 2(2))
             using "2.prems" sorted_leaves_induct_subtree \<open>sorted_less (inorder sub)\<close>
                 apply(auto split!: btupi.splits) 
+            using "2.prems"(1) order_impl_root_order apply blast
               (* careful progression for manual value insertion *)
               apply vcg
                apply simp
@@ -805,34 +808,37 @@ next
 text "The imperative insert refines the abstract insert."
 
 lemma insert_rule:
-  assumes "k > 0" "sorted_less (inorder t)"
+  assumes "k > 0" "sorted_less (inorder t)" "sorted_less (leaves t)" "root_order k t"
   shows "<bplustree_assn k t ti>
   insert k x ti
   <\<lambda>r. bplustree_assn k (abs_split.insert k x t) r>\<^sub>t"
   unfolding insert_def
   apply(cases "abs_split.ins k x t")
-   apply(sep_auto split!: btupi.splits heap: ins_rule[OF assms(2)])
   using assms
-  apply(vcg heap: ins_rule[OF assms(2)])
+   apply(sep_auto split!: btupi.splits heap: ins_rule)
+  using assms
+  apply(vcg heap: ins_rule)
   apply(simp split!: btupi.splits)
-  apply(vcg)
    apply auto[]
   apply vcg
   apply auto[]
-  subgoal for l a r li ai ri tsa tsn ti
-    apply(rule ent_ex_postI[where x="(tsa,tsn)"])
+  apply vcg
+  subgoal for l r li a ri tsi
+    apply(rule ent_ex_postI[where x="tsi"])
     apply(rule ent_ex_postI[where x="ri"])
-    apply(rule ent_ex_postI[where x="[(li, ai)]"])
+    apply(rule ent_ex_postI[where x="[(Some li, a)]"])
     apply sep_auto
     done
   done
 
 text "The \"pure\" resulting rule follows automatically."
 lemma insert_rule':
-  shows "<bplustree_assn (Suc k) t ti * \<up>(abs_split.invar_inorder (Suc k) t \<and> sorted_less (inorder t))>
+  shows "<bplustree_assn (Suc k) t ti * \<up>(abs_split.invar_leaves (Suc k) t \<and> sorted_less (leaves t))>
   insert (Suc k) x ti
-  <\<lambda>ri.\<exists>\<^sub>Ar. bplustree_assn (Suc k) r ri * \<up>(abs_split.invar_inorder (Suc k) r \<and> sorted_less (inorder r) \<and> inorder r = (ins_list x (inorder t)))>\<^sub>t"
-  using abs_split.insert_bal abs_split.insert_order abs_split.insert_inorder 
+  <\<lambda>ri.\<exists>\<^sub>Ar. bplustree_assn (Suc k) r ri * \<up>(abs_split.invar_leaves (Suc k) r \<and> sorted_less (leaves r) \<and> leaves r = (ins_list x (leaves t)))>\<^sub>t"
+  using Laligned_sorted_inorder[of t top] sorted_wrt_append
+  using abs_split.insert_bal[of t] abs_split.insert_order[of "Suc k" t]
+  using abs_split.insert_Linorder_top[of "Suc k" t]
   by (sep_auto heap: insert_rule simp add: sorted_ins_list)
 
 subsection "Deletion"
