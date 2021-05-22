@@ -327,9 +327,7 @@ fun aligned :: "'a ::linorder \<Rightarrow> _" where
 "aligned l (Node ts t) u = (inbetween aligned l ts t u)"
 
 lemma sorted_less_merge: "sorted_less (as@[a]) \<Longrightarrow> sorted_less (a#bs) \<Longrightarrow> sorted_less (as@a#bs)"
-  apply(induction as)
-  apply auto
-  done
+  using sorted_mid_iff by blast
 
 
 thm aligned.simps

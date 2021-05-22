@@ -10,23 +10,14 @@ section "Imperative B-tree Definition"
 text "The heap data type definition. Anything stored on the heap always contains data,
 leafs are represented as None."
 
-(* Empty only as the default for non-initializeed entries *)
+(* Option as we need a default for non-initializeed entries *)
 datatype 'a btnode =
-  Btnode "('a btnode ref *'a) pfarray" "'a btnode ref" |
-  Btleaf "'a pfarray" |
-  Empty
+  Btnode "('a btnode ref option *'a) pfarray" "'a btnode ref" |
+  Btleaf "'a pfarray"
 
-instantiation btnode :: (type) default
-begin
-
-definition "btnode_default \<equiv> Empty"
-
-instance .. 
-
-end
 
 text \<open>Selector Functions\<close>
-primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref*'a) pfarray" where
+primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option * 'a) pfarray" where
   [sep_dflt_simps]: "kvs (Btnode ts _) = ts"
 
 primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref" where
@@ -41,9 +32,8 @@ text \<open>Encoding to natural numbers, as required by Imperative/HOL\<close>
 fun
   btnode_encode :: "'a::heap btnode \<Rightarrow> nat"
   where
-    "btnode_encode (Btnode ts t) = to_nat (Some ts, Some t, None::('a) pfarray option)" |
-    "btnode_encode (Btleaf ts) = to_nat (None::('a btnode ref*'a) pfarray option, None::'a btnode ref option, Some ts)" |
-    "btnode_encode (Empty) = to_nat (None::('a btnode ref*'a) pfarray option, None::'a btnode ref option, None::('a) pfarray option)"
+    "btnode_encode (Btnode ts t) = to_nat (Some ts, Some t, None::'a pfarray option)" |
+    "btnode_encode (Btleaf ts) = to_nat (None::('a btnode ref option * 'a) pfarray option, None::'a btnode ref option, Some ts)"
 
 instance btnode :: (heap) heap
   apply (rule heap_class.intro)
@@ -53,6 +43,7 @@ instance btnode :: (heap) heap
   ..
 
 text "The refinement relationship to abstract B-trees."
+
 
 fun bplustree_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> assn" where
   "bplustree_assn k (LNode xs) a = 
@@ -66,7 +57,7 @@ fun bplustree_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btn
       a \<mapsto>\<^sub>r Btnode tsi ti
     * bplustree_assn k t ti
     * is_pfa (2*k) tsi' tsi
-    * list_assn ((bplustree_assn k) \<times>\<^sub>a id_assn) ts tsi'
+    * list_assn ((\<lambda> t ti. bplustree_assn k t (the ti)) \<times>\<^sub>a id_assn) ts tsi'
     )"
 
 text "With the current definition of deletion, we would
@@ -83,10 +74,10 @@ fun btnode_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode
  (\<exists>\<^sub>A tsi'.
       bplustree_assn k t ti
     * is_pfa (2*k) tsi' tsi
-    * list_assn ((bplustree_assn k) \<times>\<^sub>a id_assn) ts tsi'
+    * list_assn ((\<lambda> t ti. bplustree_assn k t (the ti)) \<times>\<^sub>a id_assn) ts tsi'
     )" |
   "btnode_assn _ _ _ = false"
 
-abbreviation "blist_assn k \<equiv> list_assn ((bplustree_assn k) \<times>\<^sub>a id_assn)"
+abbreviation "blist_assn k \<equiv> list_assn ((\<lambda> t ti. bplustree_assn k t (the ti)) \<times>\<^sub>a id_assn)"
 
 end
