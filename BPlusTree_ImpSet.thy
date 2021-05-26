@@ -955,6 +955,22 @@ definition empty ::"nat \<Rightarrow> ('a::{default,heap,linorder,order_top}) bt
 lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
 
+lemma node\<^sub>i_rule_ins: "\<lbrakk>2*k \<le> c; c \<le> 4*k; length ls = length lsi\<rbrakk> \<Longrightarrow>
+ <is_pfa c (lsi @ (Some li, a) # rsi) (aa, al) *
+   blist_assn k ls lsi *
+   bplustree_assn k l li *
+   blist_assn k rs rsi *
+   bplustree_assn k t ti>
+     node\<^sub>i k (aa, al) ti
+ <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # rs) t)>\<^sub>t"
+proof -
+  assume [simp]: "2*k \<le> c" "c \<le> 4*k" "length ls = length lsi"
+  moreover note node\<^sub>i_rule[of k c "(lsi @ (Some li, a) # rsi)" aa al "(ls @ (l, a) # rs)" t ti]
+  ultimately show ?thesis
+    by (simp add: mult.left_assoc list_assn_aux_append_Cons)
+qed
+
+
 
 lemma btupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t) (T\<^sub>i x) \<Longrightarrow> abs_split.node\<^sub>i k ts t = abs_split.T\<^sub>i (Node ts t)"
   apply(auto simp add: abs_split.node\<^sub>i.simps dest!: mod_starD split!: list.splits prod.splits)
@@ -1069,11 +1085,21 @@ next
           using assms apply(sep_auto  split!: prod.splits)
           apply (metis assms(3) list_assn_len nth_append_length prod.inject)
           done
-      using assms apply(sep_auto split!: prod.splits abs_split.up\<^sub>i.splits)
+        apply simp
+        apply sep_auto
      subgoal
   (* still the "IF" branch *)
   (* solves impossible case*)
-       using False apply (auto dest!: list_assn_len mod_starD)[]
+       using False apply (sep_auto del: impCE dest!: list_assn_len mod_starD)[]
+      (*TODO subst by nice solution *)
+       apply (smt (z3) assn_times_assoc ent_pure_pre_iff ent_true_drop(1) list_assn_aux_len)
+       done
+     subgoal
+  (* still the "IF" branch *)
+  (* solves impossible case*)
+       using False apply (sep_auto del: impCE dest!: list_assn_len mod_starD)[]
+      (*TODO subst by nice solution *)
+       apply (smt (z3) assn_times_assoc ent_pure_pre_iff ent_true_drop(1) list_assn_aux_len)
        done
      apply simp
      apply(rule hoare_triple_preI)
@@ -1086,38 +1112,14 @@ next
     apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
      subgoal
        apply(rule hoare_triple_preI)
-     apply(sep_auto split!: btupi.splits)
-       apply(auto dest!: btupi_assn_T mod_starD)[]
+     apply(sep_auto del: impCE split!: btupi.splits)
+       apply(auto del: impCE dest!: btupi_assn_T mod_starD)[]
         apply(rule ent_ex_postI[where x="lsi"])
        apply sep_auto
-       apply sep_auto
-       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       apply (sep_auto del: impCE)
+       apply(auto del: impCE dest!: btupi_assn_Up mod_starD split!: list.splits prod.splits)[]
        subgoal for li ai ri
-        apply(rule ent_ex_postI[where x="lsi @ [(li, ai)]"])
-         apply sep_auto
-         done
-       apply(auto dest!: btupi_assn_T mod_starD)[]
-       apply sep_auto
-       apply sep_auto
-       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
-       subgoal for li ai ri
-        apply(rule ent_ex_postI[where x="lsi @ [(li, ai)]"])
-         apply sep_auto
-         done
-       apply(auto dest!: btupi_assn_T mod_starD)[]
-       apply sep_auto
-       apply sep_auto
-       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
-       subgoal for li ai ri
-        apply(rule ent_ex_postI[where x="lsi @ [(li, ai)]"])
-         apply sep_auto
-         done
-       apply(auto dest!: btupi_assn_T mod_starD)[]
-       apply sep_auto
-       apply sep_auto
-       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
-       subgoal for li ai ri
-        apply(rule ent_ex_postI[where x="lsi @ [(li, ai)]"])
+        apply(rule ent_ex_postI[where x="lsi @ [(Some li, ai)]"])
          apply sep_auto
          done
        done
@@ -1144,7 +1146,7 @@ next
 
       apply(sep_auto  split!: prod.splits)
       using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-       apply(auto)[]
+       apply(sep_auto)[]
     subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' _ _  _ _ _ _ _ _ _ _ tsia tsin tti ttsi  
       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
       apply(vcg)
