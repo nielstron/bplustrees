@@ -1016,7 +1016,7 @@ next
       subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
           tsia tsin  tti ttsi _ _ _ _ x
       using assms apply(sep_auto  split!: prod.splits)
-        apply(subgoal_tac "(subi, sepi) = x")
+        apply(subgoal_tac "x = (subi, sepi)")
       using assms apply(sep_auto  split!: prod.splits)
       using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
     subgoal for subi' sepi' x
@@ -1043,11 +1043,12 @@ next
       apply(rule hoare_triple_preI)
       apply(sep_auto dest!: mod_starD)
        using assms apply (auto  dest!: list_assn_len)[]
-
-      apply(sep_auto  split!: prod.splits)
+      subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  _ _ _ _ _ _ _ _ _ _
+          tsia tsin  tti ttsi _ _ _ _ x
+      using assms apply(sep_auto  split!: prod.splits)
+        apply(subgoal_tac "x = (subi, sepi)")
+      using assms apply(sep_auto  split!: prod.splits)
       using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-       using z_split apply(auto)[]
-    subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' _ _  _ _ _ _ _ _ _ _ tsia tsin tti ttsi  
       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
       apply(vcg)
        apply(auto)[]
@@ -1056,19 +1057,21 @@ next
       apply(sep_auto dest!: mod_starD)
      using assms apply (auto dest!: list_assn_len)[]
     using assms apply (auto dest!: list_assn_len)[]
+      subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  _ _ _ _ _ _ _ _ _ _
+          tsia tsin  tti ttsi _ _ _ _ x
    apply(sep_auto)
-     using assms apply (auto dest!: list_assn_len mod_starD)[]
-     using assms apply (auto dest!: list_assn_len mod_starD)[]
-(* Issue: we do not know yet what  'subp is pointing at *)
-   subgoal for _ _ _ _ _ _ tp tsia tsin tti ttsi _ _ _ _ _ _ _ _ tsia' tsin' tti' tsi' subi sepi subp
-     apply(subgoal_tac "z = (subi, sepi)")
+        apply(subgoal_tac "x = (subi, sepi)")
      prefer 2
-    apply (metis assms(3) list_assn_len nth_append_length)
-     apply simp
-  apply(vcg)
+        apply (metis assms(3) list_assn_len nth_append_length)
+      using assms apply(sep_auto  split!: prod.splits)
+        subgoal for r_sub r_sep
+          apply(subgoal_tac "r_sub = subi \<and> r_sep = sepi")
+          using assms apply(sep_auto  split!: prod.splits)
+          apply (metis assms(3) list_assn_len nth_append_length prod.inject)
+          done
+      using assms apply(sep_auto split!: prod.splits abs_split.up\<^sub>i.splits)
      subgoal
   (* still the "IF" branch *)
-       apply(rule entailsI)
   (* solves impossible case*)
        using False apply (auto dest!: list_assn_len mod_starD)[]
        done
