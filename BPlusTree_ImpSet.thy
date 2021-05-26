@@ -1123,34 +1123,74 @@ next
          apply sep_auto
          done
        done
-     apply sep_auto
+     apply (sep_auto del: impCE)
      using assms apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
-     using assms apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
-     using assms apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
-     using assms apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
-     apply sep_auto
-     using assms apply(auto dest!: list_assn_len mod_starD)[]
-     using assms apply(auto dest!: list_assn_len mod_starD)[]
-     using assms apply(auto dest!: list_assn_len mod_starD)[]
+     apply (sep_auto del: impCE)
      using assms apply(auto dest!: list_assn_len mod_starD)[]
      using assms apply(auto dest!: list_assn_len mod_starD)[]
      done
    done
 next
   case (Cons rss rrs)
-  then show ?thesis
+  then obtain rrsub rrsep where rss_split[simp]: "rss = (rrsub, rrsep)"
+    by (cases rss)
+  moreover obtain rrts rrt where rrsub_node[simp]: "rrsub = Node rrts rrt" 
+    using assms Cons rss_split t_node by (cases rrsub) auto 
+  from Cons show ?thesis
       apply(subst rebalance_middle_tree_def)
       apply(rule hoare_triple_preI)
       apply(sep_auto dest!: mod_starD)
        using assms apply (auto  dest!: list_assn_len)[]
-
-      apply(sep_auto  split!: prod.splits)
+      subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  _ _ _ _ _ _ _ _ _ _
+          tsia tsin  tti ttsi _ _ _ _ x
+      using assms apply(sep_auto  split!: prod.splits)
+        apply(subgoal_tac "x = (subi, sepi)")
+      using assms apply(sep_auto  split!: prod.splits)
       using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-       apply(sep_auto)[]
-    subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' _ _  _ _ _ _ _ _ _ _ tsia tsin tti ttsi  
       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
       apply(vcg)
        apply(auto)[]
+     using False apply(auto dest!: mod_starD list_assn_len)
+     done
+      apply(sep_auto dest!: mod_starD)
+       using assms apply (auto dest!: list_assn_len)[]
+       using assms apply (auto dest!: list_assn_len)[]
+
+      subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  _ _ _ _ _ _ _ _ _ _
+          tsia tsin  tti ttsi _ _ _ _ _ _ x
+   apply(sep_auto)
+        apply(subgoal_tac "x = (subi, sepi)")
+     prefer 2
+        apply (metis assms(3) list_assn_len nth_append_length)
+        apply simp
+        apply vcg
+        subgoal for r_sub r_sep
+          apply(subgoal_tac "r_sub = subi \<and> r_sep = sepi")
+          using assms apply(sep_auto  split!: prod.splits)
+          apply (metis assms(3) list_assn_len nth_append_length prod.inject)
+          done
+      apply(sep_auto  split!: prod.splits)
+(* TODO show more nicely that the node to the right is not a leaf *)
+      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+      apply (smt (z3) assn_times_assoc ent_pure_pre_iff ent_true_drop(1) list_assn_aux_len)
+      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+      apply (smt (z3) assn_times_assoc ent_pure_pre_iff ent_true_drop(1) list_assn_aux_len)
+      apply(vcg)
+      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+      apply vcg
+      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+      subgoal for _ _ _ _ _ rx
+        supply R = list_assn_append_Cons_left[where xs="[]" and x=rss and ys=rrs and zs=rsi]
+        using R
+       apply(auto simp add: R)[]
+        apply(rule norm_pre_ex_rule)+
+        subgoal for rrsub rrsep rrsi _ z _
+          apply(rule hoare_triple_preI)
+        apply(subgoal_tac "rx = z")
+          prefer 2
+          apply (sep_auto simp add: assms(3) list_assn_len second_last_access)
+        apply (sep_auto dest!: mod_starD)
      using False apply(auto dest!: mod_starD list_assn_len)
      done
       apply(sep_auto dest!: mod_starD)
