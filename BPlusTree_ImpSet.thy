@@ -1157,7 +1157,7 @@ next
        using assms apply (auto dest!: list_assn_len)[]
 
       subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  _ _ _ _ _ _ _ _ _ _
-          tsia tsin  tti ttsi _ _ _ _ _ _ x
+          tsia tsin ttsia ttsin tti ttsi rtsia rtsin mti rtsi x
    apply(sep_auto)
         apply(subgoal_tac "x = (subi, sepi)")
      prefer 2
@@ -1180,45 +1180,33 @@ next
       using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
       apply vcg
       using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-      subgoal for _ _ _ _ _ rx
+      subgoal for rsubi rsepi _ _ _ rx
         supply R = list_assn_append_Cons_left[where xs="[]" and x=rss and ys=rrs and zs=rsi]
         using R
        apply(auto simp add: R)[]
+          apply(simp add: prod_assn_def)
         apply(rule norm_pre_ex_rule)+
-        subgoal for rrsub rrsep rrsi _ z _
+        subgoal for rrsubi rrsepi rrsi rrtsia rrtsin rrti rrtsi _ z _
           apply(rule hoare_triple_preI)
         apply(subgoal_tac "rx = z")
           prefer 2
           apply (sep_auto simp add: assms(3) list_assn_len second_last_access)
-        apply (sep_auto dest!: mod_starD)
-     using False apply(auto dest!: mod_starD list_assn_len)
-     done
-      apply(sep_auto dest!: mod_starD)
-     using assms apply (auto dest!: list_assn_len)[]
-    using assms apply (auto dest!: list_assn_len)[]
-   apply(sep_auto)
-     using assms apply (auto dest!: list_assn_len mod_starD)[]
-     using assms apply (auto dest!: list_assn_len mod_starD)[]
-(* Issue: we do not know yet what  'xa' is pointing at *)
-   subgoal for list_heap1 list_heap2 _ _ _ _ _ _ tp ttsia' ttsin' tti' ttsi' _ _ _ _ _ _ _ _ ttsia ttsin tti ttsi subi sepi subp
-     apply(subgoal_tac "z = (subi, sepi)")
-     prefer 2
-     apply (metis assms(3) list_assn_len nth_append_length)
-     apply simp
-  apply(vcg)
-     subgoal
-  (* still the "IF" branch *)
-       apply(rule entailsI)
-  (* solves impossible case*)
-       using False apply (auto dest!: list_assn_len mod_starD)[]
-       done
-     apply simp
-     subgoal for subtsi subti subts ti subi subtsl ttsl
+          apply(auto simp add: prod_assn_def)[]
+          apply(vcg (ss))
+          apply(vcg (ss))
+          apply(vcg (ss))
+          apply(vcg (ss))
+          apply(vcg (ss))
+(* TODO cases on xc s.t. pfa_append_extend_grow_rule can be applied *)
+          apply(rule impI)
+          apply(vcg)
+          supply R' = pfa_append_extend_grow_rule[where a=rtsia and n=rtsin and x="(Some mti, rsepi)"]
+          thm R'
     (* TODO different nodei rule here *)
-       supply R = node\<^sub>i_rule_ins[where k=k and c="(max (2 * k) (Suc (_ + ttsin)))" and lsi=subts]
+       supply R = node\<^sub>i_rule_ins[where k=k and c="(max (2 * k) (Suc (_ + ttsin)))" and lsi=lsi]
        thm R
-       apply(cases subtsi)
-     apply(sep_auto heap add: R pfa_append_extend_grow_rule dest!: mod_starD)
+       apply(cases lsi)
+     apply(sep_auto heap add: R R' dest!: mod_starD)
 (* all of these cases are vacuous *)
       using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
       using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
