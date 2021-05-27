@@ -350,7 +350,7 @@ definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder,order_top}) 
 }"
 
 declare abs_split.node\<^sub>i.simps [simp add]
-lemma node\<^sub>i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k"
+lemma node\<^sub>i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
   shows "<is_pfa c tsi (a,n) * blist_assn k ts tsi * bplustree_assn k t ti>
   node\<^sub>i k (a,n) ti
   <\<lambda>r. btupi_assn k (abs_split.node\<^sub>i k ts t) r >\<^sub>t"
@@ -506,7 +506,7 @@ lemma Lnode\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split.L
 lemma id_assn_emp[simp]: "id_assn a a = emp"
   by (simp add: pure_def)
 
-lemma node\<^sub>i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k\<rbrakk> \<Longrightarrow>
+lemma node\<^sub>i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longrightarrow>
 <is_pfa c (tsi' @ [(Some li, a)]) (aa, al) *
    blist_assn k ls tsi' *
    bplustree_assn k l li *
@@ -514,12 +514,12 @@ lemma node\<^sub>i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k\<rbrakk> \<Longr
  <btupi_assn k (abs_split.node\<^sub>i k (ls @ [(l, a)]) r)>\<^sub>t"
 proof -
   note node\<^sub>i_rule[of k c "(tsi' @ [(Some li, a)])" aa al "(ls @ [(l, a)])" r ri]
-  moreover assume "2*k \<le> c" "c \<le> 4*k"
+  moreover assume "2*k \<le> c" "c \<le> 4*k+1"
   ultimately show ?thesis
     by (simp add: mult.left_assoc)
 qed
 
-lemma node\<^sub>i_rule_ins2: "\<lbrakk>2*k \<le> c; c \<le> 4*k; length ls = length lsi\<rbrakk> \<Longrightarrow>
+lemma node\<^sub>i_rule_ins2: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = length lsi\<rbrakk> \<Longrightarrow>
  <is_pfa c (lsi @ (Some li, a) # (Some ri,a') # rsi) (aa, al) *
    blist_assn k ls lsi *
    bplustree_assn k l li *
@@ -528,7 +528,7 @@ lemma node\<^sub>i_rule_ins2: "\<lbrakk>2*k \<le> c; c \<le> 4*k; length ls = le
    bplustree_assn k t ti> node\<^sub>i k (aa, al)
           ti <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # (r,a') # rs) t)>\<^sub>t"
 proof -
-  assume [simp]: "2*k \<le> c" "c \<le> 4*k" "length ls = length lsi"
+  assume [simp]: "2*k \<le> c" "c \<le> 4*k+1" "length ls = length lsi"
   moreover note node\<^sub>i_rule[of k c "(lsi @ (Some li, a) # (Some ri,a') # rsi)" aa al "(ls @ (l, a) # (r,a') # rs)" t ti]
   ultimately show ?thesis
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
@@ -955,7 +955,7 @@ definition empty ::"nat \<Rightarrow> ('a::{default,heap,linorder,order_top}) bt
 lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
 
-lemma node\<^sub>i_rule_ins: "\<lbrakk>2*k \<le> c; c \<le> 4*k; length ls = length lsi\<rbrakk> \<Longrightarrow>
+lemma node\<^sub>i_rule_ins: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = length lsi\<rbrakk> \<Longrightarrow>
  <is_pfa c (lsi @ (Some li, a) # rsi) (aa, al) *
    blist_assn k ls lsi *
    bplustree_assn k l li *
@@ -964,7 +964,7 @@ lemma node\<^sub>i_rule_ins: "\<lbrakk>2*k \<le> c; c \<le> 4*k; length ls = len
      node\<^sub>i k (aa, al) ti
  <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # rs) t)>\<^sub>t"
 proof -
-  assume [simp]: "2*k \<le> c" "c \<le> 4*k" "length ls = length lsi"
+  assume [simp]: "2*k \<le> c" "c \<le> 4*k+1" "length ls = length lsi"
   moreover note node\<^sub>i_rule[of k c "(lsi @ (Some li, a) # rsi)" aa al "(ls @ (l, a) # rs)" t ti]
   ultimately show ?thesis
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
@@ -1153,15 +1153,15 @@ next
      using False apply(auto dest!: mod_starD list_assn_len)
      done
       apply(sep_auto dest!: mod_starD)
-       using assms apply (auto dest!: list_assn_len)[]
-       using assms apply (auto dest!: list_assn_len)[]
+       subgoal using assms by (auto dest!: list_assn_len)[]
+       subgoal using assms by (auto dest!: list_assn_len)[]
 
       subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  _ _ _ _ _ _ _ _ _ _
           tsia tsin ttsia ttsin tti ttsi rtsia rtsin mti rtsi x
    apply(sep_auto)
         apply(subgoal_tac "x = (subi, sepi)")
      prefer 2
-        apply (metis assms(3) list_assn_len nth_append_length)
+        subgoal by (metis assms(3) list_assn_len nth_append_length)
         apply simp
         apply vcg
         subgoal for r_sub r_sep
@@ -1171,16 +1171,24 @@ next
           done
       apply(sep_auto  split!: prod.splits)
 (* TODO show more nicely that the node to the right is not a leaf *)
-      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-      apply (smt (z3) assn_times_assoc ent_pure_pre_iff ent_true_drop(1) list_assn_aux_len)
-      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-      apply (smt (z3) assn_times_assoc ent_pure_pre_iff ent_true_drop(1) list_assn_aux_len)
+          subgoal
+            using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+            apply (smt (z3) assn_times_assoc ent_pure_pre_iff ent_true_drop(1) list_assn_aux_len)
+            done
+          subgoal 
+            using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+            apply (smt (z3) assn_times_assoc ent_pure_pre_iff ent_true_drop(1) list_assn_aux_len)
+            done
       apply(vcg)
-      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+      subgoal using assms by (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+      subgoal using assms by (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
       apply vcg
-      using assms apply (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
+      subgoal using assms by (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
       subgoal for rsubi rsepi _ _ _ rx
+        apply(subgoal_tac "rsepi = sep")
+        prefer 2
+        subgoal
+          using assms by (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
         supply R = list_assn_append_Cons_left[where xs="[]" and x=rss and ys=rrs and zs=rsi]
         using R
        apply(auto simp add: R)[]
@@ -1191,37 +1199,75 @@ next
         apply(subgoal_tac "rx = z")
           prefer 2
           apply (sep_auto simp add: assms(3) list_assn_len second_last_access)
+          apply(thin_tac "_\<Turnstile>_")+
           apply(auto simp add: prod_assn_def)[]
           apply(vcg (ss))
           apply(vcg (ss))
           apply(vcg (ss))
           apply(vcg (ss))
           apply(vcg (ss))
+          subgoal for rrtsia rrtti rrtsi _
 (* TODO cases on xc s.t. pfa_append_extend_grow_rule can be applied *)
-          apply(rule impI)
-          apply(vcg)
-          supply R' = pfa_append_extend_grow_rule[where a=rtsia and n=rtsin and x="(Some mti, rsepi)"]
-          thm R'
+            apply(cases "rrtsia")
+            apply simp
+            apply sep_auto
     (* TODO different nodei rule here *)
-       supply R = node\<^sub>i_rule_ins[where k=k and c="(max (2 * k) (Suc (_ + ttsin)))" and lsi=lsi]
+             supply R = node\<^sub>i_rule_ins[where
+                 k=k and
+                 c="(max (2 * k) (Suc (rtsin + _)))" and
+                 lsi=rtsi and li=mti and a=rsepi and rsi=rrtsi
+                  and al="Suc (rtsin + _)" and ti=rrtti
+              ]
        thm R
-       apply(cases lsi)
-     apply(sep_auto heap add: R R' dest!: mod_starD)
+          apply(rule hoare_triple_preI)
+     apply(sep_auto heap add: R)
 (* all of these cases are vacuous *)
-      using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-      using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-      using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-      using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-      using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-      using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+       subgoal by (auto simp add: is_pfa_def dest!: list_assn_len mod_starD)
+       subgoal by (auto simp add: is_pfa_def dest!: list_assn_len mod_starD)
+          apply(rule hoare_triple_preI)
      apply(sep_auto split!: btupi.splits)
-     using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-     using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-     using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-     using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+         subgoal using assms by (auto simp add: is_pfa_def dest!: list_assn_len mod_starD)
+         subgoal for _ _ _ _ a
+      apply(rule hoare_triple_preI)
+         apply(sep_auto dest!: btupi_assn_T mod_starD)
+         subgoal using assms apply (auto simp add: is_pfa_def dest!: list_assn_len mod_starD)
+           by (metis (no_types, lifting) One_nat_def Suc_eq_plus1 Suc_lessI Suc_n_not_le_n add_Suc_right le_add1 length_append length_take less_add_Suc1 list.size(4) min_eq_arg(2) nat.inject)
+       apply(auto dest!: btupi_assn_T)[]
+         apply(vcg)
+         apply(auto)
+         subgoal
+         apply(rule ent_ex_postI[where x="(take (Suc i) lsi @ take (Suc i - length lsi) ((rsubi, sep) # (rrsubi, rrsep) # rrsi))
+         [i := (Some a, rrsep)] @
+         drop (Suc (Suc i)) lsi @
+         drop (Suc (Suc i) - length lsi) ((rsubi, sep) # (rrsubi, rrsep) # rrsi)"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
+         using assms apply (auto dest!: list_assn_len mod_starD)
+         apply sep_auto
+         done
+       done
+     subgoal for _ _ _ _ l a r 
+      apply(rule hoare_triple_preI)
+       apply(auto dest!: mod_starD)[]
+         apply(sep_auto)
+         subgoal using assms by (auto dest!: list_assn_len)
+         apply(sep_auto)
+         subgoal using assms by (auto dest!: list_assn_len)
+         apply(vcg)
+         apply (auto dest!: btupi_assn_Up split!: prod.splits)
+         apply(rule ent_ex_postI[where x="(lsi @ (Some l, a) # (Some r, rrsep) # rrsi)"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
+         using assms apply (auto dest!: list_assn_len mod_starD simp add: list_assn_aux_append_Cons)
+(* TODO move first ex. qu. in front and explicitely instanciate them *)
+         apply(sep_auto)
+         thm  btupi_assn_T
+       apply(drule btupi_assn_T list_assn_len mod_starD)+
       apply(rule hoare_triple_preI)
        apply (cases rsi)
-       apply(auto dest!: list_assn_len mod_starD)[]
+       apply(auto dest!: btupi_assn_T list_assn_len mod_starD)[]
        subgoal for subtsa subtsn mtsa mtsn mtt mtsi _ _ _ _ _ _ _ _ rsubsep _ rrsi rssi
 (* ensuring that the tree to the right is not none *)
          apply (cases rsubsep)
