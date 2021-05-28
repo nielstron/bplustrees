@@ -1548,161 +1548,19 @@ lemma rebalance_last_tree_rule:
   <\<lambda>r. btnode_assn k (abs_split.rebalance_last_tree k ts  t) r >\<^sub>t"
   apply(subst rebalance_last_tree_def)
   apply(rule hoare_triple_preI)
-  using assms apply(auto dest!: mod_starD)
   apply(subgoal_tac "length tsi - Suc 0 = length list")
   prefer 2
-  apply(auto dest!: list_assn_len)[]
-  using assms apply(sep_auto)
+  subgoal using assms by (auto dest!: mod_starD list_assn_len)[]
+  apply(cases tsia)
   supply R = rebalance_middle_tree_rule[where 
     ls="list" and 
     rs="[]" and
     i="length tsi - 1", simplified]
-  apply(cases tsia)
-  using R by blast
-
-partial_function (heap) split_max ::"nat \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> ('a btnode ref option \<times> 'a) Heap"
-  where
-    "split_max k r_t = (case r_t of Some p_t \<Rightarrow> do {
-   t \<leftarrow> !p_t;
-   (case (last t) of None \<Rightarrow> do {
-      (sub,sep) \<leftarrow> pfa_last (kvs t);
-      tsi' \<leftarrow> pfa_butlast (kvs t);
-      p_t := Btnode tsi' sub;
-      return (Some p_t, sep)
-  } |
-    Some x \<Rightarrow> do {
-      (sub,sep) \<leftarrow> split_max k (Some x);
-      p_t' \<leftarrow> rebalance_last_tree k (kvs t) sub;
-      p_t := p_t';
-      return (Some p_t, sep)
-  })
-})
-"
-
-
-declare  abs_split.split_max.simps [simp del] abs_split.rebalance_last_tree.simps [simp del] height_bplustree.simps [simp del]
-
-lemma split_max_rule:
-  assumes "abs_split.nonempty_lasttreebal t"
-    and "t \<noteq> Leaf"
-  shows "<bplustree_assn k t ti>
-  split_max k ti
-  <((bplustree_assn k) \<times>\<^sub>a id_assn) (abs_split.split_max k t)>\<^sub>t"
-  using assms
-proof(induction k t arbitrary: ti rule: abs_split.split_max.induct)
-  case (2 Leaf)
-  then show ?case by auto
-next
-  case (1 k ts tt)
-  then show ?case
-  proof(cases tt)
-    case Leaf
-    then show ?thesis
-  apply(subst split_max.simps)
-  apply (vcg)
-  using assms apply auto[]
-  apply (vcg (ss))
-  apply simp
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply(rule hoare_triple_preI)
-  apply (vcg (ss))
-  using 1 apply(auto dest!: mod_starD)[]
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  subgoal for tp tsi tti tsi' tnode subsep sub sep
-  apply(cases tsi)
-  apply(rule hoare_triple_preI)
-  apply (vcg)
-    apply(auto simp add: prod_assn_def abs_split.split_max.simps split!: prod.splits)
-    subgoal for tsia tsin _ _ tsin' lastsep lastsub
-           apply(rule ent_ex_postI[where x="(tsia, tsin')"])
-           apply(rule ent_ex_postI[where x="sub"])
-           apply(rule ent_ex_postI[where x="(butlast tsi')"])
-      using 1 apply (auto dest!: mod_starD simp add: list_assn_append_Cons_left)
-      apply sep_auto
-      done
-    done
-  apply(sep_auto)
+  using assms apply(sep_auto heap add: R)
   done
-  next
-    case (Node tts ttt)
-    have IH_help: "abs_split.nonempty_lasttreebal tt \<Longrightarrow>
-tt \<noteq> Leaf \<Longrightarrow>
-<bplustree_assn k (Node tts ttt) (Some ttp)> split_max k (Some ttp) <(bplustree_assn k \<times>\<^sub>a id_assn) (abs_split.split_max k tt)>\<^sub>t"
-      for ttp
-      using "1.IH" Node by blast
-    obtain butlasttts l_sub l_sep where ts_split:"tts = butlasttts@[(l_sub, l_sep)]"
-      using 1 Node by auto
-    from Node show ?thesis
-  apply(subst split_max.simps)
-  apply (vcg)
-  using 1 apply auto[]
-  apply (vcg (ss))
-  apply simp
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  using 1 apply(auto dest!: mod_starD)[]
-  apply (vcg (ss))
-  subgoal for tp tsi tti tsi' tnode ttp
-  using "1.prems" apply (vcg heap add: IH_help)
-  apply simp
-  apply simp
-  apply(subst prod_assn_def)
-  apply(cases "abs_split.split_max k tt")
-  apply (auto simp del: abs_split.split_max.simps abs_split.rebalance_last_tree.simps height_bplustree.simps)[]
-  subgoal for ttsubi ttmaxi ttsub ttmax butlasttsi' lasttssubi butlastts lasttssub lasttssepi lasttssep
-    apply(rule hoare_triple_preI)
-    supply R = rebalance_last_tree_rule[where k=k and tsia=tsi and ti=ttsubi and t=ttsub and tsi=tsi' and ts=" (butlasttsi' @ [(lasttssubi, lasttssepi)])"
-and list=butlasttsi' and sub=lasttssubi and sep=lasttssepi]
-  thm R
-    using ts_split
-(*TODO weird post conditions... *)
-    apply (sep_auto heap add: R
-simp del: abs_split.split_max.simps abs_split.rebalance_last_tree.simps height_bplustree.simps
-dest!: mod_starD)
-    apply (metis abs_split.nonempty_lasttreebal.simps(2) abs_split.split_max_height bplustree.distinct(1))
-    apply simp
-    apply(rule hoare_triple_preI)
-    apply (simp add: prod_assn_def)
-    apply vcg
-    apply(subst abs_split.split_max.simps)
-    using "1.prems" apply(auto dest!: mod_starD split!: prod.splits bplustree.splits) 
-    subgoal for _ _ _ _ _ _ _ _ _ _ tp'
-    apply(cases "abs_split.rebalance_last_tree k (butlasttsi' @ [(lasttssubi, lasttssepi)]) ttsub"; cases tp')
-       apply auto
-      apply(rule ent_ex_preI)
-      subgoal for _ _ tsia' tsin' tt' _ tsi'
-           apply(rule ent_ex_postI[where x="(tsia', tsin')"])
-        apply(rule ent_ex_postI[where x="tt'"])
-        apply(rule ent_ex_postI[where x="tsi'"])
-        apply sep_auto
-        done
-      done
-    done
-  done
-  done
-  qed
-qed
 
-partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+
+partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder,order_top}) btnode ref \<Rightarrow> 'a btnode ref Heap"
   where
     "del k x ti = (case ti of None \<Rightarrow> return None |
    Some p \<Rightarrow> do {
