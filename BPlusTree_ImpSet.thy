@@ -1792,5 +1792,173 @@ lemma empty_rule:
 
 end
 
+locale imp_split_list = abs_split_list: BPlusTree_Set.split_list split_list
+  for split_list::
+    "('a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
+       \<Rightarrow> 'a list \<times> 'a list" +
+  fixes imp_split_list:: "('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
+  assumes imp_split_list_rule [sep_heap_rules]: "sorted_less xs \<Longrightarrow>
+   <is_pfa c xsi (a,n)
+  * list_assn (id_assn) xs xsi> 
+    imp_split_list (a,n) p 
+  <\<lambda>i. 
+    is_pfa c xsi (a,n)
+    * list_assn (id_assn) xs xsi
+    * \<up>(split_relation xs (split_list xs p) i)>\<^sub>t"
+begin
+
+definition imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
+  where "imp_isin_list x ks = do {
+    i \<leftarrow> imp_split_list ks x;
+    xsl \<leftarrow> pfa_length ks;
+    if i \<ge> xsl then return False
+    else do {
+      sep \<leftarrow> pfa_get ks i;
+      return (sep = x)
+  }
+}"
+
+lemma isin_list_rule [sep_heap_rules]:
+  assumes "sorted_less ks"
+  shows
+   "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+    imp_isin_list x (a',n') 
+  <\<lambda>b. 
+    is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi
+    * \<up>(b = abs_split_list.isin_list x ks)>\<^sub>t"
+proof -
+  obtain ls rs where list_split: "split_list ks x = (ls, rs)"
+    by (cases "split_list ks x")
+  then show ?thesis
+  proof (cases rs)
+    case Nil
+    then show ?thesis
+      apply(subst imp_isin_list_def)
+      using assms list_split apply(sep_auto simp add: split_relation_alt dest!: mod_starD list_assn_len)
+      done
+  next
+  case (Cons a rrs)
+  then show ?thesis
+      apply(subst imp_isin_list_def)
+      using list_split apply simp
+      using assms list_split  apply(sep_auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)
+      done
+  qed
+qed
+
+definition imp_ins_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
+  where "imp_ins_list x ks = do {
+    i \<leftarrow> imp_split_list ks x;
+    xsl \<leftarrow> pfa_length ks;
+    if i \<ge> xsl then
+      pfa_append_grow ks x
+    else do {
+      sep \<leftarrow> pfa_get ks i;
+      if sep = x then
+        return ks
+      else
+        pfa_insert_grow ks i x 
+  }
+}"
+
+lemma ins_list_rule [sep_heap_rules]:
+  assumes "sorted_less ks"
+  shows
+   "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+    imp_ins_list x (a',n') 
+  <\<lambda>(a'',n''). 
+    \<exists>\<^sub>Aksi''. is_pfa (max c (length (abs_split_list.insert_list x ks))) ksi'' (a'',n'')
+           * list_assn (id_assn) (abs_split_list.insert_list x ks) ksi''
+    >\<^sub>t"
+proof -
+  obtain ls rs where list_split: "split_list ks x = (ls, rs)"
+    by (cases "split_list ks x")
+  then show ?thesis
+  proof (cases rs)
+    case Nil
+    then show ?thesis
+      apply(subst imp_ins_list_def)
+      apply vcg
+      subgoal using assms by auto
+      apply(rule hoare_triple_preI)
+      apply vcg
+      using list_split apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+    subgoal
+        apply(rule ent_ex_postI[where x="ksi@[x]"])
+      apply(simp add: is_pfa_def)
+        apply(rule ent_ex_preI)
+      subgoal for l
+        apply(rule ent_ex_postI[where x="l"])
+      using assms list_split apply(sep_auto simp add: split_relation_alt pure_def dest!: mod_starD list_assn_len)
+      done
+    done
+    subgoal
+        apply(rule ent_ex_postI[where x="ksi@[x]"])
+      apply(simp add: is_pfa_def)
+        apply(rule ent_ex_preI)
+      subgoal for l
+        apply(rule ent_ex_postI[where x="l"])
+      using assms list_split apply(sep_auto simp add: split_relation_alt pure_def dest!: mod_starD list_assn_len)
+      done
+    done
+  done
+  next
+  case (Cons a rrs)
+  then show ?thesis
+  proof (cases "a = x")
+    case True
+    then show ?thesis
+      apply(subst imp_ins_list_def)
+      apply vcg
+      subgoal using assms by auto
+      apply(rule hoare_triple_preI)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      using list_split apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+    subgoal for _ _ _ _ rsi
+        apply(rule ent_ex_postI[where x="ls@x#rsi"])
+      apply(simp add: is_pfa_def)
+        apply(rule ent_ex_preI)
+      subgoal for l
+        apply(rule ent_ex_postI[where x="l"])
+      using assms list_split apply(sep_auto simp add: split_relation_alt pure_def dest!: mod_starD list_assn_len)
+      done
+    done
+      done
+  next
+    case False
+    then show ?thesis sorry
+  qed
+      apply(subst imp_isin_list_def)
+      using list_split apply simp
+      using assms list_split  apply(sep_auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)
+      done
+  qed
+qed
+definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap" where ""
+
+lemma isin_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
+   <is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+    imp_isin_list x (a',n') 
+  <\<lambda>b. 
+    is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi
+    * \<up>(b = isin_list x ks)>\<^sub>t"
+  and ins_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
+   <is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+    imp_ins_list x (a',n') 
+  <\<lambda>(a'',n''). 
+    \<exists>\<^sub>Aksi''. is_pfa (max c (length (insert_list x ks))) ksi'' (a'',n'') * list_assn (id_assn) (insert_list x ks) ksi''
+    >\<^sub>t"
+  and del_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
+   <is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+    imp_del_list x (a',n') 
+  <\<lambda>(a'',n''). 
+    \<exists>\<^sub>Aksi''. is_pfa c ksi'' (a'',n'') * list_assn (id_assn) (delete_list x ks) ksi''
+    >\<^sub>t"
+begin
+
 end
 
