@@ -1917,27 +1917,62 @@ proof -
       apply vcg
       subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
       apply vcg
-      using list_split apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
-    subgoal for _ _ _ _ rsi
-        apply(rule ent_ex_postI[where x="ls@x#rsi"])
-      apply(simp add: is_pfa_def)
-        apply(rule ent_ex_preI)
-      subgoal for l
-        apply(rule ent_ex_postI[where x="l"])
-      using assms list_split apply(sep_auto simp add: split_relation_alt pure_def dest!: mod_starD list_assn_len)
+      prefer 2
+      subgoal by (metis (no_types, lifting) id_assn_list list_split local.Cons mod_starD split_relation_access)
+      using list_split Cons apply (auto simp add: split_relation_alt list_assn_append_Cons_left split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+    subgoal for _ _ lsi rsi
+        apply(rule ent_ex_postI[where x="lsi@a#rsi"])
+        apply(rule ent_ex_preI)+
+      subgoal for lsi' ai' rsi'
+        apply(rule ent_ex_postI[where x="lsi'"])
+        apply(rule ent_ex_postI[where x="ai'"])
+        apply(rule ent_ex_postI[where x="rsi'"])
+        apply(subgoal_tac "max c (Suc (length lsi + length rsi)) = c")
+      subgoal using assms list_split by (sep_auto simp add: split_relation_alt  dest!: mod_starD id_assn_list)
+          subgoal
+            apply(auto simp add: is_pfa_def)
+            by (metis add_Suc_right length_Cons length_append length_take max.absorb1 min_eq_arg(2))
       done
     done
-      done
+  done
   next
     case False
-    then show ?thesis sorry
-  qed
-      apply(subst imp_isin_list_def)
-      using list_split apply simp
-      using assms list_split  apply(sep_auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)
+    then show ?thesis
+      apply(subst imp_ins_list_def)
+      apply vcg
+      subgoal using assms by auto
+      apply(rule hoare_triple_preI)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      subgoal by (metis (no_types, lifting) id_assn_list list_split local.Cons mod_starD split_relation_access)
+      apply vcg
+      subgoal by (auto simp add: is_pfa_def)
+      using list_split Cons apply (auto simp add: split_relation_alt list_assn_append_Cons_left split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+    subgoal for lsi rsi
+        apply(rule ent_ex_postI[where x="lsi@x#a#rsi"])
+        apply(rule ent_ex_preI)+
+      subgoal for lsi' ai rsi'
+        apply(rule ent_ex_postI[where x="lsi'"])
+        apply(rule ent_ex_postI[where x="x"])
+        apply(rule ent_ex_postI[where x="ai#rsi'"])
+        apply(subgoal_tac "(Suc (Suc (length lsi + length rsi))) = Suc n'")
+        subgoal
+      using assms list_split Cons apply(sep_auto simp add: split_relation_alt dest!: mod_starD id_assn_list)
+      apply(sep_auto simp add: pure_def)
       done
-  qed
+      subgoal
+        apply(auto simp add: is_pfa_def)
+        by (metis add_Suc_right length_Cons length_append length_take min_eq_arg(2))
+      done
+    done
+  done
 qed
+qed
+qed
+
 definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap" where ""
 
 lemma isin_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
