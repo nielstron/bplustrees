@@ -1973,27 +1973,95 @@ qed
 qed
 qed
 
-definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap" where ""
+definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
+  where "imp_del_list x ks = do {
+    i \<leftarrow> imp_split_list ks x;
+    xsl \<leftarrow> pfa_length ks;
+    if i \<ge> xsl then
+      return ks
+    else do {
+      sep \<leftarrow> pfa_get ks i;
+      if sep = x then
+        pfa_delete ks i
+      else
+        return ks
+  }
+}"
 
-lemma isin_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
-   <is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
-    imp_isin_list x (a',n') 
-  <\<lambda>b. 
-    is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi
-    * \<up>(b = isin_list x ks)>\<^sub>t"
-  and ins_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
-   <is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
-    imp_ins_list x (a',n') 
-  <\<lambda>(a'',n''). 
-    \<exists>\<^sub>Aksi''. is_pfa (max c (length (insert_list x ks))) ksi'' (a'',n'') * list_assn (id_assn) (insert_list x ks) ksi''
-    >\<^sub>t"
-  and del_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
-   <is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+lemma id_assn_list: "list_assn id_assn (xs::'a list) ys = \<up>(xs = ys)"
+  apply(induction "id_assn::('a \<Rightarrow> 'a \<Rightarrow> assn)" xs ys rule: list_assn.induct)
+     apply(auto simp add: less_Suc_eq_0_disj pure_def)
+  done
+
+lemma del_list_rule [sep_heap_rules]:
+  assumes "sorted_less ks"
+  shows "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
     imp_del_list x (a',n') 
   <\<lambda>(a'',n''). 
-    \<exists>\<^sub>Aksi''. is_pfa c ksi'' (a'',n'') * list_assn (id_assn) (delete_list x ks) ksi''
+    \<exists>\<^sub>Aksi''. is_pfa c ksi'' (a'',n'') * list_assn (id_assn) (abs_split_list.delete_list x ks) ksi''
     >\<^sub>t"
-begin
+proof -
+  obtain ls rs where list_split: "split_list ks x = (ls, rs)"
+    by (cases "split_list ks x")
+  then show ?thesis
+  proof (cases rs)
+    case Nil
+    then show ?thesis
+      apply(subst imp_del_list_def)
+      apply vcg
+      subgoal using assms by auto
+      apply(rule hoare_triple_preI)
+      apply vcg
+      using list_split apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      done
+  next
+  case (Cons a rrs)
+  then show ?thesis
+  proof (cases "a = x")
+    case True
+    then show ?thesis
+      apply(subst imp_del_list_def)
+      apply vcg
+      subgoal using assms by auto
+      apply(rule hoare_triple_preI)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      prefer 2
+      subgoal using list_split local.Cons local.id_assn_list split_relation_access by fastforce
+      using list_split Cons apply (auto simp add: split_relation_alt list_assn_append_Cons_left split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+    subgoal for lsi rsi
+        apply(rule ent_ex_postI[where x="lsi@rsi"])
+      subgoal using assms list_split apply (sep_auto simp add: split_relation_alt id_assn_list  dest!: mod_starD)
+      done
+    done
+  done
+  next
+    case False
+    then show ?thesis
+      apply(subst imp_del_list_def)
+      apply vcg
+      subgoal using assms by auto
+      apply(rule hoare_triple_preI)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      subgoal using list_split Cons by (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      apply vcg
+      subgoal using list_split local.Cons local.id_assn_list split_relation_access by fastforce
+      apply vcg
+      using list_split Cons apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+    done
+qed
+qed
+qed
+
+end
 
 end
 
