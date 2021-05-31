@@ -6,8 +6,7 @@ section "Abstract split functions"
 
 subsection "Linear split"
 
-text "Finally we show that the split axioms are feasible
-       by providing an example split function"
+text "Finally we show that the split axioms are feasible by providing an example split function"
 
 text "Linear split is similar to well known functions, therefore a quick proof can be done."
 

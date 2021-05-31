@@ -32,6 +32,11 @@ lemma id_assn_list: "h \<Turnstile> list_assn id_assn (xs::'a list) ys \<Longrig
      apply(auto simp add: less_Suc_eq_0_disj pure_def)
   done
 
+lemma id_assn_list_alt: "list_assn id_assn (xs::'a list) ys = \<up>(xs = ys)"
+  apply(induction "id_assn::('a \<Rightarrow> 'a \<Rightarrow> assn)" xs ys rule: list_assn.induct)
+     apply(auto simp add: less_Suc_eq_0_disj pure_def)
+  done
+
 
 lemma snd_map_help:
   "x \<le> length tsi \<Longrightarrow>
@@ -86,19 +91,11 @@ lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
 
 subsection "The imperative split locale"
 
-text "This locale extends the abstract split locale,
-assuming that we are provided with an imperative program
-that refines the abstract split function."
-
-
-locale imp_split = abs_split: BPlusTree_Set.split split
+locale imp_split_tree = abs_split_tree: BPlusTree_Set.split_tree split
   for split::
     "('a bplustree \<times> 'a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
   fixes imp_split:: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
-    and imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
-    and imp_ins_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
-    and imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
   assumes imp_split_rule [sep_heap_rules]:"sorted_less (separators ts) \<Longrightarrow>
    <is_pfa c tsi (a,n)
   * blist_assn k ts tsi> 
@@ -107,7 +104,22 @@ locale imp_split = abs_split: BPlusTree_Set.split split
     is_pfa c tsi (a,n)
     * blist_assn k ts tsi
     * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
-  and isin_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
+
+text "This locale extends the abstract split locale,
+assuming that we are provided with an imperative program
+that refines the abstract split function."
+
+
+(* TODO separate into split_tree and split + split_list  *)
+locale imp_split = abs_split: BPlusTree_Set.split split + imp_split_tree split imp_split
+  for split::
+    "('a bplustree \<times> 'a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
+       \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" 
+  and imp_split :: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap" +
+  fixes imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
+    and imp_ins_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
+    and imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
+  assumes isin_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
    <is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
     imp_isin_list x (a',n') 
   <\<lambda>b. 
@@ -1988,11 +2000,6 @@ definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_to
   }
 }"
 
-lemma id_assn_list: "list_assn id_assn (xs::'a list) ys = \<up>(xs = ys)"
-  apply(induction "id_assn::('a \<Rightarrow> 'a \<Rightarrow> assn)" xs ys rule: list_assn.induct)
-     apply(auto simp add: less_Suc_eq_0_disj pure_def)
-  done
-
 lemma del_list_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
@@ -2031,11 +2038,11 @@ proof -
       apply vcg
       subgoal using list_split Cons by (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
       prefer 2
-      subgoal using list_split local.Cons local.id_assn_list split_relation_access by fastforce
+      subgoal by (smt (z3) assn_aci(10) ent_pure_pre_iff id_assn_list_alt list_split local.Cons return_cons_rule split_relation_access)
       using list_split Cons apply (auto simp add: split_relation_alt list_assn_append_Cons_left split!: prod.splits list.splits dest!: mod_starD list_assn_len)
     subgoal for lsi rsi
         apply(rule ent_ex_postI[where x="lsi@rsi"])
-      subgoal using assms list_split apply (sep_auto simp add: split_relation_alt id_assn_list  dest!: mod_starD)
+      subgoal using assms list_split apply (sep_auto simp add: split_relation_alt id_assn_list_alt  dest!: mod_starD)
       done
     done
   done
@@ -2053,13 +2060,31 @@ proof -
       apply vcg
       subgoal using list_split Cons by (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
       apply vcg
-      subgoal using list_split local.Cons local.id_assn_list split_relation_access by fastforce
+      subgoal by (smt (z3) ent_pure_pre_iff fr_refl id_assn_list_alt list_split local.Cons split_relation_access)
       apply vcg
       using list_split Cons apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
     done
+    qed
+  qed
 qed
-qed
-qed
+
+end
+
+locale imp_split_full = imp_split_tree: imp_split_tree split + imp_split_list: imp_split_list split_list
+    for split::
+      "('a bplustree \<times> 'a::{linorder,heap,default,order_top}) list \<Rightarrow> 'a
+         \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list"
+    and split_list::
+      "'a::{default,linorder,order_top,heap} list \<Rightarrow> 'a
+         \<Rightarrow> 'a list \<times> 'a list"
+begin
+
+sublocale imp_split imp_split_list.abs_split_list.isin_list imp_split_list.abs_split_list.insert_list 
+  imp_split_list.abs_split_list.delete_list split imp_split imp_split_list.imp_isin_list imp_split_list.imp_ins_list imp_split_list.imp_del_list
+  using imp_split_list.abs_split_list.isin_list_set imp_split_list.abs_split_list.insert_list_set imp_split_list.abs_split_list.delete_list_set
+  apply unfold_locales 
+  apply sep_auto +
+  done
 
 end
 

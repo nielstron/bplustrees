@@ -8,12 +8,12 @@ as specified by the Hoare Triple in Array_Blit
 not generating an exception if si+len \<le> array length and such) *) 
 code_printing code_module "array_blit" \<rightharpoonup> (OCaml)
   \<open>
-   let array_blit src si dst di len = (
-      if src=dst then
-         raise (Invalid_argument "array_blit: Same arrays")
-      else
-        Array.blit src (Z.to_int si) dst (Z.to_int di) (Z.to_int len)
-    )
+let array_blit src si dst di len = (
+  if src=dst then
+     raise (Invalid_argument "array_blit: Same arrays")
+  else
+    Array.blit src (Z.to_int si) dst (Z.to_int di) (Z.to_int len)
+);;
 \<close>
 
 code_printing constant blit' \<rightharpoonup>
@@ -211,11 +211,11 @@ code_printing code_module "array_sblit" \<rightharpoonup> (SML)
 
 code_printing code_module "array_sblit" \<rightharpoonup> (OCaml)
   \<open>
-   let array_sblit src si di len = (
-      if len > Z.zero then
-        (Array.blit src (Z.to_int si) src (Z.to_int di) (Z.to_int len))
-      else ()
-    )
+let array_sblit src si di len = (
+  if len > Z.zero then
+    (Array.blit src (Z.to_int si) src (Z.to_int di) (Z.to_int len))
+  else ()
+);;
 \<close>
 
 definition safe_sblit' where
