@@ -42,7 +42,7 @@ text "Some examples follow to show that the implementation works
 abbreviation "bplustree\<^sub>i \<equiv> bplustree_ls_insert"
 abbreviation "bplustree\<^sub>d \<equiv> bplustree_ls_delete"
 
-typedef uint32 = "{n::nat. n \<le> 2 ^ 32}" 
+typedef uint32 = "{n::nat. n \<le> 100}" 
   by auto
 
 setup_lifting type_definition_uint32
@@ -63,7 +63,7 @@ end
 instantiation uint32 :: order_top
 begin
 
-lift_definition top_uint32 :: uint32 is "2^32::nat"
+lift_definition top_uint32 :: uint32 is "100::nat"
   by simp
 
 
@@ -79,7 +79,7 @@ lift_definition one_uint32 :: uint32 is "1::nat"
   by auto
 
 lift_definition plus_uint32 :: "uint32 \<Rightarrow> uint32 \<Rightarrow> uint32"
-  is "\<lambda>a b. min (a + b) (2^32)"
+  is "\<lambda>a b. min (a + b) (100)"
   by simp
 
 instance by standard (transfer; auto)
@@ -93,7 +93,7 @@ lemma [code]: "(2^32::nat) = 4294967296"
 
 value "2^32::nat"
 *)
-(*
+
 value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [21,22,23]))) in
       root_order k x"
 value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [21,22,23]))) in
@@ -111,6 +111,5 @@ value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Le
 value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       bplustree\<^sub>d k 3 (bplustree\<^sub>d k 10 (bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x)))"
 
-*)
 
 end

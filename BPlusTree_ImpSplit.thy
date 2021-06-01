@@ -445,112 +445,35 @@ text "Obtaining actual code turns out to be slightly more difficult
   due to the use of locales. However, we successfully obtain
 the B-tree insertion and membership query with binary search splitting."
 
-interpretation btree_imp_bin_split_tree: imp_split_tree_smeq bin_split
+(*interpretation btree_imp_bin_split_tree: imp_split_tree_smeq bin_split
   apply unfold_locales
   apply(sep_auto heap: bin_split_rule)
-  done
+  done*)
 
-global_interpretation btree_imp_binary_split_list: imp_split_list_smeq bin'_split
+(*global_interpretation btree_imp_binary_split_list: imp_split_list_smeq bin'_split
   defines btree_isin_list = btree_imp_binary_split_list.imp_isin_list
     and btree_ins_list = btree_imp_binary_split_list.imp_ins_list
     and btree_del_list = btree_imp_binary_split_list.imp_del_list
   apply unfold_locales
   apply(sep_auto heap: bin'_split_rule)
-  done
+  done*)
 
 global_interpretation btree_imp_binary_split: imp_split_full_smeq bin_split bin'_split
-  defines btree_isin = btree_imp_binary_split.isin
+  defines btree_isin_list = btree_imp_binary_split.imp_isin_list
+    and btree_ins_list = btree_imp_binary_split.imp_ins_list
+    and btree_del_list = btree_imp_binary_split.imp_del_list
+    and btree_isin = btree_imp_binary_split.isin
     and btree_ins = btree_imp_binary_split.ins
     and btree_insert = btree_imp_binary_split.insert
     and btree_del = btree_imp_binary_split.del
     and btree_delete = btree_imp_binary_split.delete
     and btree_empty = btree_imp_binary_split.empty
   apply unfold_locales
+  apply(sep_auto heap: bin_split_rule)
+  apply(sep_auto heap: bin'_split_rule)
   done
 
-thm btree_imp_binary_split.isin.simps
-lemma [code]: "btree_isin p x =
-!p \<bind>
-(\<lambda>node.
-    case node of
-    Btnode ts t \<Rightarrow>
-      bin_split ts x \<bind>
-      (\<lambda>i. pfa_length ts \<bind>
-            (\<lambda>tsl. if i < tsl
-                    then pfa_get ts i \<bind> (\<lambda>s. let (sub, sep) = s in btree_isin (the sub) x)
-                    else btree_isin t x))
-    | Btleaf xs \<Rightarrow> btree_isin_list x xs)"
-  apply(subst btree_isin_list_def)
-  apply(subst btree_imp_binary_split.isin.simps)
-  by simp
-
-thm btree_imp_binary_split.ins.simps
-lemma [code]: "btree_ins k x p =
-!p \<bind>
-(\<lambda>node.
-    case node of
-    Btnode tsi ti \<Rightarrow>
-      bin_split tsi x \<bind>
-      (\<lambda>i. pfa_length tsi \<bind>
-            (\<lambda>tsl. if i < tsl
-                    then pfa_get tsi i \<bind>
-                         (\<lambda>s. let (sub, sep) = s
-                               in btree_ins k x (the sub) \<bind>
-                                  (\<lambda>r. case r of
-                                        btree_imp_binary_split.T\<^sub>i lp \<Rightarrow>
-                                          pfa_set tsi i (Some lp, sep) \<bind>
-                                          (\<lambda>_. return (btree_imp_binary_split.T\<^sub>i p))
-                                        | btree_imp_binary_split.Up\<^sub>i lp x' rp \<Rightarrow>
-                                            pfa_set tsi i (Some rp, sep) \<bind>
-                                            (\<lambda>_. if tsl < 2 * k
- then pfa_insert tsi i (Some lp, x') \<bind>
-      (\<lambda>tsi'. p := Btnode tsi' ti \<bind> (\<lambda>_. return (btree_imp_binary_split.T\<^sub>i p)))
- else pfa_insert_grow tsi i (Some lp, x') \<bind> (\<lambda>tsi'. btree_imp_binary_split.node\<^sub>i k tsi' ti))))
-                    else btree_ins k x ti \<bind>
-                         (\<lambda>r. case r of
-                               btree_imp_binary_split.T\<^sub>i lp \<Rightarrow>
-                                 p := Btnode tsi lp \<bind>
-                                 (\<lambda>_. return (btree_imp_binary_split.T\<^sub>i p))
-                               | btree_imp_binary_split.Up\<^sub>i lp x' rp \<Rightarrow>
-                                   if tsl < 2 * k
-                                   then pfa_append tsi (Some lp, x') \<bind>
-                                        (\<lambda>tsi'.
-                                            p := Btnode tsi' rp \<bind>
-                                            (\<lambda>_. return (btree_imp_binary_split.T\<^sub>i p)))
-                                   else pfa_append_grow' tsi (Some lp, x') \<bind>
-                                        (\<lambda>tsi'. btree_imp_binary_split.node\<^sub>i k tsi' rp))))
-    | Btleaf ksi \<Rightarrow>
-        btree_ins_list x ksi \<bind> btree_imp_binary_split.Lnode\<^sub>i k)"
-  apply(subst btree_ins_list_def)
-  apply(subst btree_imp_binary_split.ins.simps)
-  by simp
-
-thm btree_imp_binary_split.del.simps
-lemma [code]: "btree_del k x tp =
-!tp \<bind>
-(\<lambda>ti. case ti of
-       Btnode tsi tti \<Rightarrow>
-         bin_split tsi x \<bind>
-         (\<lambda>i. pfa_length tsi \<bind>
-               (\<lambda>tsl. if i < tsl
-                       then pfa_get tsi i \<bind>
-                            (\<lambda>(sub, sep).
-                                btree_del k x (the sub) \<bind>
-                                (\<lambda>sub'.
-                                    pfa_set tsi i (Some sub', sep) \<bind>
-                                    (\<lambda>kvs'.
-                                        btree_imp_binary_split.rebalance_middle_tree k kvs' i
-                                         tti \<bind>
-                                        (\<lambda>node'. tp := node' \<bind> (\<lambda>_. return tp)))))
-                       else btree_del k x tti \<bind>
-                            (\<lambda>t'. btree_imp_binary_split.rebalance_last_tree k tsi t' \<bind>
-                                   (\<lambda>node'. tp := node' \<bind> (\<lambda>_. return tp)))))
-       | Btleaf xs \<Rightarrow>
-           btree_del_list x xs \<bind>
-           (\<lambda>xs'. tp := Btleaf xs' \<bind> (\<lambda>_. return tp)))"
-  apply(subst btree_del_list_def)
-  apply(subst btree_imp_binary_split.del.simps)
-  by simp
+thm btree_imp_binary_split.isin.simps[code]
 
 export_code btree_empty btree_isin btree_insert btree_delete checking OCaml SML Scala
 export_code btree_empty btree_isin btree_insert btree_delete in OCaml module_name BPlusTree

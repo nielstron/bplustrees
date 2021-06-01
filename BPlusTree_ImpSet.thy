@@ -1830,7 +1830,7 @@ definition imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_t
   }
 }"
 
-lemma isin_list_rule [sep_heap_rules]:
+lemma imp_isin_list_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows
    "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
@@ -1873,7 +1873,7 @@ definition imp_ins_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_to
   }
 }"
 
-lemma ins_list_rule [sep_heap_rules]:
+lemma imp_ins_list_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows
    "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
@@ -2000,7 +2000,7 @@ definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_to
   }
 }"
 
-lemma del_list_rule [sep_heap_rules]:
+lemma imp_del_list_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
     imp_del_list x (a',n') 
