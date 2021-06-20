@@ -13,7 +13,7 @@ leafs are represented as None."
 (* Option as we need a default for non-initializeed entries *)
 datatype 'a btnode =
   Btnode "('a btnode ref option *'a) pfarray" "'a btnode ref" |
-  Btleaf "'a pfarray"
+  Btleaf "'a pfarray" "'a btnode ref option"
 
 
 text \<open>Selector Functions\<close>
@@ -24,16 +24,18 @@ primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref" where
   [sep_dflt_simps]: "last (Btnode _ t) = t"
 
 primrec vals :: "'a::heap btnode \<Rightarrow> 'a pfarray" where
-  [sep_dflt_simps]: "vals (Btleaf ts) = ts"
+  [sep_dflt_simps]: "vals (Btleaf ts _) = ts"
 
+primrec fwd :: "'a::heap btnode \<Rightarrow> 'a btnode ref option" where
+  [sep_dflt_simps]: "fwd (Btleaf _ t) = t"
 
 text \<open>Encoding to natural numbers, as required by Imperative/HOL\<close>
   (* Note: should also work using the package "Deriving" *)
 fun
   btnode_encode :: "'a::heap btnode \<Rightarrow> nat"
   where
-    "btnode_encode (Btnode ts t) = to_nat (Some ts, Some t, None::'a pfarray option)" |
-    "btnode_encode (Btleaf ts) = to_nat (None::('a btnode ref option * 'a) pfarray option, None::'a btnode ref option, Some ts)"
+    "btnode_encode (Btnode ts t) = to_nat (Some ts, Some t, None::'a pfarray option, None::'a btnode ref option option)" |
+    "btnode_encode (Btleaf ts t) = to_nat (None::('a btnode ref option * 'a) pfarray option, None::'a btnode ref option, Some ts, Some t)"
 
 instance btnode :: (heap) heap
   apply (rule heap_class.intro)
@@ -44,40 +46,58 @@ instance btnode :: (heap) heap
 
 text "The refinement relationship to abstract B-trees."
 
+text "The idea is: a refines the given node of degree k where the first leaf node of the subtree
+of a is r and the forward pointer in the last leaf node is z"
 
-fun bplustree_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> assn" where
-  "bplustree_assn k (LNode xs) a = 
- (\<exists>\<^sub>A xsi xsi'.
-      a \<mapsto>\<^sub>r Btleaf xsi
+find_theorems list_assn
+
+fun bplustree_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
+  "bplustree_assn k (LNode xs) a r z = 
+ (\<exists>\<^sub>A xsi xsi' fwd.
+      a \<mapsto>\<^sub>r Btleaf xsi fwd
     * is_pfa (2*k) xsi' xsi
     * list_assn (id_assn) xs xsi'
+    * \<up>(fwd = z)
+    * \<up>(the r = a)
   )" |
-  "bplustree_assn k (Node ts t) a = 
- (\<exists>\<^sub>A tsi ti tsi'.
+  "bplustree_assn k (Node ts t) a r z = 
+ (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
       a \<mapsto>\<^sub>r Btnode tsi ti
-    * bplustree_assn k t ti
+    * bplustree_assn k t ti (List.last (r#rs)) (List.last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
-    * list_assn ((\<lambda> t ti. bplustree_assn k t (the ti)) \<times>\<^sub>a id_assn) ts tsi'
+    * \<up>(length tsi' = length rs)
+    * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
     )"
+
+find_theorems "map _ (zip _ _)"
+(*
+rs = the list of pointers to the leaves of this subtree
+TODO how to weave rs@[z] and a#rs into the list_assn most elegantly
+*)
 
 text "With the current definition of deletion, we would
 also need to directly reason on nodes and not only on references
 to them."
 
-fun btnode_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode \<Rightarrow> assn" where
-  "btnode_assn k (LNode xs) (Btleaf xsi) = 
- (\<exists>\<^sub>A xsi'.
+fun btnode_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
+  "btnode_assn k (LNode xs) (Btleaf xsi zi) r z = 
+ (\<exists>\<^sub>Axsi'.
       is_pfa (2*k) xsi' xsi
     * list_assn (id_assn) xs xsi'
+    * \<up>(zi = z)
   )" |
-  "btnode_assn k (Node ts t) (Btnode tsi ti) = 
- (\<exists>\<^sub>A tsi'.
-      bplustree_assn k t ti
+  "btnode_assn k (Node ts t) (Btnode tsi ti) r z = 
+ (\<exists>\<^sub>A tsi' tsi'' rs.
+      bplustree_assn k t ti (List.last (r#rs)) (List.last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
-    * list_assn ((\<lambda> t ti. bplustree_assn k t (the ti)) \<times>\<^sub>a id_assn) ts tsi'
+    * \<up>(length tsi' = length rs)
+    * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
     )" |
-  "btnode_assn _ _ _ = false"
+  "btnode_assn _ _ _ _ _ = false"
 
-abbreviation "blist_assn k \<equiv> list_assn ((\<lambda> t ti. bplustree_assn k t (the ti)) \<times>\<^sub>a id_assn)"
+abbreviation "blist_assn k ts tsi'' \<equiv> list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi'' "
 
+thm bplustree_assn.simps
 end
