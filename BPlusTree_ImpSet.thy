@@ -424,12 +424,40 @@ definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder,order_top}) 
       }
 }"
 
+value "butlast (take 1 [1,2::nat])"
+value "take 1 (butlast [1,2::nat])"
+
+lemma take_butlast_prepend: "take n (butlast (r # pointers)) =
+       butlast (r # take n pointers)"
+  apply(cases pointers)
+  apply auto[]
+  by (smt (verit, del_insts) One_nat_def Suc_to_right length_Cons length_butlast length_take min_eq_arg(2) nat_le_linear take_Suc_Cons take_butlast_conv take_take)
+
+
+lemma map_eq_nth_eq_diff:
+  assumes A: "map f l = map g l'"
+  and B: "i < length l"
+  shows "f (l!i) = g (l'!i)"
+proof -
+  from A have "length l = length l'"
+    by (metis length_map)
+  thus ?thesis using A B
+    apply (induct l l' arbitrary: i rule: list_induct2)
+      apply (simp)
+    subgoal for x xs y ys i
+      apply(cases i)
+      apply(simp add: nth_def)
+      apply simp
+      done
+    done
+qed
+
 
 declare abs_split.node\<^sub>i.simps [simp add]
 lemma node\<^sub>i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
-    and "length tsi' = length rs"
-    and "tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi')"
-  shows "<is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (List.last (r#rs)) z>
+    and "length tsi' = length pointers"
+    and "tsi'' = zip (zip (map fst tsi') (zip (butlast (r#pointers)) (butlast (pointers@[z])))) (map snd tsi')"
+  shows "<is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (List.last (r#pointers)) z>
   node\<^sub>i k (a,n) ti
   <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k ts t) u r z>\<^sub>t"
 proof (cases "length ts \<le> 2*k")
@@ -472,20 +500,139 @@ next
     using c_cap apply(simp del: List.last.simps)
     apply(rule hoare_triple_preI)
     apply(vcg)
-    apply(simp add: split_relation_alt del: List.last.simps)
+    apply(simp add: split_relation_alt del: List.last.simps butlast.simps)
     apply(rule impI)+
-    apply(thin_tac "_\<Turnstile>_")+
-    subgoal for  _ _ _ _ rsa subi ba rn lsi al ar _
-      thm ent_ex_postI
-      thm ent_ex_postI[where x="take ((length tsi + 1) div 2) tsi"]
+    subgoal for  _ _ rsia subi' sepi' rsin lsi _
+      supply R = append_take_drop_id[of "(length ls)" ts,symmetric]
+      thm R
+      apply(subst R)
+      supply R = Cons_nth_drop_Suc[of "length ls" ts, symmetric]
+      thm R
+      apply(subst R)
+      subgoal
+          using assms(3,4) apply(auto dest!: mod_starD  list_assn_len     
+          simp add: list_assn_prod_map id_assn_list_alt
+          simp del: List.last.simps butlast.simps)[]
+          apply (metis One_nat_def Suc_eq_plus1 length_Cons length_append length_take list.size(3) min_less_self_conv(2) not_less_eq trans_less_add1)
+          done
+     supply R=list_assn_append_Cons_left[where xs="take (length ls) ts" and ys="drop (Suc (length ls)) ts" and x="ts ! (length ls)"]
+      thm R
+      apply(subst R)
+      apply (auto
+          simp del: List.last.simps butlast.simps)[]
+      apply(rule ent_ex_preI)+
+      apply(subst ent_pure_pre_iff; rule impI)
+      apply (simp add: prod_assn_def split!: prod.splits del: List.last.simps butlast.simps)
+      subgoal for tsi''l subi'' subir subinext sepi'' tsi''r subi sepi
         (* instantiate right hand side *)
-      apply(rule ent_ex_postI[where x="(rsa,rn)"])
+(* newr is the first leaf of the tree directly behind sub
+  and (r#pointers) is the list of all first leafs of the tree in this node
+   \<rightarrow> the pointer at position of sub in pointers
+      or the pointer at position of sub+1 in (r#pointers)
+*)
+      (* Suc (length tsi') div 2 - Suc 0) = length ls *)
+      apply(rule ent_ex_postI[where x="subinext"])
+      apply(rule ent_ex_postI[where x="(rsia,rsin)"])
       apply(rule ent_ex_postI[where x="ti"])
-      apply(rule ent_ex_postI[where x="(drop (Suc (length ls)) tsi)"])
+      apply(rule ent_ex_postI[where x="drop (length ls+1) tsi'"])
+      apply(rule ent_ex_postI[where x="drop (length ls+1) tsi''"])
+      apply(rule ent_ex_postI[where x="drop (length ls+1) pointers"])
       apply(rule ent_ex_postI[where x="lsi"])
-      apply(rule ent_ex_postI[where x="the subi"])
-      apply(rule ent_ex_postI[where x="take (length ls) tsi"])
-      apply sep_auto
+      apply(rule ent_ex_postI[where x="the subi'"])
+      apply(rule ent_ex_postI[where x="take (length ls) tsi'"])
+      apply(rule ent_ex_postI[where x="take (length ls) tsi''"])
+      apply(rule ent_ex_postI[where x="take (length ls) pointers"])
+      apply (sep_auto simp del: List.last.simps butlast.simps)
+      subgoal using assms(3) by linarith
+      subgoal 
+        using assms(3,4) apply (auto dest!: mod_starD 
+          simp add: take_map take_zip take_butlast_prepend
+          simp del: List.last.simps butlast.simps
+      )
+      subgoal 
+        apply(subgoal_tac "ts ! (Suc (length tsi') div 2 - Suc 0) = (sub,sep)")
+        apply(subgoal_tac "Suc (length pointers) div 2 - Suc 0 < length ts")
+        using assms(3,4)  map_eq_nth_eq_diff[where l=ts and l'=tsi' and i="(Suc (length tsi') div 2 - Suc 0)" and f=snd and g=snd]
+        subgoal by (auto dest!: mod_starD      
+          simp add: list_assn_prod_map id_assn_list_alt
+          simp del: List.last.simps butlast.simps)
+        subgoal
+          by (smt (z3) False \<open>\<And>bb b ab aa. \<lbrakk>(aa, b) \<Turnstile> is_pfa c tsi' (a, n) * blist_assn k ts tsi'' * bplustree_assn k t ti (List.last (r # pointers)) z; take (Suc (length ts) div 2) ts = ls @ [(sub, sep)]; rs = drop (Suc (length ts) div 2) ts; \<not> length tsi' \<le> 2 * k; split_relation tsi' (take (Suc (length tsi') div 2) tsi', drop (Suc (length tsi') div 2) tsi') (Suc (length tsi') div 2); tsi' ! (Suc (length tsi') div 2 - Suc 0) = (ab, bb); 2 * k \<le> c; c \<le> Suc (4 * k)\<rbrakk> \<Longrightarrow> Suc (length tsi') div 2 - Suc 0 \<le> 2 * k\<close> append_take_drop_id assms(3) le_neq_implies_less le_trans length_take nat_le_linear split_relation_alt)
+        subgoal 
+          apply(subgoal_tac "length ts = length tsi'")
+          using assms(3,4) apply(auto dest!: mod_starD  list_assn_len     
+          simp add: list_assn_prod_map id_assn_list_alt
+          simp del: List.last.simps butlast.simps)
+          apply (metis One_nat_def append.assoc append_Cons append_take_drop_id butlast_snoc length_butlast length_take nth_append_length)
+        done
+      done
+         subgoal using assms(3,4) by (auto dest!: mod_starD      
+          simp add: list_assn_prod_map id_assn_list_alt
+          simp del: List.last.simps butlast.simps)
+         subgoal apply (subgoal_tac "length ls < length pointers")
+        using assms(3,4) apply (auto 
+          simp add: drop_map drop_zip drop_butlast Cons_nth_drop_Suc
+          simp del: List.last.simps butlast.simps
+      )[]
+          using assms(3,4) apply(auto dest!: mod_starD  list_assn_len     
+          simp add: list_assn_prod_map id_assn_list_alt
+          simp del: List.last.simps butlast.simps)
+        by (metis One_nat_def Suc_eq_plus1 length_Cons length_append length_take list.size(3) min_arg_not_ge(2) min_less_self_conv(2) not_less_eq)
+      subgoal
+      (*supply R = append_take_drop_id[of "(length ls)" tsi'',symmetric]
+      thm R
+      apply(subst R)
+      supply R = Cons_nth_drop_Suc[of "length ls" "tsi''", symmetric]
+      thm R
+      apply(subst R)*)
+      supply R = append_take_drop_id[of "(length ls)" ts,symmetric]
+      thm R
+      apply(subst R)
+      supply R = Cons_nth_drop_Suc[of "length ls" ts, symmetric]
+      thm R
+      apply(subst R)
+      subgoal
+          using assms(3,4) apply(auto dest!: mod_starD  list_assn_len     
+          simp add: list_assn_prod_map id_assn_list_alt
+          simp del: List.last.simps butlast.simps)[]
+          apply (metis One_nat_def Suc_eq_plus1 length_Cons length_append length_take list.size(3) min_less_self_conv(2) not_less_eq trans_less_add1)
+          done
+         supply R=list_assn_append_Cons_left[where xs="take (length ls) ts" and ys="drop (Suc (length ls)) ts" and x="ts ! (length ls)"]
+      thm R
+      apply(subst R)
+          using assms(3,4) apply(sep_auto dest!: mod_starD  list_assn_len     
+          simp del: List.last.simps butlast.simps)
+          using assms(3,4) apply(sep_auto dest!: mod_starD  list_assn_len     
+          simp del: List.last.simps butlast.simps)
+          apply(subgoal_tac "separators ls = separators (take (length ls) ts)")
+          apply(sep_auto simp add: take_map[symmetric] take_zip take_butlast_prepend
+          simp del: List.last.simps butlast.simps)[]
+          apply(auto simp add: drop_map[symmetric] drop_zip drop_butlast
+          simp del: List.last.simps butlast.simps)[]
+          using assms(3,4) apply(sep_auto dest!: mod_starD  list_assn_len     
+          simp del: List.last.simps butlast.simps)
+      proof (goal_cases)
+        case (1)
+        have "snd (ts ! (Suc (length tsi') div 2 - Suc 0)) = sep"
+          by (simp add: "1"(9) assms(3))
+        moreover have "snd (tsi' ! (Suc (length tsi') div 2 - Suc 0)) = sepi"
+          by (simp add: "1"(5) assms(3))
+        moreover have "i < length ts \<Longrightarrow> snd (ts !i) = snd (tsi'!i)" for i
+          using 1(12) map_eq_nth_eq_diff[where l=ts and l'=tsi' and f=snd and g=snd] by auto
+        ultimately show ?case 
+          by (metis "1"(1) "1"(12) "1"(4) assms(3) diff_less length_append_singleton length_map length_take min_less_iff_conj zero_less_Suc)
+      next
+        case 2
+        then show ?case sorry
+      qed
+        sledgehammer
+        subgoal apply (auto
+          simp del: List.last.simps butlast.simps)
+      thm list_assn_aux_append_Cons[of ts tsi'']
+      apply (subst list_assn_aux_append_Cons)
+      apply .
+      (*using assms apply (sep_auto simp del: List.last.simps)
+      sledgehammer
         (* introduce equality between equality of split tsi/ts and original lists *)
         apply (auto dest!: mod_starD simp: list_assn_prod_map id_assn_list)[]
         apply(subgoal_tac "ts ! (length ls) = (sub,sep)")
