@@ -50,13 +50,18 @@ text "The idea is: a refines the given node of degree k where the first leaf nod
 of a is r and the forward pointer in the last leaf node is z"
 
 find_theorems list_assn
+find_theorems id_assn
 
-fun bplustree_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
+locale bplustree =
+  fixes A :: "'a \<Rightarrow> ('b::heap) \<Rightarrow> assn"
+begin
+
+fun bplustree_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode ref \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
   "bplustree_assn k (LNode xs) a r z = 
  (\<exists>\<^sub>A xsi xsi' fwd.
       a \<mapsto>\<^sub>r Btleaf xsi fwd
     * is_pfa (2*k) xsi' xsi
-    * list_assn (id_assn) xs xsi'
+    * list_assn A xs xsi'
     * \<up>(fwd = z)
     * \<up>(the r = a)
   )" |
@@ -67,7 +72,7 @@ fun bplustree_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btn
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
     * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A) ts tsi''
     )"
 
 find_theorems "map _ (zip _ _)"
@@ -80,24 +85,26 @@ text "With the current definition of deletion, we would
 also need to directly reason on nodes and not only on references
 to them."
 
-fun btnode_assn :: "nat \<Rightarrow> 'a::heap bplustree \<Rightarrow> 'a btnode \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
+fun btnode_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
   "btnode_assn k (LNode xs) (Btleaf xsi zi) r z = 
- (\<exists>\<^sub>Axsi'.
-      is_pfa (2*k) xsi' xsi
-    * list_assn (id_assn) xs xsi'
+ (\<exists>\<^sub>A xsi xsi' zi.
+    is_pfa (2*k) xsi' xsi
+    * list_assn A xs xsi'
     * \<up>(zi = z)
   )" |
   "btnode_assn k (Node ts t) (Btnode tsi ti) r z = 
  (\<exists>\<^sub>A tsi' tsi'' rs.
-      bplustree_assn k t ti (List.last (r#rs)) (List.last (rs@[z]))
+    bplustree_assn k t ti (List.last (r#rs)) (List.last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
     * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A) ts tsi''
     )" |
   "btnode_assn _ _ _ _ _ = false"
 
-abbreviation "blist_assn k ts tsi'' \<equiv> list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi'' "
+abbreviation "blist_assn k ts tsi'' \<equiv> list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A) ts tsi'' "
 
 thm bplustree_assn.simps
+end
+
 end
