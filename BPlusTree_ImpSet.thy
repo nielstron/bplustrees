@@ -628,14 +628,66 @@ next
         prefer 2 subgoal by (auto dest!: mod_starD list_assn_len
           simp del: List.last.simps butlast.simps)
     apply(subgoal_tac "(subi'', sepi'') = (subi', sepi')")
-       prefer 2 subgoal using assms(3,4)
-        sorry
+      prefer 2 subgoal
+        using assms(3,4) apply (auto dest!: mod_starD list_assn_len
+          simp del: List.last.simps butlast.simps)
+      proof (goal_cases)
+        case 1
+        then have "tsi'' ! length tsi''l =  ((subi'', subir, subinext), sepi'')"
+          by auto
+        moreover have "length tsi''l < length tsi''"
+          by (simp add: 1)
+        moreover have "length tsi''l < length tsi'"
+          using "1" assms(3) by linarith
+        ultimately have
+            "fst (fst (tsi'' ! length tsi''l)) = fst (tsi' ! length tsi''l)"
+            "snd (tsi'' ! length tsi''l) = snd (tsi' ! length tsi''l)"
+          using assms(4) by auto
+        then show ?case
+          by (simp add: "1"(4) \<open>tsi'' ! length tsi''l = ((subi'', subir, subinext), sepi'')\<close>)
+        case 2
+        then show ?case
+          by (metis \<open>snd (tsi'' ! length tsi''l) = snd (tsi' ! length tsi''l)\<close> \<open>tsi'' ! length tsi''l = ((subi'', subir, subinext), sepi'')\<close> snd_conv)
+      qed
     apply(subgoal_tac "(List.last (r # take (length ls) pointers)) = subir")
       prefer 2 subgoal
-        sorry
+        using assms(3) apply (auto dest!: mod_starD list_assn_len
+          simp del: List.last.simps butlast.simps)
+      proof (goal_cases)
+        case 1
+        have "length tsi''l < length tsi''"
+          by (simp add: 1)
+        then have "fst (snd (fst (tsi'' ! length tsi''l))) = subir"
+          using 1 assms(4) by auto
+        moreover have "map fst (map snd (map fst tsi'')) = butlast (r#pointers)"
+          using assms(3,4) by auto
+        moreover have "(List.last (r#take (length ls) pointers)) = butlast (r#pointers) ! (length tsi''l)"
+          by (smt (z3) "1"(10) "1"(11) One_nat_def Suc_eq_plus1 Suc_to_right abs_split.length_take_left append_butlast_last_id div_le_dividend le_add2 length_butlast length_ge_1_conv length_take lessI list.size(4) min_eq_arg(2) nth_append_length nth_take nz_le_conv_less take_Suc_Cons take_butlast_conv)
+        ultimately show ?case
+          using 1 apply auto
+          by (metis (no_types, hide_lams) "1"(11) length_map map_map nth_append_length)
+      qed
     apply(subgoal_tac "(List.last (subinext # drop (Suc (length tsi''l)) pointers)) = List.last (r#pointers)")
        prefer 2 subgoal
-        sorry
+        using assms(3) apply (auto dest!: mod_starD list_assn_len
+          simp del: List.last.simps butlast.simps)
+      proof (goal_cases)
+        case 1
+        have "length tsi''l < length tsi''"
+          using 1 by auto
+        moreover have "subinext = snd (snd (fst (tsi'' ! length tsi''l)))"
+          using "1" calculation by force
+        ultimately have "subinext = map snd (map snd (map fst tsi'')) ! length tsi''l"
+          by auto
+        then have "subinext = pointers ! length tsi''l" 
+          using assms(3,4) by auto
+        then have "(subinext # drop (Suc (length tsi''l)) pointers) = drop (length tsi''l) pointers"
+          by (metis 1 Cons_nth_drop_Suc Suc_eq_plus1 Suc_to_right abs_split.length_take_left div_le_dividend le_add1 less_Suc_eq nz_le_conv_less take_all_iff zero_less_Suc)
+        moreover have "List.last (drop (length tsi''l) pointers) = List.last pointers"
+          using \<open>length tsi''l < length tsi''\<close>  1 by force
+        ultimately show ?case
+          by auto
+      qed
     apply(subgoal_tac "take (length tsi''l) ts = ls")
       prefer 2 subgoal
         by (metis append.assoc append_eq_conv_conj append_take_drop_id)
