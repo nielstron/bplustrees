@@ -19,6 +19,8 @@ subsection "Operations on Partly Filled Arrays"
 definition is_pfa where
   "is_pfa c l \<equiv> \<lambda>(a,n). \<exists>\<^sub>A l'. a \<mapsto>\<^sub>a l' *  \<up>(c = length l' \<and> n \<le> c \<and> l = (take n l'))"
 
+abbreviation "len :: 'a pfarray \<Rightarrow> nat \<equiv> snd"
+abbreviation "arr :: 'a pfarray \<Rightarrow> 'a array \<equiv> fst"
 
 lemma is_pfa_prec[safe_constraint_rules]: "precise (is_pfa c)"
   unfolding is_pfa_def[abs_def]
@@ -80,12 +82,13 @@ definition "pfa_append \<equiv> \<lambda>(a,n) x. do {
   return (a,n+1)
 }"
 
-lemma pfa_append_rule[sep_heap_rules]: "
-   n < c  \<Longrightarrow>
-    < is_pfa c l (a,n) > 
-      pfa_append (a,n) x 
-    <\<lambda>(a',n'). is_pfa c (l@[x]) (a',n') * \<up>(a' = a \<and> n' = n+1) >"  
-  by (sep_auto 
+
+lemma pfa_append_rule[sep_heap_rules]:
+   "len a < c  \<Longrightarrow>
+    <is_pfa c l a> 
+      pfa_append a x 
+    <\<lambda>(a',n'). is_pfa c (l@[x]) (a',n') * \<up>(a' = arr a \<and> n' = (len a)+1) >"  
+  by (sep_auto
       simp: pfa_append_def arl_append_def is_pfa_def take_update_last neq_Nil_conv
       split: prod.splits nat.split)
 
@@ -108,9 +111,9 @@ definition pfa_butlast :: "'a::heap pfarray \<Rightarrow> 'a pfarray Heap" where
 
 
 lemma pfa_butlast_rule[sep_heap_rules]: "
-  <is_pfa c l (a,n)> 
-    pfa_butlast (a,n)
-  <\<lambda>(a',n'). is_pfa c (butlast l) (a',n') * \<up>(a' = a)>"
+  <is_pfa c l a> 
+    pfa_butlast a
+  <\<lambda>(a',n'). is_pfa c (butlast l) (a',n') * \<up>(a' = arr a)>"
   by (sep_auto 
       split: prod.splits
       simp: pfa_butlast_def is_pfa_def butlast_take)  
@@ -147,9 +150,9 @@ definition pfa_shrink :: "nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> 'a pf
 
 lemma pfa_shrink_rule[sep_heap_rules]: "
    k \<le> length xs \<Longrightarrow>
-    < is_pfa c xs (a,n) > 
-      pfa_shrink k (a,n)
-    <\<lambda>(a',n'). is_pfa c (take k xs) (a',n') * \<up>(n' = k \<and> a'=a) >"  
+    < is_pfa c xs a > 
+      pfa_shrink k a
+    <\<lambda>(a',n'). is_pfa c (take k xs) (a',n') * \<up>(n' = k \<and> a'=arr a) >"  
   by (sep_auto 
       simp: pfa_shrink_def is_pfa_def min.absorb1
       split: prod.splits nat.split)
@@ -163,9 +166,9 @@ definition pfa_shrink_cap :: "nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> '
 "
 
 lemma pfa_shrink_cap_rule_preserve[sep_heap_rules]: "
-   \<lbrakk>n \<le> k; k \<le> c\<rbrakk> \<Longrightarrow>
-    < is_pfa c l (a,n) > 
-      pfa_shrink_cap k (a,n)
+   \<lbrakk>len a \<le> k; k \<le> c\<rbrakk> \<Longrightarrow>
+    < is_pfa c l a > 
+      pfa_shrink_cap k a
     <\<lambda>a'. is_pfa k l a' >\<^sub>t"
   by (sep_auto 
       simp: pfa_shrink_cap_def is_pfa_def min.absorb1 min.absorb2
@@ -211,11 +214,11 @@ definition pfa_ensure :: "'a::{heap,default} pfarray \<Rightarrow> nat \<Rightar
 "
 
 lemma pfa_ensure_rule[sep_heap_rules]: "
-    < is_pfa c l (a,n) > 
-      pfa_ensure (a,n) k
-    <\<lambda>(a',n'). is_pfa (max c k) l (a',n') * \<up>(n' = n \<and> c \<ge> n)>\<^sub>t"  
+    < is_pfa c l a > 
+      pfa_ensure a k
+    <\<lambda>(a',n'). is_pfa (max c k) l (a',n') * \<up>(n' = len a \<and> c \<ge> len a)>\<^sub>t"  
   by (sep_auto 
-      simp: pfa_ensure_def is_pfa_def)
+      simp: pfa_ensure_def is_pfa_def split!: prod.splits)
 
 
 definition "pfa_copy \<equiv> arl_copy"
@@ -236,13 +239,13 @@ lemma min_nat: "min a (a+b) = (a::nat)"
 
 
 lemma pfa_blit_rule[sep_heap_rules]:
-  assumes LEN: "si+len \<le> sn" "di \<le> dn" "di+len \<le> dc"
+  assumes LEN: "si+l \<le> sn" "di \<le> dn" "di+l \<le> dc"
   shows
     "< is_pfa sc src (srci,sn)
       * is_pfa dc dst (dsti,dn) >
-    pfa_blit (srci,sn) si (dsti,dn) di len
+    pfa_blit (srci,sn) si (dsti,dn) di l
     <\<lambda>_. is_pfa sc src (srci,sn)
-      * is_pfa dc (take di dst @ take len (drop si src) @ drop (di+len) dst) (dsti,max (di+len) dn)
+      * is_pfa dc (take di dst @ take l (drop si src) @ drop (di+l) dst) (dsti,max (di+l) dn)
     >"
   using LEN apply(sep_auto simp add: min_nat is_pfa_def pfa_blit_def min.commute min.absorb1 heap: blit_rule)
    apply (simp add: min.absorb1 take_drop)
@@ -257,7 +260,7 @@ definition pfa_drop :: "('a::heap) pfarray \<Rightarrow> nat \<Rightarrow> 'a pf
 "
 
 
-lemma pfa_drop_rule[sep_heap_rules]:
+lemma pfa_drop_rule_pair[sep_heap_rules]:
   assumes LEN: "k \<le> sn" "(sn-k) \<le> dc"
   shows
     "< is_pfa sc src (srci,sn)
@@ -268,6 +271,19 @@ lemma pfa_drop_rule[sep_heap_rules]:
       * \<up>(dsti' = dsti)
     >"
   using LEN apply (sep_auto simp add: drop_take is_pfa_def pfa_drop_def dest!: mod_starD heap: pfa_blit_rule)
+  done
+
+lemma pfa_drop_rule[sep_heap_rules]:
+  assumes LEN: "k \<le> len srci" "(len srci-k) \<le> dc"
+  shows
+    "< is_pfa sc src srci
+      * is_pfa dc dst dsti >
+    pfa_drop srci k dsti
+    <\<lambda>(dsti',dn'). is_pfa sc src srci
+      * is_pfa dc (drop k src) (dsti',dn')
+      * \<up>(dsti' = arr dsti)
+    >"
+  using LEN apply (sep_auto simp add: drop_take is_pfa_def pfa_drop_def dest!: mod_starD heap: pfa_blit_rule split!: prod.splits)
   done
 
 
