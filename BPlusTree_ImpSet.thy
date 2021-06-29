@@ -692,17 +692,18 @@ declare abs_split.node\<^sub>i.simps [simp del]
 
 declare abs_split.Lnode\<^sub>i.simps [simp add]
 lemma Lnode\<^sub>i_rule:
-  shows "<bplustree_assn k (LNode ts) a r z>
+  assumes "k > 0 " "the r = a" "2*k \<le> c" "c \<le> 2*k+1"
+  shows "<a \<mapsto>\<^sub>r (Btleaf xsi' z) * is_pfa c xsi xsi' * list_assn A_assn xs xsi >
   Lnode\<^sub>i k a
-  <\<lambda>a. btupi_assn k (abs_split.Lnode\<^sub>i k ts) a r z>\<^sub>t"
-proof (cases "length ts \<le> 2*k")
+  <\<lambda>a. btupi_assn k (abs_split.Lnode\<^sub>i k xs) a r z>\<^sub>t"
+proof (cases "length xs \<le> 2*k")
   case [simp]: True
   then show ?thesis
     apply(subst Lnode\<^sub>i_def)
       apply(rule hoare_triple_preI; simp)
-    apply(sep_auto eintros del: exI heap add: pfa_shrink_cap_rule)
-    subgoal for _ _ aaa ba xsi' xsi'a ac bc
-      apply(inst_existentials ac bc xsi'a z)
+    using assms apply(sep_auto eintros del: exI heap add: pfa_shrink_cap_rule)
+    subgoal for _ _ aaa ba
+      apply(inst_existentials aaa ba xsi z)
       apply simp_all
       done
     subgoal
@@ -713,20 +714,17 @@ proof (cases "length ts \<le> 2*k")
 next
   case [simp]: False
   then obtain ls sep rs where
-    split_half_eq: "BPlusTree_Set.split_half ts = (ls@[sep],rs)"
+    split_half_eq: "BPlusTree_Set.split_half xs = (ls@[sep],rs)"
     using abs_split.Lnode\<^sub>i_cases by blast
   then show ?thesis
     apply(subst Lnode\<^sub>i_def)
     apply auto
-    apply (rule norm_pre_ex_rule)+
-    apply (vcg heap add: pfa_shrink_cap_rule; simp)
+    using assms apply (vcg heap add: pfa_shrink_cap_rule; simp)
     subgoal
-      apply (vcg)
-      apply(rule entails_preI)
       apply (auto dest!: mod_starD list_assn_len)[]
       using False apply presburger
     done 
-    subgoal for tsi tsi'
+    subgoal
       apply(rule hoare_triple_preI)
       apply (sep_auto heap add: pfa_drop_rule simp add: split_relation_alt
               dest!: mod_starD list_assn_len)
@@ -740,34 +738,45 @@ next
     subgoal for  _ _ _ _ rsa rn lsa ln newr
         (* instantiate right hand side *)
       apply(inst_existentials "Some newr"
-             rsa rn "(drop (Suc (length tsi') div 2) tsi')" z
-             lsa ln "(take (Suc (length tsi') div 2) tsi')" "Some newr"
+             rsa rn "(drop (Suc (length xsi) div 2) xsi)" z
+             lsa ln "(take (Suc (length xsi) div 2) xsi)" "Some newr"
             )
         (* introduce equality between equality of split tsi/ts and original lists *)
-      subgoal by (sep_auto dest!: mod_starD)
-      apply(subgoal_tac "Suc (length tsi') div 2 = Suc (length ls)")
-      apply(subgoal_tac "tsi' =
-            take (Suc (length ls)) tsi' @  drop (Suc (length ls)) tsi'")
-       apply(rule back_subst[where a="list_assn A_assn ts (take (Suc (length ls)) tsi' @ (drop (Suc (length ls)) tsi'))" and b="list_assn A_assn ts tsi'"])
-        apply(rule back_subst[where a="list_assn A_assn (take (Suc (length ls)) ts @ rs)" and b="list_assn A_assn ts"])
+      subgoal using assms by (sep_auto dest!: mod_starD)
+      apply(subgoal_tac "Suc (length xsi) div 2 = Suc (length ls)")
+      apply(subgoal_tac "xsi =
+            take (Suc (length ls)) xsi @  drop (Suc (length ls)) xsi")
+       apply(rule back_subst[where a="list_assn A_assn xs (take (Suc (length ls)) xsi @ (drop (Suc (length ls)) xsi))" and b="list_assn A_assn xs xsi"])
+        apply(rule back_subst[where a="list_assn A_assn (take (Suc (length ls)) xs @ rs)" and b="list_assn A_assn xs"])
          apply(subst list_assn_aux_append)
       subgoal by auto
-      apply(subgoal_tac "take (Suc (length ls)) tsi' = (take (length ls) tsi') @ [(tsi' ! length ls)]")
+      apply(subgoal_tac "take (Suc (length ls)) xsi = (take (length ls) xsi) @ [(xsi ! length ls)]")
       subgoal by (sep_auto simp add: A_assn_def)
       subgoal 
-        using take_Suc_conv_app_nth[of "length ls" tsi']
+        using take_Suc_conv_app_nth[of "length ls" xsi]
         by sep_auto 
       subgoal
         by (metis append_take_drop_id)
       subgoal by sep_auto
       subgoal by sep_auto
-      subgoal 
-        by (metis One_nat_def Suc_eq_plus1 length_Cons length_append length_take list.size(3))
+      subgoal using length_Cons length_append length_take
+        by (smt (z3) One_nat_def Suc_eq_plus1 list.size(3) split_half_conc split_half_eq)
       done
     done
   done
 qed
 declare abs_split.Lnode\<^sub>i.simps [simp del]
+
+lemma Lnode\<^sub>i_rule_tree:
+  assumes "k > 0"
+  shows "<bplustree_assn k (LNode xs) a r z>
+  Lnode\<^sub>i k a
+  <\<lambda>a. btupi_assn k (abs_split.Lnode\<^sub>i k xs) a r z>\<^sub>t"
+proof -
+  note Lnode\<^sub>i_rule
+  then show ?thesis
+    using assms by (sep_auto)
+qed
 
 lemma node\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split.node\<^sub>i k ts t = abs_split.T\<^sub>i (Node ts t)"
   by (simp add: abs_split.node\<^sub>i.simps)
@@ -778,17 +787,23 @@ lemma Lnode\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split.L
 lemma id_assn_emp[simp]: "id_assn a a = emp"
   by (simp add: pure_def)
 
-lemma node\<^sub>i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longrightarrow>
-<is_pfa c (tsi' @ [(Some li, a)]) (aa, al) *
-   blist_assn k ls tsi' *
-   bplustree_assn k l li *
-   bplustree_assn k r ri> node\<^sub>i k (aa, al) ri
- <btupi_assn k (abs_split.node\<^sub>i k (ls @ [(l, a)]) r)>\<^sub>t"
+lemma node\<^sub>i_rule_app: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
+    and "length tsi' = length pointers"
+    and "tsi'' = zip (zip (map fst tsi') (zip (butlast (r'#pointers)) (butlast (pointers@[z])))) (map snd tsi')"
+  shows "
+<is_pfa c (tsi' @ [(Some li, ai)]) (tsia, tsin) *
+   A_assn a ai *
+   blist_assn k ls tsi'' *
+   bplustree_assn k l li z lz *
+   bplustree_assn k r ri lz rz> node\<^sub>i k (tsia, tsin) ri
+ <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k (ls @ [(l, a)]) r) u r' z>\<^sub>t"
 proof -
-  note node\<^sub>i_rule[of k c "(tsi' @ [(Some li, a)])" aa al "(ls @ [(l, a)])" r ri]
-  moreover assume "2*k \<le> c" "c \<le> 4*k+1"
+  note node\<^sub>i_rule[of k c "tsi'@[(Some li, ai)]" "pointers@[z]" tsi'' r' rz tsia tsin "ls@[(l,a)]" r ri]
+(*[of k c "(tsi' @ [(Some li, b)])" _ _ "(ls @ [(l, a)])" r ri]*)
+  moreover note assms
   ultimately show ?thesis
-    by (simp add: mult.left_assoc)
+    apply (auto simp add: mult.left_assoc simp del: List.last.simps butlast.simps)
+    sorry
 qed
 
 lemma node\<^sub>i_rule_ins2: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = length lsi\<rbrakk> \<Longrightarrow>
@@ -812,17 +827,17 @@ lemma ins_rule:
   sorted_less (inorder t) \<Longrightarrow>
   sorted_less (leaves t) \<Longrightarrow>
   root_order k t \<Longrightarrow>
-  <bplustree_assn k t ti>
-  ins k x ti
-  <\<lambda>r. btupi_assn k (abs_split.ins k x t) r>\<^sub>t"
-proof (induction k x t arbitrary: ti rule: abs_split.ins.induct)
-  case (1 k x)
+  <bplustree_assn k t ti r z * A_assn x xi>
+  ins k xi ti
+  <\<lambda>a. btupi_assn k (abs_split.ins k x t) a r z>\<^sub>t"
+proof (induction k x t arbitrary: ti r z rule: abs_split.ins.induct)
+  case (1 k x xs ti r z)
   then show ?case
     apply(subst ins.simps)
-    apply (sep_auto simp add: pure_app_eq heap: Lnode\<^sub>i_rule)
+    apply (sep_auto heap: Lnode\<^sub>i_rule)
     done
 next
-  case (2 k x ts t)
+  case (2 k x ts t ti r z)
   obtain ls rrs where list_split: "split ts x = (ls,rrs)"
     by (cases "split ts x")
   have [simp]: "sorted_less (separators ts)"
@@ -840,10 +855,11 @@ next
       then show ?thesis
         apply(subst ins.simps)
         using Nil 
-        apply(simp)
+        apply(simp del: List.last.simps butlast.simps)
         apply vcg
-        apply simp
+        apply(simp del: List.last.simps butlast.simps)
         apply vcg
+        thm imp_split_rule
         apply sep_auto
           apply(rule hoare_triple_preI)
         using Nil split_rel_i list_split
