@@ -300,13 +300,15 @@ fun btupi_assn where
 
 
 (* TODO take in a pointer ot a btnode instead, only create one new node *)
-definition node\<^sub>i :: "nat \<Rightarrow> ('b btnode ref option \<times> 'b) pfarray \<Rightarrow> 'b btnode ref \<Rightarrow> 'b btupi Heap" where
-  "node\<^sub>i k a ti \<equiv> do {
+definition node\<^sub>i :: "nat \<Rightarrow> 'b btnode ref \<Rightarrow> 'b btupi Heap" where
+  "node\<^sub>i k p \<equiv> do {
+    pt \<leftarrow> !p;
+    let a = kvs pt; ti = last pt in do {
     n \<leftarrow> pfa_length a;
     if n \<le> 2*k then do {
       a' \<leftarrow> pfa_shrink_cap (2*k) a;
-      l \<leftarrow> ref (Btnode a' ti);
-      return (T\<^sub>i l)
+      p := Btnode a' ti;
+      return (T\<^sub>i p)
     }
     else do {
       b \<leftarrow> (pfa_empty (2*k) :: ('b btnode ref option \<times> 'b) pfarray Heap);
@@ -316,11 +318,12 @@ definition node\<^sub>i :: "nat \<Rightarrow> ('b btnode ref option \<times> 'b)
       a' \<leftarrow> pfa_shrink (i-1) a;
       a'' \<leftarrow> pfa_shrink_cap (2*k) a';
       let (sub,sep) = m in do {
-        l \<leftarrow> ref (Btnode a'' (the sub));
+        p := Btnode a'' (the sub);
         r \<leftarrow> ref (Btnode b' ti);
-        return (Up\<^sub>i l sep r)
+        return (Up\<^sub>i p sep r)
       }
     }
+  }
 }"
 
 definition Lnode\<^sub>i :: "nat \<Rightarrow> 'b btnode ref  \<Rightarrow> 'b btupi Heap" where
@@ -371,31 +374,22 @@ partial_function (heap) ins :: "nat \<Rightarrow> 'b \<Rightarrow> 'b btnode ref
           } |
           (Up\<^sub>i lp x' rp) \<Rightarrow> do {
             pfa_set tsi i (Some rp,sep);
-            if tsl < 2*k then do {
-              tsi' \<leftarrow> pfa_insert tsi i (Some lp,x');
-              p := (Btnode tsi' ti);
-              return (T\<^sub>i p)
-            } else do {
-              tsi' \<leftarrow> pfa_insert_grow tsi i (Some lp,x');
-              node\<^sub>i k tsi' ti
-            }
+            tsi' \<leftarrow> pfa_insert_grow tsi i (Some lp,x');
+            p := Btnode tsi' ti;
+            node\<^sub>i k p
           }
         }
       }
       else do {
         r \<leftarrow> ins k x ti;
         case r of (T\<^sub>i lp) \<Rightarrow> do {
-          p := (Btnode tsi lp);
-          return (T\<^sub>i p)
-        } | (Up\<^sub>i lp x' rp) \<Rightarrow> 
-          if tsl < 2*k then do {
-            tsi' \<leftarrow> pfa_append tsi (Some lp,x');
-            p := (Btnode tsi' rp);
+            p := (Btnode tsi lp);
             return (T\<^sub>i p)
-          } else do {
+        } | (Up\<^sub>i lp x' rp) \<Rightarrow> do { 
             tsi' \<leftarrow> pfa_append_grow' tsi (Some lp,x');
-            node\<^sub>i k tsi' rp
-          }
+            p := Btnode tsi' rp;
+            node\<^sub>i k p
+        }
       }
   }
 )}"
@@ -459,8 +453,8 @@ declare abs_split.node\<^sub>i.simps [simp add]
 lemma node\<^sub>i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
     and "length tsi' = length pointers"
     and "tsi'' = zip (zip (map fst tsi') (zip (butlast (r#pointers)) (butlast (pointers@[z])))) (map snd tsi')"
-  shows "<is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (List.last (r#pointers)) z>
-  node\<^sub>i k (a,n) ti
+  shows "<p \<mapsto>\<^sub>r Btnode (a,n) ti * is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (List.last (r#pointers)) z>
+  node\<^sub>i k p
   <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k ts t) u r z>\<^sub>t"
 proof (cases "length ts \<le> 2*k")
   case [simp]: True
@@ -573,7 +567,7 @@ next
         have "length ls < length tsi''"
           using assms(3,4) "1"(11) by auto
         moreover have "subinext = snd (snd (fst (tsi'' ! length ls)))"
-          using "1"(24) "1"(9) calculation by force
+          using 1 calculation by force
         ultimately have "subinext = map snd (map snd (map fst tsi'')) ! length ls"
           by auto
         then show ?case
