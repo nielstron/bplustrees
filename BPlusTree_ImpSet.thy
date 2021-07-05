@@ -806,8 +806,9 @@ proof -
 qed
 
 lemma node\<^sub>i_rule_ins2: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
-    and "length lsi' = length (lpointers@[lz])"
-    and "length rsi' = length (rz#rpointers)"
+    and "pointers = lpointers@lz#rz#r''#rpointers"
+    and "length lsi' = length lpointers"
+    and "length rsi' = length rpointers"
     and "lsi'' = zip (zip (map fst lsi') (zip (butlast (r'#lpointers)) (butlast (lpointers@[lz])))) (map snd lsi')"
     and "rsi'' = zip (zip (map fst rsi') (zip (butlast (r''#rpointers)) (butlast (rpointers@[z])))) (map snd lsi')"
   shows "
@@ -819,7 +820,7 @@ lemma node\<^sub>i_rule_ins2: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
    bplustree_assn k l li lz rz*
    bplustree_assn k r ri rz r''*
    blist_assn k rs rsi'' *
-   bplustree_assn k t ti (List.last (rz#rpointers)) z> node\<^sub>i k p 
+   bplustree_assn k t ti (List.last (r'#pointers)) z> node\<^sub>i k p 
 <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # (r,a') # rs) t) u r' z>\<^sub>t"
 proof -
   note node\<^sub>i_rule[of k c 
@@ -1057,30 +1058,29 @@ next
           (*this solves a subgoal*) apply simp
             (* at this point, we want to introduce the split, and after that tease the
   hoare triple assumptions out of the bracket, s.t. we don't split twice *)
-          using list_split Cons
-          apply (simp add: split_relation_alt list_assn_append_Cons_left)
-          apply(rule impI)
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          apply (vcg (ss))
+          using list_split Cons abs_split.split_conc[of ts x ls rrs] 
+          apply (simp add: list_assn_append_Cons_left)
           apply(rule norm_pre_ex_rule)+
           apply(rule hoare_triple_preI)
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply (vcg (ss))
-          apply(simp add: prod_assn_def split!: prod.splits)
+          apply(simp add: split_relation_alt prod_assn_def split!: prod.splits)
               (* actual induction branch *)
-          subgoal for tsia tsin tti tsi' pointers lsi' suba subleaf subnext sepa rsi' _ _ suba' sepa' sub' sep'
+          subgoal for tsia tsin tti tsi' pointers suba' sepa' lsi' suba subleaf subnext sepa rsi' _ _ sub' sep'
           apply(subgoal_tac "(suba', sepa') = (suba, sepa)") 
           apply(subgoal_tac "(sub', sep') = (sub, sep)") 
           thm "2.IH"(2)[of ls rs a rrs sub sep "the suba" subleaf subnext]
@@ -1098,23 +1098,43 @@ next
               apply (sep_auto dest!: mod_starD list_assn_len heap: pfa_insert_grow_rule)
               subgoal by (sep_auto simp add: is_pfa_def)
               subgoal for aa ba ac bc ae be ag bg ak bk am bm an bn newr x xaa
-                supply R= node\<^sub>i_rule_ins2[of k "(max (2 * k) (Suc tsin))"
-                         "take (length lsi') tsi'" _ subleaf "drop (length lsi') tsi'" newr _
-                          lsi' r' rsi' subnext z ti _ "Suc tsin" tti
-                          li ai ri sepa
-                        ]
-              thm R
-              apply (sep_auto eintros del: exI heap: R split!: prod.splits)
+                apply(simp split!: prod.splits)
+              subgoal for tsia'
+                supply R= node\<^sub>i_rule_ins2[of k "max (2*k) (Suc tsin)"
+                          pointers "take (length lsi') pointers" subleaf newr subnext
+                          "drop (Suc (length lsi')) pointers"
+                          ]
+              apply (sep_auto simp add: upd_drop_prepend eintros del: exI heap: R split!: prod.splits)
+                subgoal sorry
+                subgoal by auto
               subgoal by simp
-              subgoal by simp
-              subgoal by simp
+              subgoal sorry
+              subgoal sorry
               subgoal by sep_auto
               done
-            subgoal by (auto dest!:  mod_starD list_assn_len)
             done
-          subgoal for p tsil tsin ti zs1 subi sepi zs2 _ 
-            by (auto dest!:  mod_starD list_assn_len)
           done
+        done
+            subgoal
+              using a_split by fastforce
+            subgoal
+                  proof (goal_cases)
+                    case 1
+                    then have *: "((suba, subleaf, subnext), sepa) = (zip (zip (subtrees tsi') (zip (butlast (r' # pointers)) pointers)) (separators tsi'))!(length lsi')"
+                      by (metis nth_append_length)
+                    have **:"(zip (zip (subtrees tsi') (zip (butlast (r' # pointers)) pointers)) (separators tsi'))!(length lsi') = (((subtrees tsi')!(length lsi'), (butlast (r'#pointers))!(length lsi'), pointers!(length lsi')), (separators tsi')!(length lsi'))" 
+                      using 1 by simp
+                    then show ?case
+                      using ** * 1
+                      by simp
+                  qed
+                  subgoal by (auto dest!: mod_starD list_assn_len)
+                  done
+                subgoal
+                  apply(rule hoare_triple_preI)
+                    using Cons split_relation_alt[of ts ls "a#rs"] list_split
+                    by (auto dest!: list_assn_len mod_starD)
+                  done
       qed
     qed
   qed
