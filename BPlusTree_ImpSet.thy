@@ -422,6 +422,9 @@ lemma take_butlast_prepend: "take n (butlast (r # pointers)) =
   apply auto[]
   by (smt (verit, del_insts) One_nat_def Suc_to_right length_Cons length_butlast length_take min_eq_arg(2) nat_le_linear take_Suc_Cons take_butlast_conv take_take)
 
+lemma take_butlast_append: "take n (butlast (xs @ x # ys)) =
+       take n (xs @ (butlast (x#ys)))"
+  by (auto simp add: butlast_append)
 
 lemma map_eq_nth_eq_diff:
   assumes A: "map f l = map g l'"
@@ -805,33 +808,115 @@ proof -
     done
 qed
 
+lemma norm_pre_ex_drule: "<\<exists>\<^sub>Ax. P x> c <Q> \<Longrightarrow> (\<And>x. <P x> c <Q>)"
+proof (goal_cases)
+  case 1
+  then show ?case
+    using Hoare_Triple.cons_pre_rule by blast
+qed
+
+(* setting up the simplifier for tsi'' in the other direction *)
+lemma node\<^sub>i_rule_diff_simp: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
+    and "length tsi' = length pointers"
+    and "zip (zip (map fst tsi') (zip (butlast (r#pointers)) (butlast (pointers@[z])))) (map snd tsi') = tsi''"
+  shows "<p \<mapsto>\<^sub>r Btnode (a,n) ti * is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (List.last (r#pointers)) z>
+  node\<^sub>i k p
+  <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k ts t) u r z>\<^sub>t"
+  using node\<^sub>i_rule assms by (auto simp del: butlast.simps List.last.simps)
+
+lemma list_assn_aux_append_Cons2: 
+  shows "length xs = length zsl \<Longrightarrow> list_assn R (xs@x#y#ys) (zsl@z1#z2#zsr) = (list_assn R xs zsl * R x z1 * R y z2 * list_assn R ys zsr)"
+  by (sep_auto simp add: mult.assoc)
+
+lemma pointer_zip_access: "length tsi' = length pointers \<Longrightarrow> i < length tsi' \<Longrightarrow>
+  zip (zip (map fst tsi') (zip (butlast (r'#pointers)) (butlast (pointers@[z])))) (map snd tsi') ! i
+= ((fst (tsi' ! i), (r'#pointers) ! i, pointers ! i), snd (tsi' ! i))"
+  apply(auto)
+  by (metis append_butlast_last_id butlast.simps(2) len_greater_imp_nonempty length_Cons length_append_singleton nth_butlast)
+
 lemma node\<^sub>i_rule_ins2: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
-    and "pointers = lpointers@lz#rz#r''#rpointers"
-    and "length lsi' = length lpointers"
-    and "length rsi' = length rpointers"
-    and "lsi'' = zip (zip (map fst lsi') (zip (butlast (r'#lpointers)) (butlast (lpointers@[lz])))) (map snd lsi')"
-    and "rsi'' = zip (zip (map fst rsi') (zip (butlast (r''#rpointers)) (butlast (rpointers@[z])))) (map snd lsi')"
+    and "pointers = lpointers@lz#rz#rpointers"
+    and "length tsi'' = length pointers"
+    and "length lpointers = length lsi'"
+    and "length rpointers = length rsi'"
+    and "length lsi'' = length ls"
+    and "length lsi' = length ls"
+    and "tsi'' = zip (zip (map fst tsi') (zip (butlast (r'#pointers)) (butlast (pointers@[z])))) (map snd tsi')"
+    and "tsi' = (lsi' @ (Some li, ai) # (Some ri,ai') # rsi')" 
+    and "lsi'' = take (length lsi') tsi''"
+    and "rsi'' = drop (Suc (Suc (length lsi'))) tsi''"
+    and "lpointers = llpointers@[r'']"
+    and "z'' = List.last (r'#pointers)"
+    and "length tsi' = length pointers"
   shows "
 <  p \<mapsto>\<^sub>r Btnode (tsia,tsin) ti *
    is_pfa c (lsi' @ (Some li, ai) # (Some ri,ai') # rsi') (tsia, tsin) *
    A_assn a ai *
    A_assn a' ai' *
    blist_assn k ls lsi'' *
-   bplustree_assn k l li lz rz*
-   bplustree_assn k r ri rz r''*
+   bplustree_assn k l li r'' lz*
+   bplustree_assn k r ri lz rz*
    blist_assn k rs rsi'' *
-   bplustree_assn k t ti (List.last (r'#pointers)) z> node\<^sub>i k p 
+   bplustree_assn k t ti z'' z> node\<^sub>i k p 
 <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # (r,a') # rs) t) u r' z>\<^sub>t"
 proof -
-  note node\<^sub>i_rule[of k c 
+  have "
+     tsi'' =
+     lsi'' @ ((Some li, r'', lz), ai) # ((Some ri, lz, rz), ai') # rsi''"
+  proof (goal_cases)
+    case 1
+    have "tsi'' = take (length lsi') tsi'' @ drop (length lsi') tsi''"
+      by auto
+    also have "\<dots> = take (length lsi') tsi'' @ tsi''!(length lsi') # drop (Suc (length lsi')) tsi''"
+      by (simp add: Cons_nth_drop_Suc assms(3) assms(4) assms(5))
+    also have "\<dots> = take (length lsi') tsi'' @ tsi''!(length lsi') # tsi''!(Suc (length lsi')) #drop (Suc (Suc (length lsi'))) tsi''"
+      by (metis (no_types, lifting) Cons_nth_drop_Suc One_nat_def Suc_eq_plus1 Suc_le_eq assms(3) assms(4) assms(5) diff_add_inverse2 diff_is_0_eq length_append list.size(4) nat.simps(3) nat_add_left_cancel_le not_less_eq_eq)
+    also have "\<dots> = lsi'' @ tsi''!(length lsi') # tsi''!(Suc (length lsi')) # rsi''"
+      using assms(11) assms(12) by force
+    also have "\<dots> = lsi'' @ ((Some li, r'', lz), ai) # ((Some ri, lz, rz), ai') # rsi''"
+    proof (auto, goal_cases)
+      case 1
+      have "pointers ! length lsi' = lz"
+        by (metis assms(3) assms(5) nth_append_length)
+      moreover have "(r'#pointers) ! length lsi' = r''"
+        using assms by (cases "length ls") auto
+      moreover have " tsi'!(length lsi') = (Some li,ai)"
+        using assms(10) by auto
+      moreover have "length lsi' < length tsi'"
+        using \<open>take (length lsi') tsi'' @ drop (length lsi') tsi'' = take (length lsi') tsi'' @ tsi'' ! length lsi' # drop (Suc (length lsi')) tsi''\<close> assms(11) assms(15) assms(4) assms(7) assms(8) le_neq_implies_less by fastforce
+      ultimately show ?case 
+        using pointer_zip_access[of tsi' pointers "length lsi'"] assms(15) assms(9)
+        by (auto simp del: List.last.simps butlast.simps)
+    next
+      case 2
+      have "pointers ! (Suc (length lsi')) = rz"
+        by (metis Suc_eq_plus1 append_Nil assms(3) assms(5) nth_Cons_Suc nth_append_length nth_append_length_plus)
+      moreover have "(r'#pointers) ! (Suc (length lsi')) = lz"
+        using assms(3,4,5,6,7,8) apply auto
+        by (metis nth_append_length)
+      moreover have " tsi'!(Suc (length lsi')) = (Some ri,ai')"
+        using assms(10)
+        by (metis (no_types, lifting) Cons_nth_drop_Suc Suc_le_eq append_eq_conv_conj assms(15) assms(4) drop_all drop_eq_ConsD list.inject list.simps(3) not_less_eq_eq)
+      moreover have "Suc (length lsi') < length tsi'"
+        by (metis (no_types, lifting) \<open>take (length lsi') tsi'' @ drop (length lsi') tsi'' = take (length lsi') tsi'' @ tsi'' ! length lsi' # drop (Suc (length lsi')) tsi''\<close> \<open>take (length lsi') tsi'' @ tsi'' ! length lsi' # drop (Suc (length lsi')) tsi'' = take (length lsi') tsi'' @ tsi'' ! length lsi' # tsi'' ! Suc (length lsi') # drop (Suc (Suc (length lsi'))) tsi''\<close> assms(15) assms(4) drop_all drop_eq_ConsD le_neq_implies_less list.simps(3) nat_le_linear same_append_eq)
+      ultimately show ?case 
+        using pointer_zip_access[of tsi' pointers "Suc (length lsi')"] assms(15) assms(9)
+        by (auto simp del: List.last.simps butlast.simps)
+    qed
+    finally show ?thesis .
+  qed
+  moreover note node\<^sub>i_rule_diff_simp[of k c 
     "(lsi' @ (Some li, ai) # (Some ri,ai') # rsi')" 
-    "lpointers@lz#rz#rpointers"
-    "lsi''@((Some li, lz, rz), ai)#((Some ri, rz, r''), ai')#rsi''"
-    r' z p tsia tsin ti "ls@(l,a)#(r,a')#rs" t
-  ]
-  then show ?thesis
-    apply (auto simp add: mult.left_assoc list_assn_aux_append_Cons)
-    sorry
+    "lpointers@lz#rz#rpointers" r' z
+    "lsi''@((Some li, r'', lz), ai)#((Some ri, lz, rz), ai')#rsi''"
+    p tsia tsin ti "ls@(l,a)#(r,a')#rs" t
+]
+  ultimately show ?thesis
+    using assms(1,2,3,4,5,6,7,8,9,10,13,14)
+    apply (auto simp add: mult.left_assoc list_assn_aux_append_Cons2 prod_assn_def
+simp del: List.last.simps)
+    apply(simp add: mult.right_commute)
+    done
 qed
 
 lemma upd_drop_prepend: "i < length xs \<Longrightarrow> drop i (list_update xs i a) = a#(drop (Suc i) xs)" 
@@ -1081,6 +1166,7 @@ next
           apply(simp add: split_relation_alt prod_assn_def split!: prod.splits)
               (* actual induction branch *)
           subgoal for tsia tsin tti tsi' pointers suba' sepa' lsi' suba subleaf subnext sepa rsi' _ _ sub' sep'
+          apply(subgoal_tac "length ls = length lsi'") 
           apply(subgoal_tac "(suba', sepa') = (suba, sepa)") 
           apply(subgoal_tac "(sub', sep') = (sub, sep)") 
           thm "2.IH"(2)[of ls rs a rrs sub sep "the suba" subleaf subnext]
@@ -1100,14 +1186,59 @@ next
               subgoal for aa ba ac bc ae be ag bg ak bk am bm an bn newr x xaa
                 apply(simp split!: prod.splits)
               subgoal for tsia'
-                supply R= node\<^sub>i_rule_ins2[of k "max (2*k) (Suc tsin)"
-                          pointers "take (length lsi') pointers" subleaf newr subnext
-                          "drop (Suc (length lsi')) pointers"
-                          ]
+                supply R= node\<^sub>i_rule_ins2[where k=k and c="max (2*k) (Suc tsin)" and
+                      lsi'="take (length lsi') tsi'" and li=li and ai=ai and ri=ri and ai'=sepa
+                      and rsi'="drop (Suc (length lsi')) tsi'"
+                      and lpointers="take (length lsi') pointers"
+                      and rpointers="drop (Suc (length lsi')) pointers"
+                      and pointers="take (length lsi') pointers @ newr # subnext # drop (Suc (length lsi')) pointers"
+                      and z''="List.last (r'#pointers)"
+                      and tsi'="take (length lsi') tsi' @ (Some li, ai) # (Some ri, sepa) # drop (Suc (length lsi')) tsi'"
+                      and r'="r'" and z="z"
+and tsi''="zip (zip (subtrees
+           (take (length lsi') tsi' @
+            (Some li, ai) # (Some ri, sepa) # drop (Suc (length lsi')) tsi'))
+      (zip (butlast
+             (r' #
+              take (length lsi') pointers @ newr # subnext # drop (Suc (length lsi')) pointers))
+        (butlast
+          ((take (length lsi') pointers @ newr # subnext # drop (Suc (length lsi')) pointers) @
+           [z]))))
+ (separators
+   (take (length lsi') tsi' @
+    (Some li, ai) # (Some ri, sepa) # drop (Suc (length lsi')) tsi'))"
+and llpointers="butlast (take (length lsi') pointers)"
+                    ]
+                thm R
               apply (sep_auto simp add: upd_drop_prepend eintros del: exI heap: R split!: prod.splits)
-                subgoal sorry
-                subgoal by auto
-              subgoal by simp
+                subgoal
+                proof (goal_cases)
+                  case 1
+                  from sym[OF 1(8)] have "lsi' = take (length lsi') (zip (zip (subtrees tsi') (zip (butlast (r' # pointers)) pointers)) (separators tsi'))"
+                    by auto
+                  then show ?case using 1
+                    by (auto simp add: take_zip take_map take_butlast_prepend take_butlast_append)
+                qed
+                subgoal 
+                proof (goal_cases)
+                  case 1
+                  let ?tsi''="zip (zip (subtrees tsi') (zip (butlast (r' # pointers)) pointers)) (separators tsi')"
+                  from sym[OF 1(8)] have "rsi' = drop (Suc (length lsi')) ?tsi''"
+                    by auto
+                  moreover have "pointers ! length lsi' = subnext" 
+                  proof -
+                    thm pointer_zip_access
+                    let ?i = "length lsi'"
+                    have "?tsi'' ! ?i = ((fst (tsi'!?i), (r' # pointers) ! ?i, pointers ! ?i), snd (tsi' ! ?i))"
+                      using pointer_zip_access 1 by fastforce
+                    moreover have "?tsi'' ! ?i = ((suba, subleaf, subnext), sepa)"
+                      using sym[OF 1(8)] by simp
+                    ultimately show ?thesis by simp
+                  qed
+                  ultimately show ?case using 1
+                    by (auto simp add: drop_zip drop_map drop_butlast Cons_nth_drop_Suc)
+                qed
+              subgoal sorry
               subgoal sorry
               subgoal sorry
               subgoal by sep_auto
