@@ -834,6 +834,16 @@ lemma pointer_zip_access: "length tsi' = length pointers \<Longrightarrow> i < l
   apply(auto)
   by (metis append_butlast_last_id butlast.simps(2) len_greater_imp_nonempty length_Cons length_append_singleton nth_butlast)
 
+lemma pointer_zip'_access: "length tsi' = length pointers \<Longrightarrow> i < length tsi' \<Longrightarrow>
+  zip (zip (map fst tsi') (zip (butlast (r'#pointers)) (butlast (pointers@[z])))) (map snd tsi') ! i
+= ((fst (tsi' ! i), (r'#pointers) ! i, pointers ! i), snd (tsi' ! i))"
+  apply(auto)
+  by (metis One_nat_def nth_take take_Cons' take_butlast_conv)
+
+lemma access_len_last: "(x#xs@ys) ! (length xs) = List.last (x#xs)"
+  by (induction xs) auto
+
+
 lemma node\<^sub>i_rule_ins2: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
     and "pointers = lpointers@lz#rz#rpointers"
     and "length tsi'' = length pointers"
@@ -845,7 +855,7 @@ lemma node\<^sub>i_rule_ins2: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
     and "tsi' = (lsi' @ (Some li, ai) # (Some ri,ai') # rsi')" 
     and "lsi'' = take (length lsi') tsi''"
     and "rsi'' = drop (Suc (Suc (length lsi'))) tsi''"
-    and "lpointers = llpointers@[r'']"
+    and "r'' = List.last (r'#lpointers)"
     and "z'' = List.last (r'#pointers)"
     and "length tsi' = length pointers"
   shows "
@@ -877,20 +887,21 @@ proof -
     proof (auto, goal_cases)
       case 1
       have "pointers ! length lsi' = lz"
-        by (metis assms(3) assms(5) nth_append_length)
+        by (metis assms(3) assms(5) list.sel(3) nth_append_length)
       moreover have "(r'#pointers) ! length lsi' = r''"
-        using assms by (cases "length ls") auto
+        using assms access_len_last[of r' lpointers]
+        by (auto simp del: List.last.simps butlast.simps)
       moreover have " tsi'!(length lsi') = (Some li,ai)"
         using assms(10) by auto
       moreover have "length lsi' < length tsi'"
-        using \<open>take (length lsi') tsi'' @ drop (length lsi') tsi'' = take (length lsi') tsi'' @ tsi'' ! length lsi' # drop (Suc (length lsi')) tsi''\<close> assms(11) assms(15) assms(4) assms(7) assms(8) le_neq_implies_less by fastforce
+        using \<open>take (length lsi') tsi'' @ tsi'' ! length lsi' # drop (Suc (length lsi')) tsi'' = take (length lsi') tsi'' @ tsi'' ! length lsi' # tsi'' ! Suc (length lsi') # drop (Suc (Suc (length lsi'))) tsi''\<close> assms(15) assms(4) same_append_eq by fastforce
       ultimately show ?case 
-        using pointer_zip_access[of tsi' pointers "length lsi'"] assms(15) assms(9)
+        using pointer_zip'_access[of tsi' "pointers" "length lsi'" r'] assms(15) assms(9)
         by (auto simp del: List.last.simps butlast.simps)
     next
       case 2
       have "pointers ! (Suc (length lsi')) = rz"
-        by (metis Suc_eq_plus1 append_Nil assms(3) assms(5) nth_Cons_Suc nth_append_length nth_append_length_plus)
+        by (metis Suc_eq_plus1 append_Nil assms(3) assms(5) list.sel(3) nth_Cons_Suc nth_append_length nth_append_length_plus)
       moreover have "(r'#pointers) ! (Suc (length lsi')) = lz"
         using assms(3,4,5,6,7,8) apply auto
         by (metis nth_append_length)
@@ -898,9 +909,9 @@ proof -
         using assms(10)
         by (metis (no_types, lifting) Cons_nth_drop_Suc Suc_le_eq append_eq_conv_conj assms(15) assms(4) drop_all drop_eq_ConsD list.inject list.simps(3) not_less_eq_eq)
       moreover have "Suc (length lsi') < length tsi'"
-        by (metis (no_types, lifting) \<open>take (length lsi') tsi'' @ drop (length lsi') tsi'' = take (length lsi') tsi'' @ tsi'' ! length lsi' # drop (Suc (length lsi')) tsi''\<close> \<open>take (length lsi') tsi'' @ tsi'' ! length lsi' # drop (Suc (length lsi')) tsi'' = take (length lsi') tsi'' @ tsi'' ! length lsi' # tsi'' ! Suc (length lsi') # drop (Suc (Suc (length lsi'))) tsi''\<close> assms(15) assms(4) drop_all drop_eq_ConsD le_neq_implies_less list.simps(3) nat_le_linear same_append_eq)
+        by (simp add: assms(10))
       ultimately show ?case 
-        using pointer_zip_access[of tsi' pointers "Suc (length lsi')"] assms(15) assms(9)
+        using pointer_zip'_access[of tsi' pointers "Suc (length lsi')"] assms(15) assms(9)
         by (auto simp del: List.last.simps butlast.simps)
     qed
     finally show ?thesis .
@@ -925,6 +936,8 @@ lemma upd_drop_prepend: "i < length xs \<Longrightarrow> drop i (list_update xs 
 lemma zip_update: "(zip xs ys)!i = (a,b) \<Longrightarrow> list_update (zip xs ys) i (c,b) = zip (list_update xs i c) ys"
   by (metis fst_conv list_update_beyond list_update_id not_le_imp_less nth_zip snd_conv update_zip)
 
+lemma append_Cons_last: "List.last (xs@x#ys) = List.last (x#ys)"
+  by (induction xs) auto
                                                                                             
 declare List.last.simps[simp del] butlast.simps[simp del]
 lemma ins_rule:
@@ -1207,7 +1220,6 @@ and tsi''="zip (zip (subtrees
  (separators
    (take (length lsi') tsi' @
     (Some li, ai) # (Some ri, sepa) # drop (Suc (length lsi')) tsi'))"
-and llpointers="butlast (take (length lsi') pointers)"
                     ]
                 thm R
               apply (sep_auto simp add: upd_drop_prepend eintros del: exI heap: R split!: prod.splits)
@@ -1227,7 +1239,6 @@ and llpointers="butlast (take (length lsi') pointers)"
                     by auto
                   moreover have "pointers ! length lsi' = subnext" 
                   proof -
-                    thm pointer_zip_access
                     let ?i = "length lsi'"
                     have "?tsi'' ! ?i = ((fst (tsi'!?i), (r' # pointers) ! ?i, pointers ! ?i), snd (tsi' ! ?i))"
                       using pointer_zip_access 1 by fastforce
@@ -1238,9 +1249,50 @@ and llpointers="butlast (take (length lsi') pointers)"
                   ultimately show ?case using 1
                     by (auto simp add: drop_zip drop_map drop_butlast Cons_nth_drop_Suc)
                 qed
-              subgoal sorry
-              subgoal sorry
-              subgoal sorry
+              subgoal 
+                proof (goal_cases)
+                  case 1
+                  let ?tsi''="zip (zip (subtrees tsi') (zip (butlast (r' # pointers)) pointers)) (separators tsi')"
+                  let ?i = "length lsi'"
+                  show ?thesis
+                  proof -
+                    let ?i = "length lsi'"
+                    have "?tsi'' ! ?i = ((fst (tsi'!?i), (r' # pointers) ! ?i, pointers ! ?i), snd (tsi' ! ?i))"
+                      using pointer_zip_access 1 by fastforce
+                    moreover have "?tsi'' ! ?i = ((suba, subleaf, subnext), sepa)"
+                      using sym[OF 1(8)] by simp
+                    ultimately have "(r'#pointers) ! ?i = subleaf"
+                      by simp
+                    then show ?thesis
+                      using sym[OF append_take_drop_id, of pointers "length lsi'"]
+                      using access_len_last[of r' "take (length lsi') pointers" "drop (length lsi') pointers"]
+                      using 1
+                      by simp
+                  qed
+                qed
+                subgoal
+                proof (goal_cases)
+                  case 1
+                  let ?tsi''="zip (zip (subtrees tsi') (zip (butlast (r' # pointers)) pointers)) (separators tsi')"
+                  let ?i = "length lsi'"
+                  have "pointers ! ?i = subnext" 
+                  proof -
+                    have "?tsi'' ! ?i = ((fst (tsi'!?i), (r' # pointers) ! ?i, pointers ! ?i), snd (tsi' ! ?i))"
+                      using pointer_zip_access 1 by fastforce
+                    moreover have "?tsi'' ! ?i = ((suba, subleaf, subnext), sepa)"
+                      using sym[OF 1(8)] by simp
+                    ultimately show ?thesis by simp
+                  qed
+                  moreover have "drop (length lsi') pointers \<noteq> []"
+                    using "1"(3) by auto
+                  moreover have "pointers \<noteq> []"
+                    using "1"(3) by auto
+                  ultimately show ?case
+                    apply(auto simp add: Cons_nth_drop_Suc  List.last.simps)
+                    apply(auto simp add: last_conv_nth)
+                    by (metis Suc_to_right le_SucE)
+                qed
+              subgoal by auto
               subgoal by sep_auto
               done
             done
