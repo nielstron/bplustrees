@@ -1321,38 +1321,40 @@ and tsi''="zip (zip (subtrees
       qed
     qed
   qed
+declare List.last.simps[simp add] butlast.simps[simp add]
 
 text "The imperative insert refines the abstract insert."
 
 lemma insert_rule:
   assumes "k > 0" "sorted_less (inorder t)" "sorted_less (leaves t)" "root_order k t"
-  shows "<bplustree_assn k t ti>
-  insert k x ti
-  <\<lambda>r. bplustree_assn k (abs_split.insert k x t) r>\<^sub>t"
+  shows "<bplustree_assn k t ti r z * A_assn x xi>
+  insert k xi ti
+  <\<lambda>u. bplustree_assn k (abs_split.insert k x t) u r z>\<^sub>t"
+proof(cases "abs_split.ins k x t")
+  case (T\<^sub>i x1)
+  then show ?thesis
   unfolding insert_def
-  apply(cases "abs_split.ins k x t")
-  subgoal  using assms
+   using assms
     by (sep_auto split!: btupi.splits heap: ins_rule)
+next
+  case (Up\<^sub>i x21 x22 x23)
+  then show ?thesis
+  unfolding insert_def
   using assms
-  apply(vcg heap: ins_rule)
-  apply(simp split!: btupi.splits)
-   apply auto[]
-  apply vcg
-  subgoal by auto
-  apply vcg
-  subgoal for l r li a ri tsi
-    apply(rule ent_ex_postI[where x="tsi"])
-    apply(rule ent_ex_postI[where x="ri"])
-    apply(rule ent_ex_postI[where x="[(Some li, a)]"])
-    apply sep_auto
+  apply (sep_auto eintros del: exI split!: btupi.splits heap: ins_rule)
+  subgoal for x21a x22a x23a newr a b xa
+  apply(inst_existentials a b x23a "[(Some x21a, x22a)]" "[((Some x21a, r, newr),x22a)]" "[newr]")
+    apply (auto simp add: prod_assn_def)
+    apply (sep_auto)
     done
   done
+qed
 
 text "The \"pure\" resulting rule follows automatically."
 lemma insert_rule':
-  shows "<bplustree_assn (Suc k) t ti * \<up>(abs_split.invar_leaves (Suc k) t \<and> sorted_less (leaves t))>
-  insert (Suc k) x ti
-  <\<lambda>ri.\<exists>\<^sub>Ar. bplustree_assn (Suc k) r ri * \<up>(abs_split.invar_leaves (Suc k) r \<and> sorted_less (leaves r) \<and> leaves r = (ins_list x (leaves t)))>\<^sub>t"
+  shows "<bplustree_assn (Suc k) t ti r z * \<up>(abs_split.invar_leaves (Suc k) t \<and> sorted_less (leaves t)) * A_assn x xi>
+  insert (Suc k) xi ti
+  <\<lambda>ri.\<exists>\<^sub>Au. bplustree_assn (Suc k) u ri r z * \<up>(abs_split.invar_leaves (Suc k) u \<and> sorted_less (leaves u) \<and> leaves u = (ins_list x (leaves t)))>\<^sub>t"
   using Laligned_sorted_inorder[of t top] sorted_wrt_append
   using abs_split.insert_bal[of t] abs_split.insert_order[of "Suc k" t]
   using abs_split.insert_Linorder_top[of "Suc k" t]
