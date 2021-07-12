@@ -52,11 +52,17 @@ of a is r and the forward pointer in the last leaf node is z"
 find_theorems list_assn
 find_theorems id_assn
 
+fun leaf_nodes where
+"leaf_nodes (LNode xs) = [LNode xs]" |
+"leaf_nodes (Node ts t) = concat (map leaf_nodes (subtrees ts)) @ leaf_nodes t"
+
 locale bplustree =
   fixes A :: "'a \<Rightarrow> ('b::heap) \<Rightarrow> bool"
 begin
 
+
 definition "A_assn x y \<equiv> \<up>(A x y)"
+
 
 fun bplustree_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode ref \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
   "bplustree_assn k (LNode xs) a r z = 
@@ -106,6 +112,65 @@ fun btnode_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode \<Rig
 
 abbreviation "blist_assn k ts tsi'' \<equiv> list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts tsi'' "
 
+fun leaf_nodes_assn :: "nat \<Rightarrow> 'a bplustree list \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
+  "leaf_nodes_assn k ((LNode xs)#lns) r z = 
+ (\<exists>\<^sub>A xsi xsi' fwd.
+      the r \<mapsto>\<^sub>r Btleaf xsi fwd
+    * is_pfa (2*k) xsi' xsi
+    * list_assn A_assn xs xsi'
+    * leaf_nodes_assn k lns fwd z
+  )" | 
+  "leaf_nodes_assn k [] r z = \<up>(z = r)" |
+  "leaf_nodes_assn _ _ _ _ = false"
+
+
+find_theorems "_ \<Longrightarrow>\<^sub>t _"
+(* FIX blist_assn ... \<Longrightarrow> leaf_nodes_assn *)
+lemma "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
+proof(induction rule: bplustree_assn.induct)
+  case (1 k xs a r z)
+  then show ?case
+    by (sep_auto)
+next
+  case (2 k ts t a r z)
+  show ?case
+    apply(sep_auto simp del: List.last.simps butlast.simps)
+  proof (goal_cases)
+    case (1 a b ti tsi' rs)
+    then show ?case
+    proof (induct arbitrary: a b rule: list_induct2)
+      case Nil
+      then show ?case
+        apply sep_auto
+      apply(rule ent_true_drop(1))
+      apply(rule fr_rot)
+      apply(rule ent_true_drop(1))
+        using 2(1)[of ti "[]"]
+      apply simp
+      done
+    next
+      case (Cons x xs y ys)
+      then show ?case
+      apply (sep_auto simp del: List.last.simps butlast.simps)
+        apply (simp del: List.last.simps butlast.simps)
+    qed
+  qed
+     apply (sep_auto)
+  proof (goal_cases)
+    case (1 a b ti)
+    then show ?case
+      using 2(1)[of ti "[]"]
+      apply sep_auto
+      apply(rule ent_true_drop(1))
+      apply(rule fr_rot)
+      apply(rule ent_true_drop(1))
+      apply simp
+      done
+  next
+    case (2 tsi ti tsi' rs)
+    then show ?case sorry
+  qed
+qed
 thm bplustree_assn.simps
 end
 

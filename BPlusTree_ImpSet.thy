@@ -143,6 +143,23 @@ locale imp_split = abs_split: BPlusTree_Set.split split + imp_split_tree A split
     >\<^sub>t"
 begin
 
+subsection "Initialization"
+
+definition empty ::"nat \<Rightarrow> 'b btnode ref Heap"
+  where "empty k = do {
+  empty_list \<leftarrow> pfa_empty (2*k);
+  empty_leaf \<leftarrow> ref (Btleaf empty_list None);
+  return empty_leaf
+}"
+
+lemma empty_rule:
+  shows "<emp>
+  empty k
+  <\<lambda>r. bplustree_assn k (abs_split.empty_bplustree) r (Some r) None>"
+  apply(subst empty_def)
+  apply(sep_auto simp add: abs_split.empty_bplustree_def)
+  done
+
 subsection "Membership"
 
 (* TODO introduce imperative equivalents to searching/inserting/deleting in a list *)
@@ -1463,13 +1480,6 @@ definition rebalance_last_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder
 
 subsection "Refinement of the abstract B-tree operations"
 
-definition empty ::"nat \<Rightarrow> ('a::{default,heap,linorder,order_top}) btnode ref Heap"
-  where "empty k = do {
-  empty_list \<leftarrow> pfa_empty (2*k);
-  empty_leaf \<leftarrow> ref (Btleaf empty_list);
-  return empty_leaf
-}"
-
 
 lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
@@ -2288,13 +2298,6 @@ lemma delete_rule:
   using assms apply (sep_auto heap add: del_rule reduce_root_rule)
   done
 
-lemma empty_rule:
-  shows "<emp>
-  empty k
-  <\<lambda>r. bplustree_assn k (abs_split.empty_bplustree) r>"
-  apply(subst empty_def)
-  apply(sep_auto simp add: abs_split.empty_bplustree_def)
-  done
 
 end
 
