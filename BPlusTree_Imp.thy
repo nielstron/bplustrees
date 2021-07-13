@@ -127,8 +127,11 @@ fun leaf_nodes_assn :: "nat \<Rightarrow> 'a bplustree list \<Rightarrow> 'b btn
 lemma leaf_nodes_assn_aux_append: "leaf_nodes_assn k (xs@ys) r z = (\<exists>\<^sub>Al. leaf_nodes_assn k xs r l * leaf_nodes_assn k ys l z)"
   apply(induction xs arbitrary: r)
   apply (sep_auto intro!: ent_iffI)
-  apply (sep_auto intro!: ent_iffI)
-  sorry
+  subgoal for a xs r
+    apply(cases a)
+    apply (sep_auto intro!: ent_iffI)+
+    done
+  done
 
 lemma butlast_double_Cons: "butlast (x#y#xs) = x#(butlast (y#xs))"
   by auto
@@ -144,7 +147,6 @@ lemma ent_true_drop_true:
   "P*true\<Longrightarrow>\<^sub>AQ*true \<Longrightarrow> P*R*true\<Longrightarrow>\<^sub>AQ*true"
   using assn_aci(10) ent_true_drop(1) by presburger
 
-find_theorems "_ \<Longrightarrow>\<^sub>A _"
 declare List.last.simps[simp del] butlast.simps[simp del]
 declare mult.left_assoc[simp add]
 
