@@ -3,6 +3,7 @@ theory BPlusTree_Imp
     BPlusTree
     Partially_Filled_Array
     Basic_Assn
+    Inst_Ex_Assn
 begin
 
 section "Imperative B-tree Definition"
@@ -123,54 +124,117 @@ fun leaf_nodes_assn :: "nat \<Rightarrow> 'a bplustree list \<Rightarrow> 'b btn
   "leaf_nodes_assn k [] r z = \<up>(z = r)" |
   "leaf_nodes_assn _ _ _ _ = false"
 
+lemma leaf_nodes_assn_aux_append: "leaf_nodes_assn k (xs@ys) r z = (\<exists>\<^sub>Al. leaf_nodes_assn k xs r l * leaf_nodes_assn k ys l z)"
+  apply(induction xs arbitrary: r)
+  apply (sep_auto intro!: ent_iffI)
+  apply (sep_auto intro!: ent_iffI)
+  sorry
 
-find_theorems "_ \<Longrightarrow>\<^sub>t _"
-(* FIX blist_assn ... \<Longrightarrow> leaf_nodes_assn *)
-lemma "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
-proof(induction rule: bplustree_assn.induct)
+lemma butlast_double_Cons: "butlast (x#y#xs) = x#(butlast (y#xs))"
+  by auto
+
+lemma last_double_Cons: "List.last (x#y#xs) = (List.last (y#xs))"
+  by auto
+
+lemma entails_preI: "(\<And>h. h \<Turnstile> P \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q) \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
+  unfolding entails_def
+  by auto
+
+lemma ent_true_drop_true: 
+  "P*true\<Longrightarrow>\<^sub>AQ*true \<Longrightarrow> P*R*true\<Longrightarrow>\<^sub>AQ*true"
+  using assn_aci(10) ent_true_drop(1) by presburger
+
+find_theorems "_ \<Longrightarrow>\<^sub>A _"
+declare List.last.simps[simp del] butlast.simps[simp del]
+declare mult.left_assoc[simp add]
+
+lemma "bplustree_assn k t ti r z * true \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
+proof(induction arbitrary: r rule: bplustree_assn.induct)
   case (1 k xs a r z)
   then show ?case
     by (sep_auto)
 next
-  case (2 k ts t a r z)
+  case (2 k ts t a r z ra)
   show ?case
-    apply(sep_auto simp del: List.last.simps butlast.simps)
+    apply(sep_auto)
   proof (goal_cases)
     case (1 a b ti tsi' rs)
-    then show ?case
-    proof (induct arbitrary: a b rule: list_induct2)
-      case Nil
+(* FIX blist_assn ... \<Longrightarrow> leaf_nodes_assn *)
+    have *: "
+        length tsi's = length rss \<Longrightarrow>
+        length rss = length tss \<Longrightarrow>
+        set tsi's \<subseteq> set tsi' \<Longrightarrow>
+        set rss \<subseteq> set rs \<Longrightarrow>
+        set tss \<subseteq> set ts \<Longrightarrow>
+       bplustree_assn k t ti (List.last (ra # rss)) z * 
+       blist_assn k tss
+        (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) * true \<Longrightarrow>\<^sub>A
+       leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z * true"
+      for rss tsi's tss
+    proof (induct arbitrary: ra rule: list_induct3)
+      case (Nil r)
       then show ?case
         apply sep_auto
-      apply(rule ent_true_drop(1))
-      apply(rule fr_rot)
-      apply(rule ent_true_drop(1))
-        using 2(1)[of ti "[]"]
-      apply simp
+        using 2(1)[of ti r]
+      apply (simp add: List.last.simps butlast.simps)
       done
     next
-      case (Cons x xs y ys)
-      then show ?case
-      apply (sep_auto simp del: List.last.simps butlast.simps)
-        apply (simp del: List.last.simps butlast.simps)
-    qed
-  qed
-     apply (sep_auto)
-  proof (goal_cases)
-    case (1 a b ti)
-    then show ?case
-      using 2(1)[of ti "[]"]
-      apply sep_auto
-      apply(rule ent_true_drop(1))
-      apply(rule fr_rot)
-      apply(rule ent_true_drop(1))
-      apply simp
+      case (Cons subsepi tsi's subleaf rss subsep tss r)
+      show ?case
+        apply (sep_auto
+                simp add: butlast_double_Cons last_double_Cons)
+        apply(subst prod_assn_def)
+        apply(simp split!: prod.splits add: mult.left_assoc)
+        apply(subst leaf_nodes_assn_aux_append)
+        apply simp
+        apply(inst_ex_assn subleaf)
+      proof (goal_cases)
+        case (1 sub sep)
+        have "(sub,sep) \<in> set ts"
+          using "1" Cons.prems(3) by force
+        moreover have "set tsi's \<subseteq> set tsi' \<and> set rss \<subseteq> set rs \<and> set tss \<subseteq> set ts"
+          by (meson Cons.prems set_subset_Cons subset_trans)
+        moreover obtain temp1 temp2 where "((fst subsepi, (temp1:: 'b btnode ref option), subleaf), (temp2::'b)) \<in> set [((fst subsepi, temp1, subleaf), temp2)]"
+          by auto
+        ultimately  show ?case
+          using
+           Cons(3)[of subleaf]
+           "2.IH"(2)[of "(sub,sep)"
+                "((fst subsepi, (temp1, subleaf)),temp2)" "[((fst subsepi, (temp1, subleaf)),temp2)]"
+                "fst subsepi" "(temp1, subleaf)" temp1 subleaf r]
+          apply auto
+          thm mult.commute
+          thm star_aci
+          apply(subst mult.commute)
+          supply R=ent_star_mono_true[where
+A="bplustree_assn k sub (the (fst subsepi)) r subleaf * true" and A'="leaf_nodes_assn k (leaf_nodes sub) r subleaf"
+and B="bplustree_assn k t ti (List.last (subleaf # rss)) z *
+    A_assn sep (snd subsepi) *
+    blist_assn k tss
+     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's)) * true"
+and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ leaf_nodes t) subleaf z"
+          ,simplified]
+          thm R
+          apply(rule R)
+          subgoal
+            by simp
+          subgoal
+            apply(subst mult.commute, simp)
+            apply(rule ent_true_drop_true)
+            apply(subst mult.commute, simp)
+            done
       done
-  next
-    case (2 tsi ti tsi' rs)
-    then show ?case sorry
+      qed
+    qed
+    show ?case
+      apply(rule entails_preI[where Q="leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts) @ leaf_nodes t) ra z * true"])
+        using 1 apply (sep_auto dest!: mod_starD list_assn_len)
+        using *[of tsi' rs ts, simplified]
+        by (smt (z3) assn_aci(10) assn_times_comm ent_true_drop(1))
   qed
 qed
+declare List.last.simps[simp add] butlast.simps[simp add]
+declare mult.left_assoc[simp del]
 thm bplustree_assn.simps
 end
 
