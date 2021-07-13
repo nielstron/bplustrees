@@ -150,7 +150,7 @@ lemma ent_true_drop_true:
 declare List.last.simps[simp del] butlast.simps[simp del]
 declare mult.left_assoc[simp add]
 
-lemma "bplustree_assn k t ti r z * true \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
+lemma bplustree_leaf_nodes: "bplustree_assn k t ti r z * true \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
 proof(induction arbitrary: r rule: bplustree_assn.induct)
   case (1 k xs a r z)
   then show ?case
@@ -161,7 +161,6 @@ next
     apply(sep_auto)
   proof (goal_cases)
     case (1 a b ti tsi' rs)
-(* FIX blist_assn ... \<Longrightarrow> leaf_nodes_assn *)
     have *: "
         length tsi's = length rss \<Longrightarrow>
         length rss = length tss \<Longrightarrow>
@@ -229,8 +228,8 @@ and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ l
       qed
     qed
     show ?case
-      apply(rule entails_preI[where Q="leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts) @ leaf_nodes t) ra z * true"])
-        using 1 apply (sep_auto dest!: mod_starD list_assn_len)
+      apply(rule entails_preI)
+        using 1 apply (auto dest!: mod_starD list_assn_len)
         using *[of tsi' rs ts, simplified]
         by (smt (z3) assn_aci(10) assn_times_comm ent_true_drop(1))
   qed

@@ -2,7 +2,6 @@ theory BPlusTree_ImpSet
   imports
     BPlusTree_Imp
     BPlusTree_Set
-    Inst_Ex_Assn
     "HOL-Real_Asymp.Inst_Existentials"
 begin
 
@@ -463,10 +462,6 @@ qed
 
 lemma "BPlusTree_Set.split_half ts = (ls,rs) \<Longrightarrow> length ls = Suc (length ts) div 2"
   by (metis Suc_eq_plus1 split_half_conc)
-
-lemma entails_preI: "(\<And>h. h \<Turnstile> P \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q) \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
-  unfolding entails_def
-  by auto
 
 
 declare abs_split.node\<^sub>i.simps [simp add]
