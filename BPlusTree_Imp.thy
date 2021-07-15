@@ -21,8 +21,8 @@ text \<open>Selector Functions\<close>
 primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option * 'a) pfarray" where
   [sep_dflt_simps]: "kvs (Btnode ts _) = ts"
 
-primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref" where
-  [sep_dflt_simps]: "last (Btnode _ t) = t"
+primrec lst :: "'a::heap btnode \<Rightarrow> 'a btnode ref" where
+  [sep_dflt_simps]: "lst (Btnode _ t) = t"
 
 primrec vals :: "'a::heap btnode \<Rightarrow> 'a pfarray" where
   [sep_dflt_simps]: "vals (Btleaf ts _) = ts"
@@ -72,12 +72,12 @@ fun bplustree_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode re
     * is_pfa (2*k) xsi' xsi
     * list_assn A_assn xs xsi'
     * \<up>(fwd = z)
-    * \<up>(the r = a)
+    * \<up>(r = Some a)
   )" |
   "bplustree_assn k (Node ts t) a r z = 
  (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
       a \<mapsto>\<^sub>r Btnode tsi ti
-    * bplustree_assn k t ti (List.last (r#rs)) (List.last (rs@[z]))
+    * bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
     * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
@@ -103,7 +103,7 @@ fun btnode_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode \<Rig
   )" |
   "btnode_assn k (Node ts t) (Btnode tsi ti) r z = 
  (\<exists>\<^sub>A tsi' tsi'' rs.
-    bplustree_assn k t ti (List.last (r#rs)) (List.last (rs@[z]))
+    bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
     * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
@@ -136,7 +136,7 @@ lemma leaf_nodes_assn_aux_append: "leaf_nodes_assn k (xs@ys) r z = (\<exists>\<^
 lemma butlast_double_Cons: "butlast (x#y#xs) = x#(butlast (y#xs))"
   by auto
 
-lemma last_double_Cons: "List.last (x#y#xs) = (List.last (y#xs))"
+lemma last_double_Cons: "last (x#y#xs) = (last (y#xs))"
   by auto
 
 lemma entails_preI: "(\<And>h. h \<Turnstile> P \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q) \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
@@ -147,7 +147,7 @@ lemma ent_true_drop_true:
   "P*true\<Longrightarrow>\<^sub>AQ*true \<Longrightarrow> P*R*true\<Longrightarrow>\<^sub>AQ*true"
   using assn_aci(10) ent_true_drop(1) by presburger
 
-declare List.last.simps[simp del] butlast.simps[simp del]
+declare last.simps[simp del] butlast.simps[simp del]
 declare mult.left_assoc[simp add]
 
 lemma bplustree_leaf_nodes: "bplustree_assn k t ti r z * true \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
@@ -167,7 +167,7 @@ next
         set tsi's \<subseteq> set tsi' \<Longrightarrow>
         set rss \<subseteq> set rs \<Longrightarrow>
         set tss \<subseteq> set ts \<Longrightarrow>
-       bplustree_assn k t ti (List.last (ra # rss)) z * 
+       bplustree_assn k t ti (last (ra # rss)) z * 
        blist_assn k tss
         (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) * true \<Longrightarrow>\<^sub>A
        leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z * true"
@@ -177,7 +177,7 @@ next
       then show ?case
         apply sep_auto
         using 2(1)[of ti r]
-      apply (simp add: List.last.simps butlast.simps)
+      apply (simp add: last.simps butlast.simps)
       done
     next
       case (Cons subsepi tsi's subleaf rss subsep tss r)
@@ -209,7 +209,7 @@ next
           apply(subst mult.commute)
           supply R=ent_star_mono_true[where
 A="bplustree_assn k sub (the (fst subsepi)) r subleaf * true" and A'="leaf_nodes_assn k (leaf_nodes sub) r subleaf"
-and B="bplustree_assn k t ti (List.last (subleaf # rss)) z *
+and B="bplustree_assn k t ti (last (subleaf # rss)) z *
     A_assn sep (snd subsepi) *
     blist_assn k tss
      (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's)) * true"
@@ -234,7 +234,7 @@ and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ l
         by (smt (z3) assn_aci(10) assn_times_comm ent_true_drop(1))
   qed
 qed
-declare List.last.simps[simp add] butlast.simps[simp add]
+declare last.simps[simp add] butlast.simps[simp add]
 declare mult.left_assoc[simp del]
 thm bplustree_assn.simps
 end

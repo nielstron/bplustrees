@@ -319,7 +319,7 @@ fun btupi_assn where
 definition node\<^sub>i :: "nat \<Rightarrow> 'b btnode ref \<Rightarrow> 'b btupi Heap" where
   "node\<^sub>i k p \<equiv> do {
     pt \<leftarrow> !p;
-    let a = kvs pt; ti = last pt in do {
+    let a = kvs pt; ti = lst pt in do {
     n \<leftarrow> pfa_length a;
     if n \<le> 2*k then do {
       a' \<leftarrow> pfa_shrink_cap (2*k) a;
@@ -465,11 +465,11 @@ lemma "BPlusTree_Set.split_half ts = (ls,rs) \<Longrightarrow> length ls = Suc (
 
 
 declare abs_split.node\<^sub>i.simps [simp add]
-declare List.last.simps[simp del] butlast.simps[simp del]
+declare last.simps[simp del] butlast.simps[simp del]
 lemma node\<^sub>i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
     and "length tsi' = length pointers"
     and "tsi'' = zip (zip (map fst tsi') (zip (butlast (r#pointers)) (butlast (pointers@[z])))) (map snd tsi')"
-  shows "<p \<mapsto>\<^sub>r Btnode (a,n) ti * is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (List.last (r#pointers)) z>
+  shows "<p \<mapsto>\<^sub>r Btnode (a,n) ti * is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (last (r#pointers)) z>
   node\<^sub>i k p
   <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k ts t) u r z>\<^sub>t"
 proof (cases "length ts \<le> 2*k")
@@ -569,7 +569,7 @@ next
            supply R = drop_Suc_Cons[where n="length ls" and xs="butlast pointers" and x=r, symmetric]
            thm R
            apply(simp only: R drop_zip[symmetric])
-           apply (simp add: List.last.simps butlast.simps)
+           apply (simp add: last.simps butlast.simps)
            done
         subgoal apply(auto dest!: mod_starD list_assn_len)     
         proof (goal_cases)
@@ -637,7 +637,7 @@ next
         then show ?case
           by (metis \<open>snd (tsi'' ! length tsi''l) = snd (tsi' ! length tsi''l)\<close> \<open>tsi'' ! length tsi''l = ((subi'', subir, subinext), sepi'')\<close> snd_conv)
       qed
-    apply(subgoal_tac "(List.last (r # take (length ls) pointers)) = subir")
+    apply(subgoal_tac "(last (r # take (length ls) pointers)) = subir")
       prefer 2 subgoal
         using assms(3) apply (auto dest!: mod_starD list_assn_len)
       proof (goal_cases)
@@ -648,13 +648,13 @@ next
           using 1 assms(4) by auto
         moreover have "map fst (map snd (map fst tsi'')) = butlast (r#pointers)"
           using assms(3,4) by auto
-        moreover have "(List.last (r#take (length ls) pointers)) = butlast (r#pointers) ! (length tsi''l)"
+        moreover have "(last (r#take (length ls) pointers)) = butlast (r#pointers) ! (length tsi''l)"
           by (smt (z3) "1"(10) "1"(11) One_nat_def Suc_eq_plus1 Suc_to_right abs_split.length_take_left append_butlast_last_id div_le_dividend le_add2 length_butlast length_ge_1_conv length_take lessI list.size(4) min_eq_arg(2) nth_append_length nth_take nz_le_conv_less take_Suc_Cons take_butlast_conv)
         ultimately show ?case
           using 1 apply auto
           by (metis (no_types, hide_lams) "1"(11) length_map map_map nth_append_length)
       qed
-    apply(subgoal_tac "(List.last (subinext # drop (Suc (length tsi''l)) pointers)) = List.last (r#pointers)")
+    apply(subgoal_tac "(last (subinext # drop (Suc (length tsi''l)) pointers)) = last (r#pointers)")
        prefer 2 subgoal
         using assms(3) apply (auto dest!: mod_starD list_assn_len)
       proof (goal_cases)
@@ -669,10 +669,10 @@ next
           using assms(3,4) by auto
         then have "(subinext # drop (Suc (length tsi''l)) pointers) = drop (length tsi''l) pointers"
           by (metis 1 Cons_nth_drop_Suc Suc_eq_plus1 Suc_to_right abs_split.length_take_left div_le_dividend le_add1 less_Suc_eq nz_le_conv_less take_all_iff zero_less_Suc)
-        moreover have "List.last (drop (length tsi''l) pointers) = List.last pointers"
+        moreover have "last (drop (length tsi''l) pointers) = last pointers"
           using \<open>length tsi''l < length tsi''\<close>  1 by force
         ultimately show ?case
-          by (auto simp add: List.last.simps butlast.simps)
+          by (auto simp add: last.simps butlast.simps)
       qed
     apply(subgoal_tac "take (length tsi''l) ts = ls")
       prefer 2 subgoal
@@ -684,12 +684,12 @@ next
   done
   done
 qed
-declare List.last.simps[simp add] butlast.simps[simp add]
+declare last.simps[simp add] butlast.simps[simp add]
 declare abs_split.node\<^sub>i.simps [simp del]
 
 declare abs_split.Lnode\<^sub>i.simps [simp add]
 lemma Lnode\<^sub>i_rule:
-  assumes "k > 0 " "the r = a" "2*k \<le> c" "c \<le> 4*k"
+  assumes "k > 0 " "r = Some a" "2*k \<le> c" "c \<le> 4*k"
   shows "<a \<mapsto>\<^sub>r (Btleaf xsi' z) * is_pfa c xsi xsi' * list_assn A_assn xs xsi >
   Lnode\<^sub>i k a
   <\<lambda>a. btupi_assn k (abs_split.Lnode\<^sub>i k xs) a r z>\<^sub>t"
@@ -793,7 +793,7 @@ lemma butlast3[simp]: "butlast (ts@[a,b,c]) = ts@[a,b]"
 lemma zip_append_last: "length as = length bs \<Longrightarrow> zip (as@[a]) (bs@[b]) = zip as bs @ [(a,b)]"
   by simp
 
-lemma pointers_append: "zip (z#as) (as@[a]) = zip (butlast (z#as)) as @ [(List.last (z#as),a)]"
+lemma pointers_append: "zip (z#as) (as@[a]) = zip (butlast (z#as)) as @ [(last (z#as),a)]"
   by (metis (no_types, hide_lams) Suc_eq_plus1 append_butlast_last_id butlast_snoc length_Cons length_append_singleton length_butlast list.distinct(1) zip_append_last)
 
 lemma node\<^sub>i_rule_app: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
@@ -804,12 +804,12 @@ lemma node\<^sub>i_rule_app: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
    is_pfa c (tsi' @ [(Some li, ai)]) (tsia, tsin) *
    A_assn a ai *
    blist_assn k ts tsi'' *
-   bplustree_assn k l li (List.last (r'#pointers)) lz *
+   bplustree_assn k l li (last (r'#pointers)) lz *
    bplustree_assn k r ri lz rz> node\<^sub>i k p
  <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k (ts @ [(l, a)]) r) u r' rz>\<^sub>t"
 proof -
 (*[of k c "(tsi' @ [(Some li, b)])" _ _ "(ls @ [(l, a)])" r ri]*)
-  note node\<^sub>i_rule[of k c "tsi'@[(Some li, ai)]" "pointers@[lz]" "tsi''@[((Some li, List.last(r'#pointers), lz),ai)]" r' rz p tsia tsin ri "ts@[(l,a)]" r, OF assms(1,2)]
+  note node\<^sub>i_rule[of k c "tsi'@[(Some li, ai)]" "pointers@[lz]" "tsi''@[((Some li, last(r'#pointers), lz),ai)]" r' rz p tsia tsin ri "ts@[(l,a)]" r, OF assms(1,2)]
   then show ?thesis
     using assms
     apply (auto simp add:
@@ -831,10 +831,10 @@ qed
 lemma node\<^sub>i_rule_diff_simp: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
     and "length tsi' = length pointers"
     and "zip (zip (map fst tsi') (zip (butlast (r#pointers)) (butlast (pointers@[z])))) (map snd tsi') = tsi''"
-  shows "<p \<mapsto>\<^sub>r Btnode (a,n) ti * is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (List.last (r#pointers)) z>
+  shows "<p \<mapsto>\<^sub>r Btnode (a,n) ti * is_pfa c tsi' (a,n) * blist_assn k ts tsi'' * bplustree_assn k t ti (last (r#pointers)) z>
   node\<^sub>i k p
   <\<lambda>u. btupi_assn k (abs_split.node\<^sub>i k ts t) u r z>\<^sub>t"
-  using node\<^sub>i_rule assms by (auto simp del: butlast.simps List.last.simps)
+  using node\<^sub>i_rule assms by (auto simp del: butlast.simps last.simps)
 
 lemma list_assn_aux_append_Cons2: 
   shows "length xs = length zsl \<Longrightarrow> list_assn R (xs@x#y#ys) (zsl@z1#z2#zsr) = (list_assn R xs zsl * R x z1 * R y z2 * list_assn R ys zsr)"
@@ -852,7 +852,7 @@ lemma pointer_zip'_access: "length tsi' = length pointers \<Longrightarrow> i < 
   apply(auto)
   by (metis One_nat_def nth_take take_Cons' take_butlast_conv)
 
-lemma access_len_last: "(x#xs@ys) ! (length xs) = List.last (x#xs)"
+lemma access_len_last: "(x#xs@ys) ! (length xs) = last (x#xs)"
   by (induction xs) auto
 
 
@@ -867,8 +867,8 @@ lemma node\<^sub>i_rule_ins2: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
     and "tsi' = (lsi' @ (Some li, ai) # (Some ri,ai') # rsi')" 
     and "lsi'' = take (length lsi') tsi''"
     and "rsi'' = drop (Suc (Suc (length lsi'))) tsi''"
-    and "r'' = List.last (r'#lpointers)"
-    and "z'' = List.last (r'#pointers)"
+    and "r'' = last (r'#lpointers)"
+    and "z'' = last (r'#pointers)"
     and "length tsi' = length pointers"
   shows "
 <  p \<mapsto>\<^sub>r Btnode (tsia,tsin) ti *
@@ -902,14 +902,14 @@ proof -
         by (metis assms(3) assms(5) list.sel(3) nth_append_length)
       moreover have "(r'#pointers) ! length lsi' = r''"
         using assms access_len_last[of r' lpointers]
-        by (auto simp del: List.last.simps butlast.simps)
+        by (auto simp del: last.simps butlast.simps)
       moreover have " tsi'!(length lsi') = (Some li,ai)"
         using assms(10) by auto
       moreover have "length lsi' < length tsi'"
         using \<open>take (length lsi') tsi'' @ tsi'' ! length lsi' # drop (Suc (length lsi')) tsi'' = take (length lsi') tsi'' @ tsi'' ! length lsi' # tsi'' ! Suc (length lsi') # drop (Suc (Suc (length lsi'))) tsi''\<close> assms(15) assms(4) same_append_eq by fastforce
       ultimately show ?case 
         using pointer_zip'_access[of tsi' "pointers" "length lsi'" r'] assms(15) assms(9)
-        by (auto simp del: List.last.simps butlast.simps)
+        by (auto simp del: last.simps butlast.simps)
     next
       case 2
       have "pointers ! (Suc (length lsi')) = rz"
@@ -924,7 +924,7 @@ proof -
         by (simp add: assms(10))
       ultimately show ?case 
         using pointer_zip'_access[of tsi' pointers "Suc (length lsi')"] assms(15) assms(9)
-        by (auto simp del: List.last.simps butlast.simps)
+        by (auto simp del: last.simps butlast.simps)
     qed
     finally show ?thesis .
   qed
@@ -937,7 +937,7 @@ proof -
   ultimately show ?thesis
     using assms(1,2,3,4,5,6,7,8,9,10,13,14)
     apply (auto simp add: mult.left_assoc list_assn_aux_append_Cons2 prod_assn_def
-simp del: List.last.simps)
+simp del: last.simps)
     apply(simp add: mult.right_commute)
     done
 qed
@@ -948,10 +948,10 @@ lemma upd_drop_prepend: "i < length xs \<Longrightarrow> drop i (list_update xs 
 lemma zip_update: "(zip xs ys)!i = (a,b) \<Longrightarrow> list_update (zip xs ys) i (c,b) = zip (list_update xs i c) ys"
   by (metis fst_conv list_update_beyond list_update_id not_le_imp_less nth_zip snd_conv update_zip)
 
-lemma append_Cons_last: "List.last (xs@x#ys) = List.last (x#ys)"
+lemma append_Cons_last: "last (xs@x#ys) = last (x#ys)"
   by (induction xs) auto
                                                                                             
-declare List.last.simps[simp del] butlast.simps[simp del]
+declare last.simps[simp del] butlast.simps[simp del]
 lemma ins_rule:
   "k > 0 \<Longrightarrow>
   sorted_less (inorder t) \<Longrightarrow>
@@ -1033,7 +1033,7 @@ next
           using Nil list_split 
           by (simp add: list_assn_aux_ineq_len split_relation_alt)
         subgoal for tsia tsin tti tsi' pointers _ _ _ _ _ _ _ _ _ _ _ _ i 
-          thm "2.IH"(1)[of ls rrs tti "List.last (r'#pointers)" z]
+          thm "2.IH"(1)[of ls rrs tti "last (r'#pointers)" z]
           using "2.prems" sorted_leaves_induct_last
           using  Nil list_split Up\<^sub>i abs_split.split_conc[OF list_split] order_impl_root_order
           apply(sep_auto split!: list.splits 
@@ -1217,7 +1217,7 @@ next
                       and lpointers="take (length lsi') pointers"
                       and rpointers="drop (Suc (length lsi')) pointers"
                       and pointers="take (length lsi') pointers @ newr # subnext # drop (Suc (length lsi')) pointers"
-                      and z''="List.last (r'#pointers)"
+                      and z''="last (r'#pointers)"
                       and tsi'="take (length lsi') tsi' @ (Some li, ai) # (Some ri, sepa) # drop (Suc (length lsi')) tsi'"
                       and r'="r'" and z="z"
 and tsi''="zip (zip (subtrees
@@ -1300,7 +1300,7 @@ and tsi''="zip (zip (subtrees
                   moreover have "pointers \<noteq> []"
                     using "1"(3) by auto
                   ultimately show ?case
-                    apply(auto simp add: Cons_nth_drop_Suc  List.last.simps)
+                    apply(auto simp add: Cons_nth_drop_Suc  last.simps)
                     apply(auto simp add: last_conv_nth)
                     by (metis Suc_to_right le_SucE)
                 qed
@@ -1333,7 +1333,7 @@ and tsi''="zip (zip (subtrees
       qed
     qed
   qed
-declare List.last.simps[simp add] butlast.simps[simp add]
+declare last.simps[simp add] butlast.simps[simp add]
 
 text "The imperative insert refines the abstract insert."
 
@@ -1371,6 +1371,63 @@ lemma insert_rule':
   using abs_split.insert_bal[of t] abs_split.insert_order[of "Suc k" t]
   using abs_split.insert_Linorder_top[of "Suc k" t]
   by (sep_auto heap: insert_rule simp add: sorted_ins_list)
+
+subsection "Obtaining the iterator"
+
+partial_function (heap) iter_leaves :: "'b btnode ref \<Rightarrow> 'b btnode ref Heap"
+  where
+    "iter_leaves p = do {
+  node \<leftarrow> !p;
+  (case node of
+    Btleaf _ _ \<Rightarrow> do { return p } |
+    Btnode tsi ti \<Rightarrow> do {
+        s \<leftarrow> pfa_get tsi 0;
+        let (sub,sep) = s in do { 
+          iter_leaves (the sub)
+        }
+  }
+)}"
+
+declare last.simps[simp del] butlast.simps[simp del]
+lemma obtain_first_leaf_rule:
+  assumes "k > 0" "root_order k t"
+  shows "<bplustree_assn k t ti r z>
+  iter_leaves ti
+  <\<lambda>u. bplustree_assn k t ti r z * \<up>(Some u = r)>\<^sub>t"
+  using assms
+proof(induction t arbitrary: ti z)
+  case (LNode x)
+  then show ?case
+    apply(subst iter_leaves.simps)
+    apply (sep_auto dest!: mod_starD)
+    done
+next
+  case (Node ts t)
+  then obtain sub sep tts where Cons: "ts = (sub,sep)#tts"
+    apply(cases ts) by auto
+  then show ?case 
+    apply(subst iter_leaves.simps)
+    apply(rule hoare_triple_preI)
+    apply (sep_auto simp add: last.simps butlast.simps)
+    subgoal for a b aa ba ti tsi' rs ab bb tiaa tsi'a rsa ac bc
+    using "Node.IH"(1)[of "(sub,sep)" sub]
+    apply sep_auto
+    sorry
+  done
+qed
+declare last.simps[simp add] butlast.simps[simp add]
+
+lemma obtain_iter_rule:
+  assumes "k > 0" "root_order k t"
+  shows "<bplustree_assn k t ti r z>
+  iter_leaves ti
+  <\<lambda>u. leaf_nodes_assn k (leaf_nodes t) (Some u) z>\<^sub>t"
+  using assms
+  using bplustree_leaf_nodes[of k t ti r z]
+  by (sep_auto heap add: obtain_first_leaf_rule)
+
+
+
 
 subsection "Deletion"
 
@@ -1431,8 +1488,8 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
       } else do {
         l_tsi \<leftarrow> pfa_length tsi;
         if i+1 = l_tsi then do {
-          mts' \<leftarrow> pfa_append_extend_grow (kvs subi) (Some (last subi),sep) (ttsi);
-          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
+          mts' \<leftarrow> pfa_append_extend_grow (kvs subi) (Some (lst subi),sep) (ttsi);
+          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (lst ti);
           case res_node\<^sub>i of
             T\<^sub>i u \<Rightarrow> do {
               tsi' \<leftarrow> pfa_shrink i tsi;
@@ -1445,8 +1502,8 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
         } else do {
           (r_rsub,rsep) \<leftarrow> pfa_get tsi (i+1);
           rsub \<leftarrow> !(the r_rsub);
-          mts' \<leftarrow> pfa_append_extend_grow (kvs subi) (Some (last subi),sep) (kvs rsub);
-          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last rsub);
+          mts' \<leftarrow> pfa_append_extend_grow (kvs subi) (Some (lst subi),sep) (kvs rsub);
+          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (lst rsub);
           case res_node\<^sub>i of
            T\<^sub>i u \<Rightarrow> do {
             tsi' \<leftarrow> pfa_set tsi i (Some u,rsep);
@@ -1515,7 +1572,7 @@ lemma btupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t)
 lemma btupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t) (Up\<^sub>i l a r) \<Longrightarrow>
   abs_split.node\<^sub>i k ts t = (
     case BPlusTree_Set.split_half ts of (ls,rs) \<Rightarrow> (
-      case List.last ls of (sub,sep) \<Rightarrow>
+      case last ls of (sub,sep) \<Rightarrow>
         abs_split.Up\<^sub>i (Node (butlast ls) sub) sep (Node rs t)
   )
 )"
@@ -1530,7 +1587,7 @@ lemma Lbtupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split.Lnode\<^sub>i k ts)
 lemma Lbtupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.Lnode\<^sub>i k ts) (Up\<^sub>i l a r) \<Longrightarrow>
   abs_split.Lnode\<^sub>i k ts = (
     case BPlusTree_Set.split_half ts of (ls,rs) \<Rightarrow> (
-      case List.last ls of sep \<Rightarrow>
+      case last ls of sep \<Rightarrow>
         abs_split.Up\<^sub>i (LNode ls) sep (LNode rs)
   )
 )"
