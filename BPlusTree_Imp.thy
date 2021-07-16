@@ -75,13 +75,12 @@ fun bplustree_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode re
     * \<up>(r = Some a)
   )" |
   "bplustree_assn k (Node ts t) a r z = 
- (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
+ (\<exists>\<^sub>A tsi ti tsi' rs.
       a \<mapsto>\<^sub>r Btnode tsi ti
     * bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
-    * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts tsi''
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts (zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
     )"
 
 find_theorems "map _ (zip _ _)"
@@ -102,16 +101,17 @@ fun btnode_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode \<Rig
     * \<up>(zi = z)
   )" |
   "btnode_assn k (Node ts t) (Btnode tsi ti) r z = 
- (\<exists>\<^sub>A tsi' tsi'' rs.
+ (\<exists>\<^sub>A tsi' rs.
     bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
-    * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts tsi''
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts (zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
     )" |
   "btnode_assn _ _ _ _ _ = false"
 
 abbreviation "blist_assn k ts tsi'' \<equiv> list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts tsi'' "
+
+thm bplustree_assn.simps
 
 fun leaf_nodes_assn :: "nat \<Rightarrow> 'a bplustree list \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
   "leaf_nodes_assn k ((LNode xs)#lns) (Some r) z = 
@@ -128,13 +128,12 @@ fun leaf_nodes_assn :: "nat \<Rightarrow> 'a bplustree list \<Rightarrow> 'b btn
 fun inner_nodes_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode ref \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
   "inner_nodes_assn k (LNode xs) a r z = \<up>(r = Some a)" |
   "inner_nodes_assn k (Node ts t) a r z = 
- (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
+ (\<exists>\<^sub>A tsi ti tsi' rs.
       a \<mapsto>\<^sub>r Btnode tsi ti
     * bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
-    * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts tsi''
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts (zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
     )"
 
 
@@ -184,7 +183,7 @@ next
       apply (simp add: last.simps butlast.simps)
       done
     next
-      case (Cons subsepi tsi's subleaf rss subsep tss r)
+      case (Cons subsepi tsi's subleaf rss subsep tss r'')
       show ?case
         apply (sep_auto
                 simp add: butlast_double_Cons last_double_Cons)
@@ -199,24 +198,26 @@ next
           using "1" Cons.prems(3) by force
         moreover have "set tsi's \<subseteq> set tsi' \<and> set rss \<subseteq> set rs \<and> set tss \<subseteq> set ts"
           by (meson Cons.prems set_subset_Cons subset_trans)
-        moreover obtain temp1 temp2 where "((fst subsepi, (temp1:: 'b btnode ref option), subleaf), (temp2::'b)) \<in> set [((fst subsepi, temp1, subleaf), temp2)]"
-          by auto
+        moreover obtain t2 where "((fst subsepi, r, subleaf),t2::'b) \<in> set
+            (zip (zip [fst subsepi]
+                   (zip (butlast [r, subleaf]) (butlast [subleaf, z])))
+              [t2])"
+          by (simp add: butlast.simps)
         ultimately  show ?case
           using
            Cons(3)[of subleaf]
-           "2.IH"(2)[of "(sub,sep)"
-                "((fst subsepi, (temp1, subleaf)),temp2)" "[((fst subsepi, (temp1, subleaf)),temp2)]"
-                "fst subsepi" "(temp1, subleaf)" temp1 subleaf r]
+           "2.IH"(2)[of "(sub,sep)" "((fst subsepi, (r, subleaf)),t2)" "[(fst subsepi, t2)]" "[subleaf]" "fst subsepi" "(r,subleaf)" r subleaf r'']
           apply auto
           thm mult.commute
           thm star_aci
           apply(subst mult.commute)
           supply R=ent_star_mono_true[where
-A="bplustree_assn k sub (the (fst subsepi)) r subleaf * true" and A'="leaf_nodes_assn k (leaf_nodes sub) r subleaf"
+A="bplustree_assn k sub (the (fst subsepi)) r'' subleaf * true" and A'="leaf_nodes_assn k (leaf_nodes sub) r'' subleaf"
 and B="bplustree_assn k t ti (last (subleaf # rss)) z *
     A_assn sep (snd subsepi) *
     blist_assn k tss
-     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's)) * true"
+     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's)) *
+    true"
 and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ leaf_nodes t) subleaf z"
           ,simplified]
           thm R
@@ -332,7 +333,6 @@ and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ l
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 declare mult.left_assoc[simp del]
-thm bplustree_assn.simps
 *)
 
 subsection "Iterator"

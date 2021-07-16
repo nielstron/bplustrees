@@ -543,12 +543,10 @@ next
       (* Suc (length tsi') div 2 - Suc 0) = length ls *)
         apply(inst_ex_assn "subinext" "(rsia,rsin)" ti
         "drop (length ls+1) tsi'"
-        "drop (length ls+1) tsi''"
         "drop (length ls+1) pointers"
         lsi
         "the subi'"
         "take (length ls) tsi'"
-        "take (length ls) tsi''"
         "take (length ls) pointers"
       )
       apply (sep_auto)
@@ -557,44 +555,6 @@ next
         using assms(3,4) by (auto dest!: mod_starD 
           simp add: take_map[symmetric] take_zip[symmetric] take_butlast_prepend[symmetric]
       )
-         subgoal using assms(3,4) by (auto dest!: mod_starD      
-          simp add: list_assn_prod_map id_assn_list_alt)
-         subgoal 
-           apply(subgoal_tac "length ls < length pointers")
-           apply(subgoal_tac "subinext = pointers ! (length ls)")
-           subgoal
-        using assms(3,4) apply (auto 
-          simp add: drop_map[symmetric] drop_zip[symmetric] drop_butlast[symmetric] Cons_nth_drop_Suc
-      )[]
-           supply R = drop_Suc_Cons[where n="length ls" and xs="butlast pointers" and x=r, symmetric]
-           thm R
-           apply(simp only: R drop_zip[symmetric])
-           apply (simp add: last.simps butlast.simps)
-           done
-        subgoal apply(auto dest!: mod_starD list_assn_len)     
-        proof (goal_cases)
-        case 1
-        have "length ls < length tsi''"
-          using assms(3,4) "1"(11) by auto
-        moreover have "subinext = snd (snd (fst (tsi'' ! length ls)))"
-          using 1 calculation by force
-        ultimately have "subinext = map snd (map snd (map fst tsi'')) ! length ls"
-          by auto
-        then show ?case
-          using assms(3,4) by auto
-      qed
-          subgoal apply(auto dest!: mod_starD  list_assn_len)     
-        proof (goal_cases)
-          case 1 
-          then have "length ls  < length ts"
-            by (simp)
-          moreover have "length ts = length tsi''"
-            by (simp add: 1)
-          moreover have "\<dots> = length pointers"
-            using assms(3,4) by auto
-          ultimately show ?case by simp
-        qed
-      done
     apply(rule entails_preI)
       (* introduce some simplifying equalities *)
         apply(subgoal_tac "Suc (length tsi') div 2 = length ls + 1")
@@ -679,7 +639,7 @@ next
         by (metis append.assoc append_eq_conv_conj append_take_drop_id)
     apply(subgoal_tac "drop (Suc (length tsi''l)) ts = rs")
       prefer 2 subgoal by (metis One_nat_def Suc_eq_plus1 Suc_length_conv append_eq_conv_conj append_take_drop_id length_0_conv length_append)
-    subgoal by (sep_auto)
+    subgoal apply (sep_auto)
     done
   done
   done
@@ -1371,61 +1331,6 @@ lemma insert_rule':
   using abs_split.insert_bal[of t] abs_split.insert_order[of "Suc k" t]
   using abs_split.insert_Linorder_top[of "Suc k" t]
   by (sep_auto heap: insert_rule simp add: sorted_ins_list)
-
-subsection "Obtaining the iterator"
-
-partial_function (heap) iter_leaves :: "'b btnode ref \<Rightarrow> 'b btnode ref Heap"
-  where
-    "iter_leaves p = do {
-  node \<leftarrow> !p;
-  (case node of
-    Btleaf _ _ \<Rightarrow> do { return p } |
-    Btnode tsi ti \<Rightarrow> do {
-        s \<leftarrow> pfa_get tsi 0;
-        let (sub,sep) = s in do { 
-          iter_leaves (the sub)
-        }
-  }
-)}"
-
-declare last.simps[simp del] butlast.simps[simp del]
-lemma obtain_first_leaf_rule:
-  assumes "k > 0" "root_order k t"
-  shows "<bplustree_assn k t ti r z>
-  iter_leaves ti
-  <\<lambda>u. bplustree_assn k t ti r z * \<up>(Some u = r)>\<^sub>t"
-  using assms
-proof(induction t arbitrary: ti z)
-  case (LNode x)
-  then show ?case
-    apply(subst iter_leaves.simps)
-    apply (sep_auto dest!: mod_starD)
-    done
-next
-  case (Node ts t)
-  then obtain sub sep tts where Cons: "ts = (sub,sep)#tts"
-    apply(cases ts) by auto
-  then show ?case 
-    apply(subst iter_leaves.simps)
-    apply(rule hoare_triple_preI)
-    apply (sep_auto simp add: last.simps butlast.simps)
-    subgoal for a b aa ba ti tsi' rs ab bb tiaa tsi'a rsa ac bc
-    using "Node.IH"(1)[of "(sub,sep)" sub]
-    apply sep_auto
-    sorry
-  done
-qed
-declare last.simps[simp add] butlast.simps[simp add]
-
-lemma obtain_iter_rule:
-  assumes "k > 0" "root_order k t"
-  shows "<bplustree_assn k t ti r z>
-  iter_leaves ti
-  <\<lambda>u. leaf_nodes_assn k (leaf_nodes t) (Some u) z>\<^sub>t"
-  using assms
-  using bplustree_leaf_nodes[of k t ti r z]
-  by (sep_auto heap add: obtain_first_leaf_rule)
-
 
 
 
