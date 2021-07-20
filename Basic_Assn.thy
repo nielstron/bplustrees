@@ -120,4 +120,6 @@ lemma wand_ent_cancel: "P * ((P * Q) -* R) \<Longrightarrow>\<^sub>A Q -* R"
   by (simp add: ent_wandI2 wand_uncurry)
 
 
+find_theorems "(-*)"
+
 end
