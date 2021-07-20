@@ -16,7 +16,7 @@ fun leaf_nodes_assn :: "nat \<Rightarrow> 'a bplustree list \<Rightarrow> 'b btn
     * list_assn A_assn xs xsi'
     * leaf_nodes_assn k lns fwd z
   )" | 
-  "leaf_nodes_assn k [] r z = \<up>(z = r)" |
+  "leaf_nodes_assn k [] r z = \<up>(r = z)" |
   "leaf_nodes_assn _ _ _ _ = false"
 
 
@@ -36,7 +36,7 @@ fun inner_nodes_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode 
 lemma leaf_nodes_assn_aux_append:
    "leaf_nodes_assn k (xs@ys) r z = (\<exists>\<^sub>Al. leaf_nodes_assn k xs r l * leaf_nodes_assn k ys l z)"
   apply(induction k xs r z rule: leaf_nodes_assn.induct)
-  apply (sep_auto intro!: ent_iffI)+
+  apply(sep_auto intro!: ent_iffI)+
   done
 
 
@@ -236,11 +236,12 @@ next
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 
+
 definition leaf_iter_init where
 "leaf_iter_init p = do {
   r \<leftarrow> first_leaf p;
   z \<leftarrow> last_leaf p;
-  return (r,z)
+  return  (r, z)
 }"
 
 lemma leaf_iter_init_rule:
@@ -256,6 +257,7 @@ lemma leaf_iter_init_rule:
 definition leaf_iter_next where
 "leaf_iter_next = (\<lambda>(r,z). do {
   p \<leftarrow> !(the r);
+  l \<leftarrow> pfa_length (vals p);
   return (fwd p, z)
 })"
 
@@ -284,22 +286,16 @@ leaf_iter_next (n,z)
 definition leaf_iter_has_next where
 "leaf_iter_has_next  = (\<lambda>(r,z). return (r \<noteq> z))"
 
+(* TODO this so far only works for the whole tree (z = None)
+for subintervals, we would need to show that the list of pointers is indeed distinct,
+hence r = z can only occur at the end *)
 lemma leaf_iter_has_next_rule:
-"<leaf_iter_assn k xs r xs2 (n,z)> leaf_iter_has_next (n,z) <\<lambda>u. leaf_iter_assn k xs r xs2 (n,z) * \<up>(u \<longleftrightarrow> xs2 \<noteq> [])>"
+  assumes "z = None"
+  shows "<leaf_iter_assn k xs r xs2 (n,z)> leaf_iter_has_next (n,z) <\<lambda>u. leaf_iter_assn k xs r xs2 (n,z) * \<up>(u \<longleftrightarrow> xs2 \<noteq> [])>"
   unfolding leaf_iter_has_next_def
   apply(sep_auto simp add: leaf_iter_assn_def split!: prod.splits dest!: mod_starD)
   apply(cases xs2; cases z)
-  apply auto
-  subgoal for xs1 _ _ _ _ fst rlist ptr
-    apply(cases fst)
-    apply auto
-    subgoal for x1 a b xsi' fwd
-      apply(cases rlist; cases fwd)
-      apply (auto dest!: mod_starD list_assn_len)
-proof(goal_cases)
-  case (1 xs1 _ _ _ _ fst rlist ptr)
-  then show ?case sorry
-qed
+  using assms by auto
 
 
 
