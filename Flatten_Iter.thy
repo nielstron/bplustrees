@@ -5,6 +5,17 @@ theory Flatten_Iter
   "HOL-Real_Asymp.Inst_Existentials"
 begin
 
+context imp_list_iterate
+begin
+
+lemma quit_iteration_imp: "h \<Turnstile> is_it ls lsi ls2 it \<Longrightarrow> h \<Turnstile> is_list ls lsi * true"
+  using quit_iteration[of ls lsi ls2 it]
+  unfolding entails_def
+  apply(cases h)
+  by auto
+
+end
+
 text "This locale takes an iterator that refines a list of elements that themselves
 can be iterated and defines an iterator over the flattened list of lower level elements"
 
@@ -68,14 +79,19 @@ partial_function (heap) flatten_it_adjust:: "'oit \<Rightarrow> 'iit \<Rightarro
   }
 "
 
+thm list_assn_len
+
 lemma flatten_it_adjust_rule: 
-  "lsm = lsm1@lsm2 \<Longrightarrow> 
-<list_assn is_inner_list ls1' ls1 * list_assn is_inner_list ls2' ls2 * outer_is_it (ls1@lsim#ls2) lsi ls2 oit * inner_is_it lsm lsim lsm2 iit>
+  " <list_assn is_inner_list ls1' ls1 * list_assn is_inner_list ls2' ls2 *
+      outer_is_it (ls1@lsim#ls2) lsi ls2 oit * inner_is_it (lsm1@lsm2) lsim lsm2 iit>
   flatten_it_adjust oit iit
-  <is_flatten_it (concat (ls1'@lsm#ls2')) lsi (concat (lsm2#ls2'))>\<^sub>t"
+  <is_flatten_it (concat (ls1'@(lsm1@lsm2)#ls2')) lsi (concat (lsm2#ls2'))>\<^sub>t"
+proof (induction ls2 arbitrary: ls1' ls1 ls2' lsim lsm1 lsm2 oit iit)
+  case Nil
+  then show ?case
   apply(subst flatten_it_adjust.simps)
   apply (sep_auto eintros del: exI heap add: inner_list.it_has_next_rule)
-  apply(inst_existentials "(ls1 @ lsim # ls2)" ls2' ls1' ls1 ls2 lsim lsm2 lsm)
+  apply(inst_existentials "(ls1 @ lsim # [])" ls2' ls1' ls1 "[]::'l list" lsim lsm2 "lsm1@lsm2")
   subgoal by auto
   subgoal by (sep_auto)
   apply (vcg (ss))
@@ -85,15 +101,65 @@ lemma flatten_it_adjust_rule:
   apply (vcg (ss))
   apply (vcg (ss))
   apply (vcg (ss))
+  subgoal
+    apply (vcg (ss))
+    apply (sep_auto eintros del: exI)
+    apply(inst_existentials "(ls1 @ [lsim])" "[]::'a list list" "ls1'@[lsm1]" "ls1@[lsim]" "[]::'l list") 
+    subgoal by auto
+    subgoal apply(auto simp add: list_assn_app_one)
+    by (smt (z3) assn_times_comm fr_refl inner_list.quit_iteration star_aci(3))
+  done
+  done
+next
+  case (Cons a ls2)
+  show ?case
+  apply(subst flatten_it_adjust.simps)
+  apply (sep_auto eintros del: exI heap add: inner_list.it_has_next_rule)
+  apply(inst_existentials "(ls1 @ lsim # a # ls2)" ls2' ls1' ls1 "a #ls2" lsim lsm2 "lsm1@lsm2")
+  subgoal by auto
+  subgoal by (sep_auto)
   apply (vcg (ss))
   apply (vcg (ss))
   apply (vcg (ss))
-  apply (sep_auto eintros del: exI)
-  apply(inst_existentials "(ls1 @ [lsim])" "[lsm]" ls1' ls1 "[lsim]")
-  apply auto
-  apply(case_tac ls2; case_tac ls2')
-  apply (simp add: mult.left_assoc)+
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  subgoal by simp
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (case_tac ls2')
+  apply simp_all
   apply (sep_auto eintros del: exI heap add: inner_list.it_init_rule)
+  subgoal for x oit aa list xa
+    supply R = "Cons.IH"[of "ls1'@[lsm1]" "ls1@[lsim]" list a oit "[]::'a list" aa xa, simplified]
+    thm R
+  find_theorems "_ \<Longrightarrow>\<^sub>A _" "<_>_<_>"
+  supply Q = Hoare_Triple.cons_pre_rule[of 
+"inner_is_it aa a aa xa * outer_is_it (ls1 @ lsim # a # ls2) lsi ls2 oit *
+     inner_is_it lsm1 lsim [] iit *
+     list_assn is_inner_list ls1' ls1 *
+     list_assn is_inner_list list ls2 *
+     true"
+"list_assn is_inner_list ls1' ls1 * is_inner_list lsm1 lsim * list_assn is_inner_list list ls2 *
+ outer_is_it (ls1 @ lsim # a # ls2) lsi ls2 oit *
+ inner_is_it aa a aa
+  xa * true"
+]
+  thm Q
+  apply(rule Q)
+  prefer 2
+  subgoal by (sep_auto heap add: R)
+  using inner_list.quit_iteration
+  by (smt (z3) assn_aci(10) assn_times_comm ent_refl_true ent_star_mono_true)
+  done
+qed
 
 definition flatten_it_init :: "'m \<Rightarrow> _ Heap" 
   where "flatten_it_init l = do {
