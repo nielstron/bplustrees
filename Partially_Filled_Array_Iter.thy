@@ -30,10 +30,17 @@ lemma pfa_iterate_impl:
   "imp_list_iterate (is_pfa k) (pfa_is_it k) pfa_it_init pfa_it_has_next pfa_it_next"
   apply unfold_locales
   unfolding pfa_it_init_def pfa_is_it_def[abs_def] 
-  subgoal by (simp add: is_pfa_prec)
-  subgoal by sep_auto
-
-  subgoal for l' l p it 
+proof(goal_cases)
+  case 1
+  then show ?case
+    by (simp add: is_pfa_prec)
+next
+  case (2 l p)
+  then show ?case
+    by sep_auto
+next
+  case (3 l' l p it)
+  then show ?case
   apply (case_tac it, simp)
   apply (case_tac l', simp)
   apply sep_auto
@@ -44,14 +51,19 @@ lemma pfa_iterate_impl:
     subgoal 
       by (meson Suc_leI \<open>\<And>list ba b aa a. \<lbrakk>it = ((a, b), ba); l' = drop ba l; aa # list = drop ba l; ba \<le> length l; p = (a, b)\<rbrakk> \<Longrightarrow> ba < length l\<close>)
     done
-  subgoal for l p l' it
+next
+  case (4 l p l' it)
+  then show ?case
   unfolding pfa_it_has_next_def
   apply (case_tac it, simp)
   by (sep_auto)
-  subgoal for l p l' it
+next
+  case (5 l p l' it)
+  then show ?case
   apply (case_tac it, simp)
     by sep_auto
-  done
+qed
+
 interpretation pfa: 
   imp_list_iterate "is_pfa k" "pfa_is_it k" pfa_it_init pfa_it_has_next pfa_it_next
   by (rule pfa_iterate_impl)

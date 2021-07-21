@@ -42,13 +42,11 @@ fun is_flatten_list :: "'a list \<Rightarrow> 'm \<Rightarrow> assn" where
 (*type_synonym flatten_it = "'iit \<times> 'oit"*)
 fun is_flatten_it :: "'a list \<Rightarrow> 'm \<Rightarrow> 'a list \<Rightarrow> ('oit \<times> 'iit option) \<Rightarrow> assn"
   where 
-"is_flatten_it ls lsi ls2 (oit, None) = 
-        (\<exists>\<^sub>A lsi' ls2' ls1' lsi1 lsi2.
-          list_assn is_inner_list ls1' lsi1 *
-          list_assn is_inner_list ls2' lsi2 *
-           \<up>(ls2 = concat ls2' \<and> ls = (concat (ls1'@ls2'))) *
-          outer_is_it lsi' lsi lsi2 oit *
-          \<up>(lsi'=lsi1@lsi2)
+"is_flatten_it ls lsi [] (oit, None) = 
+        (\<exists>\<^sub>A lsi' lsi''.
+          list_assn is_inner_list lsi'' lsi' *
+           \<up>(ls = (concat lsi'')) *
+          outer_is_it lsi' lsi [] oit
 )" |
 "is_flatten_it ls lsi ls2 (oit, Some iit) = 
         (\<exists>\<^sub>A lsi' ls2' ls1' lsi1 lsi2 lsim ls2m lsm ls1m.
@@ -59,7 +57,8 @@ fun is_flatten_it :: "'a list \<Rightarrow> 'm \<Rightarrow> 'a list \<Rightarro
           \<up>(lsm = ls1m@ls2m \<and> lsi'=(lsi1@lsim#lsi2)) *
           inner_is_it lsm lsim ls2m iit
 )
-"
+" |
+"is_flatten_it _ _ _ _ = false"
 
 partial_function (heap) flatten_it_adjust:: "'oit \<Rightarrow> 'iit \<Rightarrow> ('oit \<times> 'iit option) Heap" where
 "flatten_it_adjust oit iit = do {
@@ -104,7 +103,7 @@ proof (induction ls2 arbitrary: ls1' ls1 ls2' lsim lsm1 lsm2 oit iit)
   subgoal
     apply (vcg (ss))
     apply (sep_auto eintros del: exI)
-    apply(inst_existentials "(ls1 @ [lsim])" "[]::'a list list" "ls1'@[lsm1]" "ls1@[lsim]" "[]::'l list") 
+    apply(inst_existentials "(ls1 @ [lsim])" "ls1'@[lsm1]")
     subgoal by auto
     subgoal apply(auto simp add: list_assn_app_one)
     by (smt (z3) assn_times_comm fr_refl inner_list.quit_iteration star_aci(3))
@@ -189,6 +188,7 @@ lemma flatten_it_init_rule[sep_heap_rules]:
   apply (vcg (ss))
   apply (vcg (ss))
   apply (vcg (ss))
+  subgoal for lsi' ls' x xa
   apply (vcg (ss))
   apply (vcg (ss))
   apply (vcg (ss))
@@ -201,13 +201,55 @@ lemma flatten_it_init_rule[sep_heap_rules]:
   apply(rule impI)
   thm inner_list.it_init_rule
   apply (vcg heap add: inner_list.it_init_rule)
+  subgoal for _ nxt oit a list aa lista xaa
+  supply R = flatten_it_adjust_rule[of "[]" "[]" lista list a p oit "[]" aa xaa, simplified]
+  thm R
+  apply (sep_auto heap add: R)
+  done
+  done
+  apply (sep_auto eintros del: exI)
+  apply(inst_existentials "[]::'l list" "[]::'a list list" "[]::'a list list" "[]::'l list" "[]::'l list")
+  apply simp_all
+  done
 
 definition flatten_it_next where 
   "flatten_it_next \<equiv> \<lambda>(oit,iit). do {
-    (x, iit) \<leftarrow> inner_it_next iit;
+    (x, iit) \<leftarrow> inner_it_next (the iit);
     (oit, iit) \<leftarrow> flatten_it_adjust oit iit;
     return (x, (oit,iit))
   }"
+
+lemma flatten_it_next_rule:
+    " l' \<noteq> [] \<Longrightarrow>
+    <is_flatten_it l p l' it> 
+      flatten_it_next it 
+    <\<lambda>(a,it'). is_flatten_it l p (tl l') it' * \<up>(a=hd l')>\<^sub>t"
+  apply(subst flatten_it_next_def)
+  thm inner_list.it_next_rule
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply(case_tac iit; case_tac l')
+  apply simp_all
+  apply(rule norm_pre_ex_rule)+
+  subgoal for oit iit a aa list lsi' ls2' ls1' lsi1 lsi2 lsim ls2m lsm ls1m
+    apply(vcg (ss))
+    apply(vcg (ss))
+    apply(vcg (ss))
+    apply(vcg (ss))
+    apply(vcg (ss))
+    apply(vcg (ss))
+    apply(vcg (ss))
+    apply(vcg (ss))
+    apply(vcg (ss))
+    apply(case_tac ls2m)
+    apply simp_all
+    subgoal for _ _ iita lista
+  supply R = flatten_it_adjust_rule[of ls1' lsi1 ls2' lsi2 lsim p oit "ls1m@[aa]" "lista" iita, simplified]
+  thm R
+  apply (sep_auto heap add: R)
+  done
+  done
+  done
 
 definition flatten_it_has_next where
   "flatten_it_has_next \<equiv> \<lambda>(oit, iit). do {
