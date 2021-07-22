@@ -1,5 +1,5 @@
 theory Array_SBlit
-  imports "Separation_Logic_Imperative_HOL.Array_Blit"
+  imports "Separation_Logic_Imperative_HOL/Examples/Array_Blit"
 begin
 
 (* Resolves TODO by Peter Lammich *)

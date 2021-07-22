@@ -1,7 +1,7 @@
 theory Partially_Filled_Array_Iter
 imports
   Partially_Filled_Array
-  "Separation_Logic_Imperative_HOL.Imp_List_Spec"
+  "Separation_Logic_Imperative_HOL/Examples/Imp_List_Spec"
 begin
 
 
