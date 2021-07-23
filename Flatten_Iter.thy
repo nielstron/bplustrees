@@ -5,16 +5,6 @@ theory Flatten_Iter
   "HOL-Real_Asymp.Inst_Existentials"
 begin
 
-context imp_list_iterate
-begin
-
-lemma quit_iteration_imp: "h \<Turnstile> is_it ls lsi ls2 it \<Longrightarrow> h \<Turnstile> is_list ls lsi * true"
-  using quit_iteration[of ls lsi ls2 it]
-  unfolding entails_def
-  apply(cases h)
-  by auto
-
-end
 
 text "This locale takes an iterator that refines a list of elements that themselves
 can be iterated and defines an iterator over the flattened list of lower level elements"
@@ -38,6 +28,42 @@ fun is_flatten_list :: "'a list \<Rightarrow> 'm \<Rightarrow> assn" where
   "is_flatten_list ls lsi = (\<exists>\<^sub>A lsi' ls'.
     is_outer_list lsi' lsi * list_assn is_inner_list ls' lsi' * \<up>(ls = concat ls')
 )"
+
+lemma flatten_prec:
+  "precise is_flatten_list"
+  apply (intro preciseI)
+  apply (auto)
+proof (goal_cases)
+  case (1 aa b p F F' lsi' ls' lsi'a ls'a)
+  then have *:
+      "\<exists>G G'. (aa, b) \<Turnstile> list_assn is_inner_list ls'a lsi'a * G \<and>\<^sub>A list_assn is_inner_list ls' lsi' * G'"
+    by (smt (z3) assn_aci(10) assn_times_comm)
+
+  have "lsi' = lsi'a"
+    using 1
+    by (metis outer_list.precise preciseD star_assoc)
+  moreover have "length ls'a = length lsi'a" "length ls' = length lsi'" 
+    using 1 by (auto simp add: mod_and_dist dest!: mod_starD list_assn_len)
+  ultimately have "length ls' = length lsi'" "length lsi' = length lsi'a" "length lsi'a = length ls'a"
+    by auto
+  then show ?case
+    using * \<open>lsi' = lsi'a\<close>
+    proof(induction ls' lsi' lsi'a ls'a arbitrary: p rule: list_induct4)
+      case Nil
+      then show ?case by auto
+    next
+      case (Cons x xs y ys z zs w ws)
+      then have "concat ws = concat xs"
+        apply simp
+        by (metis (no_types, hide_lams) ab_semigroup_mult_class.mult.left_commute star_assoc)
+      moreover have "x = w"
+        using "Cons.prems" preciseD[OF inner_list.precise, where h="(aa,b)"]
+        apply(simp)
+        using assn_times_assoc by fastforce
+      ultimately show ?case 
+        by auto
+    qed
+qed
 
 (*type_synonym flatten_it = "'iit \<times> 'oit"*)
 fun is_flatten_it :: "'a list \<Rightarrow> 'm \<Rightarrow> 'a list \<Rightarrow> ('oit \<times> 'iit option) \<Rightarrow> assn"
@@ -105,8 +131,10 @@ proof (induction ls2 arbitrary: ls1' ls1 ls2' lsim lsm1 lsm2 oit iit)
     apply (sep_auto eintros del: exI)
     apply(inst_existentials "(ls1 @ [lsim])" "ls1'@[lsm1]")
     subgoal by auto
-    subgoal apply(auto simp add: list_assn_app_one)
-    by (smt (z3) assn_times_comm fr_refl inner_list.quit_iteration star_aci(3))
+        subgoal
+          apply(auto simp add: list_assn_app_one)
+          using inner_list.quit_iteration
+          by (smt (z3) assn_aci(9) assn_times_comm ent_true_drop(1) fr_refl)
   done
   done
 next
@@ -154,9 +182,10 @@ next
   thm Q
   apply(rule Q)
   prefer 2
-  subgoal by (sep_auto heap add: R)
-  using inner_list.quit_iteration
-  by (smt (z3) assn_aci(10) assn_times_comm ent_refl_true ent_star_mono_true)
+  subgoal by (sep_auto heap add: R intro: inner_list.quit_iteration)
+  subgoal using inner_list.quit_iteration
+    by (smt (z3) assn_aci(10) assn_times_comm ent_refl_true ent_star_mono_true)
+  done
   done
 qed
 
@@ -175,7 +204,6 @@ lemma flatten_it_init_rule[sep_heap_rules]:
     "<is_flatten_list l p> flatten_it_init p <is_flatten_it l p l>\<^sub>t"
   unfolding flatten_it_init_def
   apply simp
-  find_theorems "<\<exists>\<^sub>A_._>_<_>"
   apply(rule norm_pre_ex_rule)+
   apply (vcg (ss))
   apply (vcg (ss))
@@ -256,5 +284,105 @@ definition flatten_it_has_next where
     return (iit \<noteq> None)
 }"
 
+lemma flatten_it_has_next_rule[sep_heap_rules]: 
+    "<is_flatten_it l p l' it> 
+       flatten_it_has_next it 
+     <\<lambda>r. is_flatten_it l p l' it * \<up>(r\<longleftrightarrow>l'\<noteq>[])>\<^sub>t"
+  apply(subst flatten_it_has_next_def)
+  apply(sep_auto)
+  apply(case_tac iit, case_tac l')
+  apply simp_all
+  apply sep_auto
+  done
+
+declare mult.left_assoc[simp add]
+lemma flatten_quit_iteration:
+    "is_flatten_it l p l' it \<Longrightarrow>\<^sub>A is_flatten_list l p * true"
+  apply(cases it)
+  subgoal for oit iit
+    apply(cases iit; cases l') 
+  proof (goal_cases)
+    case 1
+    then show ?case
+      apply (sep_auto eintros del: exI)
+      subgoal for lsi' lsi''
+        apply(inst_existentials lsi' lsi'')
+        subgoal by auto
+        subgoal by (metis (no_types, lifting) assn_aci(10) assn_times_comm fr_refl outer_list.quit_iteration)
+        done
+      done
+  next
+    case (2 lsim ll')
+    then show ?case
+      by (sep_auto eintros del: exI)
+  next
+    case (3 iit)
+    then show ?case
+      by (sep_auto eintros del: exI)
+  next
+  case (4 iit lsim ll')
+    then show ?case
+      apply (sep_auto eintros del: exI)
+      subgoal for lsi' ls2' ls1' lsi1 lsi2 lsima ls2m lsm ls1m
+        apply(inst_existentials "(lsi1 @ lsima # lsi2)" "ls1'@(ls1m@ls2m)#ls2'")
+        subgoal by auto
+            subgoal
+              apply(rule impI; rule entails_preI)
+              apply (auto dest!: mod_starD list_assn_len)
+              apply(simp add:
+                  mult.commute[where ?b="outer_is_it (lsi1 @ lsima # lsi2) p lsi2 oit"]
+                  mult.commute[where ?b="is_outer_list (lsi1 @ lsima # lsi2) p"]
+                  mult.left_assoc)
+              apply(rule rem_true)
+              supply R = ent_star_mono_true[of
+                  "outer_is_it (lsi1 @ lsima # lsi2) p lsi2 oit"
+                  "is_outer_list (lsi1 @ lsima # lsi2) p"
+                  "list_assn is_inner_list ls1' lsi1 *
+                         list_assn is_inner_list ls2' lsi2 *
+                         inner_is_it (ls1m @ ls2m) lsima ls2m iit"
+                  " list_assn is_inner_list ls1' lsi1 *
+                         is_inner_list (ls1m @ ls2m) lsima *
+                         list_assn is_inner_list ls2' lsi2"
+              ,simplified]
+              thm R
+              apply(rule R)
+              subgoal by (rule outer_list.quit_iteration)
+              apply(simp add:
+                  mult.commute[where ?b="inner_is_it (ls1m @ ls2m) lsima ls2m iit"]
+                  mult.commute[where ?b="is_inner_list (ls1m @ ls2m) lsima"]
+                  mult.left_assoc)
+              apply(rule rem_true)
+              supply R = ent_star_mono_true[of
+                  "inner_is_it (ls1m @ ls2m) lsima ls2m iit"
+                  "is_inner_list (ls1m @ ls2m) lsima"
+                  "list_assn is_inner_list ls1' lsi1 *
+                         list_assn is_inner_list ls2' lsi2"
+                  " list_assn is_inner_list ls1' lsi1 *
+                         list_assn is_inner_list ls2' lsi2"
+              ,simplified]
+              thm R
+              apply(rule R)
+              subgoal by (rule inner_list.quit_iteration)
+              subgoal by sep_auto
+              done
+            done
+          done
+      qed
+  done
+
+interpretation flatten_it: imp_list_iterate is_flatten_list is_flatten_it flatten_it_init flatten_it_has_next flatten_it_next
+  apply(unfold_locales)
+  subgoal 
+    by (rule flatten_prec)
+  subgoal for l p
+    by (rule flatten_it_init_rule[of l p])
+  subgoal for  l' l p it
+    by (rule flatten_it_next_rule[of l' l p it]) simp
+  subgoal for l p l' it
+    by (rule flatten_it_has_next_rule[of l p l' it])
+  subgoal for l p l' it
+    by (rule flatten_quit_iteration[of l p l' it])
+  done
+end
 
 end
