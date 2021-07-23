@@ -1,6 +1,6 @@
 theory Partially_Filled_Array
   imports
-    "Refine_Imperative_HOL/IICF_Array_List"
+    "Refine_Imperative_HOL.IICF_Array_List"
     Array_SBlit
 begin
 

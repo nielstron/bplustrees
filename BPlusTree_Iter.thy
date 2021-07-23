@@ -2,6 +2,7 @@ theory BPlusTree_Iter
   imports
      BPlusTree_Imp
     "HOL-Real_Asymp.Inst_Existentials"
+    "Separation_Logic_Imperative_HOL.Imp_List_Spec"
 begin
 
 context bplustree
@@ -239,15 +240,15 @@ declare last.simps[simp add] butlast.simps[simp add]
 
 definition leaf_iter_init where
 "leaf_iter_init p = do {
-  r \<leftarrow> first_leaf p;
-  z \<leftarrow> last_leaf p;
+  r \<leftarrow> first_leaf (the p);
+  z \<leftarrow> last_leaf (the p);
   return  (r, z)
 }"
 
 lemma leaf_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
-  leaf_iter_init ti
+  leaf_iter_init (Some ti)
   <\<lambda>(u,v). leaf_nodes_assn k (leaf_nodes t) u v>\<^sub>t"
   using assms
   using bplustree_leaf_nodes_help[of k t ti r z]
@@ -258,13 +259,13 @@ definition leaf_iter_next where
 "leaf_iter_next = (\<lambda>(r,z). do {
   p \<leftarrow> !(the r);
   l \<leftarrow> pfa_length (vals p);
-  return (fwd p, z)
+  return (the r, (fwd p, z))
 })"
 
 lemma leaf_iter_next_rule_help:
   "<leaf_nodes_assn k (x#xs) r z>
       leaf_iter_next (r,f)
-   <\<lambda>(n,_). leaf_nodes_assn k [x] r n * leaf_nodes_assn k xs n z>"
+   <\<lambda>(p,(n,_)). leaf_nodes_assn k [x] r n * leaf_nodes_assn k xs n z>"
   apply(subst leaf_iter_next_def)
   apply(cases r; cases x)
   apply(sep_auto)+
@@ -297,6 +298,24 @@ lemma leaf_iter_has_next_rule:
   apply(cases xs2; cases z)
   using assms by auto
 
+interpretation leaf_node_it: imp_list_iterate
+    "\<lambda>x y. leaf_nodes_assn k x y None"
+    "leaf_iter_assn k"
+    leaf_iter_init
+    leaf_iter_has_next
+    leaf_iter_next
+  apply(unfold_locales)
+  subgoal 
+    by (rule flatten_prec)
+  subgoal for l p
+    by (rule flatten_it_init_rule[of l p])
+  subgoal for  l' l p it
+    by (rule flatten_it_next_rule[of l' l p it]) simp
+  subgoal for l p l' it
+    by (rule flatten_it_has_next_rule[of l p l' it])
+  subgoal for l p l' it
+    by (rule flatten_quit_iteration[of l p l' it])
+  done
 
 
 end
