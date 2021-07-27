@@ -137,10 +137,136 @@ lemma bplustree_leaf_nodes:
   apply(rule rem_true)
   using bplustree_leaf_nodes_help by simp
 
+fun leaf_node:: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b pfarray \<Rightarrow> assn" where
+  "leaf_node k (LNode xs) xsi = 
+ (\<exists>\<^sub>A xsi'.
+      is_pfa (2*k) xsi' xsi
+    * list_assn A_assn xs xsi'
+  )" |
+  "leaf_node _ _ _ = false"
+
+fun leafs_assn :: "'b pfarray list \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
+  "leafs_assn (ln#lns) (Some r) z = 
+ (\<exists>\<^sub>A fwd.
+      r \<mapsto>\<^sub>r Btleaf ln fwd
+    * leafs_assn lns fwd z
+  )" | 
+  "leafs_assn [] r z = \<up>(r = z)" |
+  "leafs_assn _ _ _ = false"
+
+
+lemma list_assn_prod_split: "list_assn (\<lambda>x y. P x y * Q x y) as bs = list_assn P as bs * list_assn Q as bs"
+proof(cases "length as = length bs")
+  case True
+  then show ?thesis
+  proof (induction rule: list_induct2)
+    case Nil
+    then show ?case by sep_auto
+  next
+    case (Cons x xs y ys)
+    show ?case
+    proof (rule ent_iffI, goal_cases)
+      case 1
+      then show ?case
+      using Cons by sep_auto
+    next
+      case 2
+      then show ?case
+      using Cons by sep_auto
+    qed
+  qed
+next
+  case False
+  then show ?thesis
+    by (simp add: list_assn_aux_ineq_len)
+qed
+
+lemma assn_eq_split:
+  assumes "B = C"
+  shows "B \<Longrightarrow>\<^sub>A C"
+  and "C \<Longrightarrow>\<^sub>A B"
+  by (simp_all add: assms)
+
+lemma ent_ex_inst: "\<exists>\<^sub>Ax. P x \<Longrightarrow>\<^sub>A Q \<Longrightarrow> P y \<Longrightarrow>\<^sub>A Q"
+  using ent_trans by blast
+
+lemma "leaf_nodes_assn k xs r z = (\<exists>\<^sub>Aps. list_assn (leaf_node k) xs ps * leafs_assn ps r z)"
+proof (induction xs arbitrary: r)
+  case Nil
+  then show ?case
+  apply(intro ent_iffI)
+    subgoal by sep_auto
+    subgoal by sep_auto
+    done
+next
+  case (Cons a xs)
+  then show ?case
+  proof(intro ent_iffI, goal_cases)
+    case 1
+    show ?case
+      apply(cases r; cases a)
+      apply simp_all
+      find_theorems "\<exists>\<^sub>A_._ \<Longrightarrow>\<^sub>A_"
+      apply(rule ent_ex_preI)+
+      subgoal for aa x1 xsi xsi' fwd
+      apply (subst "Cons.IH"[of fwd]) 
+        apply simp
+      apply(rule ent_ex_preI)
+        subgoal for ps
+          apply(inst_ex_assn "xsi#ps")
+          apply simp_all
+          apply(inst_ex_assn fwd xsi')
+          apply (sep_auto)
+          done
+        done
+      done
+  next
+    case 2
+    have *: "list_assn (leaf_node k) xs ps' * leafs_assn ps' r' z
+          \<Longrightarrow>\<^sub>A leaf_nodes_assn k xs r' z" 
+      for ps' r'
+      using assn_eq_split(1)[OF sym[OF "Cons.IH"[of r']]]
+            ent_ex_inst[where y=ps' and Q="leaf_nodes_assn k xs r' z"]
+      by blast
+    show ?case
+      apply(rule ent_ex_preI)+
+      subgoal for ps
+        apply(cases ps; cases r; cases a)
+      apply sep_auto
+      apply sep_auto
+      apply sep_auto
+      apply sep_auto
+      apply sep_auto
+      apply sep_auto
+        apply simp
+      apply(rule ent_ex_preI)+
+        subgoal for aa list aaa x1 fwd xsi'
+          apply(inst_ex_assn aa xsi' fwd)
+          apply sep_auto
+          using *[of list fwd]
+          sorry
+        apply simp
+        done
+      done
+  qed
+qed
+
 (* TODO this cleanly separates the heap *)
-lemma bplustree_leaf_nodes:
-  "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * inner_nodes_assn k t ti r z"
-  oops
+lemma bplustree_leaf_nodes_sep:
+  "bplustree_assn k t ti r z = leaf_nodes_assn k (leaf_nodes t) r z * inner_nodes_assn k t ti r z"
+proof(induction arbitrary: r rule: bplustree_assn.induct)
+  case (1 k xs a r z)
+  then show ?case
+    apply(intro ent_iffI)
+    apply sep_auto
+    apply sep_auto
+    done
+next
+  case (2 k ts t a r z)
+  show ?case
+    apply(intro ent_iffI)
+    apply (sep_auto eintros del: exI)
+    oops
 
 subsection "Iterator"
 
@@ -258,14 +384,13 @@ lemma leaf_iter_init_rule:
 definition leaf_iter_next where
 "leaf_iter_next = (\<lambda>(r,z). do {
   p \<leftarrow> !(the r);
-  l \<leftarrow> pfa_length (vals p);
   return (the r, (fwd p, z))
 })"
 
 lemma leaf_iter_next_rule_help:
   "<leaf_nodes_assn k (x#xs) r z>
       leaf_iter_next (r,f)
-   <\<lambda>(p,(n,_)). leaf_nodes_assn k [x] r n * leaf_nodes_assn k xs n z>"
+   <\<lambda>(p,(n,_)). leaf_nodes_assn k [x] r n * leaf_nodes_assn k xs n z * \<up>(r = Some p)>"
   apply(subst leaf_iter_next_def)
   apply(cases r; cases x)
   apply(sep_auto)+
@@ -280,7 +405,7 @@ lemma leaf_nodes_assn_imp_iter_assn: "leaf_nodes_assn k xs r z \<Longrightarrow>
 
 lemma leaf_iter_next_rule: "<leaf_iter_assn k xs r (x#xs2) (n,z)>
 leaf_iter_next (n,z)
-<\<lambda>(n',_). leaf_iter_assn k xs r xs2 (n',z)>"
+<\<lambda>(p, (n',_)). leaf_iter_assn k xs r xs2 (n',z) * \<up>(n = Some p)>"
   unfolding leaf_iter_assn_def
   by (sep_auto heap add: leaf_iter_next_rule_help simp add: leaf_nodes_assn_aux_append)
 

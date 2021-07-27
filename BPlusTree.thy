@@ -15,7 +15,7 @@ text "B-Plus-Trees are basically B-Trees, that don't have empty Leafs but Leafs 
 the relevant data. "
 
 
-datatype 'a bplustree = LNode "'a list" | Node "('a bplustree * 'a) list" "'a bplustree"
+datatype 'a bplustree = LNode (vals: "'a list") | Node (keyvals: "('a bplustree * 'a) list") (lasttree: "'a bplustree")
 
 type_synonym 'a bplustree_list =  "('a bplustree * 'a) list"
 type_synonym 'a bplustree_pair =  "('a bplustree * 'a)"
