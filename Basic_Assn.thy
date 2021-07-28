@@ -35,6 +35,32 @@ lemma list_assn_aux_append_Cons:
   shows "length xs = length zsl \<Longrightarrow> list_assn A (xs@x#ys) (zsl@z#zsr) = (list_assn A xs zsl * A x z * list_assn A ys zsr) "
   by (sep_auto simp add: mult.assoc)
 
+lemma list_assn_prod_split: "list_assn (\<lambda>x y. P x y * Q x y) as bs = list_assn P as bs * list_assn Q as bs"
+proof(cases "length as = length bs")
+  case True
+  then show ?thesis
+  proof (induction rule: list_induct2)
+    case Nil
+    then show ?case by sep_auto
+  next
+    case (Cons x xs y ys)
+    show ?case
+    proof (rule ent_iffI, goal_cases)
+      case 1
+      then show ?case
+      using Cons by sep_auto
+    next
+      case 2
+      then show ?case
+      using Cons by sep_auto
+    qed
+  qed
+next
+  case False
+  then show ?thesis
+    by (simp add: list_assn_aux_ineq_len)
+qed
+
 (* -------------------------------------------- *)
 
 subsection \<open>Prod-Assn\<close>
@@ -59,6 +85,18 @@ lemma ent_true_drop_true:
 (* TODO *)
 lemma rem_true: "P*true \<Longrightarrow>\<^sub>A Q*true \<Longrightarrow> P \<Longrightarrow>\<^sub>AQ*true"
   using enttD enttI_true by blast
+
+lemma assn_eq_split:
+  assumes "B = C"
+  shows "B \<Longrightarrow>\<^sub>A C"
+  and "C \<Longrightarrow>\<^sub>A B"
+  by (simp_all add: assms)
+
+lemma ent_ex_inst: "\<exists>\<^sub>Ax. P x \<Longrightarrow>\<^sub>A Q \<Longrightarrow> P y \<Longrightarrow>\<^sub>A Q"
+  using ent_trans by blast
+
+lemma ent_ex_inst2: "\<exists>\<^sub>Ax y. P x y \<Longrightarrow>\<^sub>A Q \<Longrightarrow> P x y \<Longrightarrow>\<^sub>A Q"
+  using ent_trans by blast
 
 lemma ent_wandI2:
   assumes IMP: "P \<Longrightarrow>\<^sub>A (Q -* R)"
@@ -120,6 +158,7 @@ lemma wand_ent_cancel: "P * ((P * Q) -* R) \<Longrightarrow>\<^sub>A Q -* R"
   by (simp add: ent_wandI2 wand_uncurry)
 
 
-find_theorems "(-*)"
+
+
 
 end

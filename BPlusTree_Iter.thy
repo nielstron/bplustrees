@@ -1,27 +1,25 @@
 theory BPlusTree_Iter
   imports
-     BPlusTree_Imp
+    BPlusTree_Imp
     "HOL-Real_Asymp.Inst_Existentials"
     "Separation_Logic_Imperative_HOL.Imp_List_Spec"
+    Flatten_Iter
+    Partially_Filled_Array_Iter
 begin
 
-context bplustree
-begin
 
-
-fun leaf_nodes_assn :: "nat \<Rightarrow> 'a bplustree list \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
+fun leaf_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
   "leaf_nodes_assn k ((LNode xs)#lns) (Some r) z = 
- (\<exists>\<^sub>A xsi xsi' fwd.
+ (\<exists>\<^sub>A xsi fwd.
       r \<mapsto>\<^sub>r Btleaf xsi fwd
-    * is_pfa (2*k) xsi' xsi
-    * list_assn A_assn xs xsi'
+    * is_pfa (2*k) xs xsi
     * leaf_nodes_assn k lns fwd z
   )" | 
   "leaf_nodes_assn k [] r z = \<up>(r = z)" |
   "leaf_nodes_assn _ _ _ _ = false"
 
 
-fun inner_nodes_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode ref \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
+fun inner_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
   "inner_nodes_assn k (LNode xs) a r z = \<up>(r = Some a)" |
   "inner_nodes_assn k (Node ts t) a r z = 
  (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
@@ -30,7 +28,7 @@ fun inner_nodes_assn :: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b btnode 
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
     * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a A_assn) ts tsi''
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
     )"
 
 
@@ -90,7 +88,7 @@ next
           using "1" Cons.prems(3) by force
         moreover have "set tsi's \<subseteq> set tsi' \<and> set rss \<subseteq> set rs \<and> set tss \<subseteq> set ts"
           by (meson Cons.prems set_subset_Cons subset_trans)
-        moreover obtain temp1 temp2 where "((fst subsepi, (temp1:: 'b btnode ref option), subleaf), (temp2::'b)) \<in> set [((fst subsepi, temp1, subleaf), temp2)]"
+        moreover obtain temp1 temp2 where "((fst subsepi, (temp1:: 'a btnode ref option), subleaf), (temp2::'a)) \<in> set [((fst subsepi, temp1, subleaf), temp2)]"
           by auto
         ultimately  show ?case
           using
@@ -105,7 +103,7 @@ next
           supply R=ent_star_mono_true[where
 A="bplustree_assn k sub (the (fst subsepi)) r subleaf * true" and A'="leaf_nodes_assn k (leaf_nodes sub) r subleaf"
 and B="bplustree_assn k t ti (last (subleaf # rss)) z *
-    A_assn sep (snd subsepi) *
+    id_assn sep (snd subsepi) *
     blist_assn k tss
      (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's)) * true"
 and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ leaf_nodes t) subleaf z"
@@ -135,17 +133,13 @@ declare mult.left_assoc[simp del]
 lemma bplustree_leaf_nodes:
   "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
   apply(rule rem_true)
-  using bplustree_leaf_nodes_help by simp
+  using bplustree_leaf_nodes_help[of k t ti r z] by simp
 
-fun leaf_node:: "nat \<Rightarrow> 'a bplustree \<Rightarrow> 'b pfarray \<Rightarrow> assn" where
-  "leaf_node k (LNode xs) xsi = 
- (\<exists>\<^sub>A xsi'.
-      is_pfa (2*k) xsi' xsi
-    * list_assn A_assn xs xsi'
-  )" |
-  "leaf_node _ _ _ = false"
+fun leaf_node:: "('a::heap) bplustree \<Rightarrow> 'a list \<Rightarrow> assn" where
+  "leaf_node (LNode xs) xsi = \<up>(xs = xsi)" |
+  "leaf_node _ _ = false"
 
-fun leafs_assn :: "'b pfarray list \<Rightarrow> 'b btnode ref option \<Rightarrow> 'b btnode ref option \<Rightarrow> assn" where
+fun leafs_assn :: "('a::heap) pfarray list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
   "leafs_assn (ln#lns) (Some r) z = 
  (\<exists>\<^sub>A fwd.
       r \<mapsto>\<^sub>r Btleaf ln fwd
@@ -154,44 +148,15 @@ fun leafs_assn :: "'b pfarray list \<Rightarrow> 'b btnode ref option \<Rightarr
   "leafs_assn [] r z = \<up>(r = z)" |
   "leafs_assn _ _ _ = false"
 
+lemma leafs_assn_aux_append:
+   "leafs_assn (xs@ys) r z = (\<exists>\<^sub>Al. leafs_assn xs r l * leafs_assn ys l z)"
+  apply(induction xs r z rule: leafs_assn.induct)
+  apply(sep_auto intro!: ent_iffI)+
+  done
 
-lemma list_assn_prod_split: "list_assn (\<lambda>x y. P x y * Q x y) as bs = list_assn P as bs * list_assn Q as bs"
-proof(cases "length as = length bs")
-  case True
-  then show ?thesis
-  proof (induction rule: list_induct2)
-    case Nil
-    then show ?case by sep_auto
-  next
-    case (Cons x xs y ys)
-    show ?case
-    proof (rule ent_iffI, goal_cases)
-      case 1
-      then show ?case
-      using Cons by sep_auto
-    next
-      case 2
-      then show ?case
-      using Cons by sep_auto
-    qed
-  qed
-next
-  case False
-  then show ?thesis
-    by (simp add: list_assn_aux_ineq_len)
-qed
-
-lemma assn_eq_split:
-  assumes "B = C"
-  shows "B \<Longrightarrow>\<^sub>A C"
-  and "C \<Longrightarrow>\<^sub>A B"
-  by (simp_all add: assms)
-
-lemma ent_ex_inst: "\<exists>\<^sub>Ax. P x \<Longrightarrow>\<^sub>A Q \<Longrightarrow> P y \<Longrightarrow>\<^sub>A Q"
-  using ent_trans by blast
-
-lemma "leaf_nodes_assn k xs r z = (\<exists>\<^sub>Aps. list_assn (leaf_node k) xs ps * leafs_assn ps r z)"
-proof (induction xs arbitrary: r)
+lemma leaf_nodes_assn_split:
+  "leaf_nodes_assn k ts r z = (\<exists>\<^sub>Aps. list_assn leaf_node ts (map bplustree.vals ts) * list_assn (is_pfa (2*k)) (map bplustree.vals ts) ps * leafs_assn ps r z)"
+proof (induction ts arbitrary: r)
   case Nil
   then show ?case
   apply(intro ent_iffI)
@@ -208,44 +173,37 @@ next
       apply simp_all
       find_theorems "\<exists>\<^sub>A_._ \<Longrightarrow>\<^sub>A_"
       apply(rule ent_ex_preI)+
-      subgoal for aa x1 xsi xsi' fwd
+      subgoal for aa x1 xsi fwd
       apply (subst "Cons.IH"[of fwd]) 
         apply simp
-      apply(rule ent_ex_preI)
+      apply(rule ent_ex_preI)+
         subgoal for ps
           apply(inst_ex_assn "xsi#ps")
           apply simp_all
-          apply(inst_ex_assn fwd xsi')
+          apply(inst_ex_assn fwd)
           apply (sep_auto)
           done
         done
       done
   next
     case 2
-    have *: "list_assn (leaf_node k) xs ps' * leafs_assn ps' r' z
+    have *: "list_assn leaf_node xs (map bplustree.vals xs) * list_assn (is_pfa (2 * k)) (map bplustree.vals xs) ps' * leafs_assn ps' r' z
           \<Longrightarrow>\<^sub>A leaf_nodes_assn k xs r' z" 
       for ps' r'
       using assn_eq_split(1)[OF sym[OF "Cons.IH"[of r']]]
-            ent_ex_inst[where y=ps' and Q="leaf_nodes_assn k xs r' z"]
+             ent_ex_inst[where Q="leaf_nodes_assn k xs r' z" and y=ps']
       by blast
     show ?case
       apply(rule ent_ex_preI)+
       subgoal for ps
         apply(cases ps; cases r; cases a)
-      apply sep_auto
-      apply sep_auto
-      apply sep_auto
-      apply sep_auto
-      apply sep_auto
-      apply sep_auto
-        apply simp
+      apply simp_all
       apply(rule ent_ex_preI)+
-        subgoal for aa list aaa x1 fwd xsi'
-          apply(inst_ex_assn aa xsi' fwd)
+        subgoal for aa list aaa x1 fwd
+          apply(inst_ex_assn aa fwd)
           apply sep_auto
           using *[of list fwd]
-          sorry
-        apply simp
+          by (smt (z3) assn_aci(9) assn_times_comm fr_refl)
         done
       done
   qed
@@ -270,7 +228,7 @@ next
 
 subsection "Iterator"
 
-partial_function (heap) first_leaf :: "'b btnode ref \<Rightarrow> 'b btnode ref option Heap"
+partial_function (heap) first_leaf :: "('a::heap) btnode ref \<Rightarrow> 'a btnode ref option Heap"
   where
     "first_leaf p = do {
   node \<leftarrow> !p;
@@ -284,7 +242,7 @@ partial_function (heap) first_leaf :: "'b btnode ref \<Rightarrow> 'b btnode ref
   }
 )}"
 
-partial_function (heap) last_leaf :: "'b btnode ref \<Rightarrow> 'b btnode ref option Heap"
+partial_function (heap) last_leaf :: "('a::heap) btnode ref \<Rightarrow> 'a btnode ref option Heap"
   where
     "last_leaf p = do {
   node \<leftarrow> !p;
@@ -364,50 +322,65 @@ qed
 declare last.simps[simp add] butlast.simps[simp add]
 
 
-definition leaf_iter_init where
-"leaf_iter_init p = do {
+definition tree_leaf_iter_init where
+"tree_leaf_iter_init p = do {
   r \<leftarrow> first_leaf (the p);
   z \<leftarrow> last_leaf (the p);
   return  (r, z)
 }"
 
-lemma leaf_iter_init_rule:
+lemma tree_leaf_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
-  leaf_iter_init (Some ti)
-  <\<lambda>(u,v). leaf_nodes_assn k (leaf_nodes t) u v>\<^sub>t"
+  tree_leaf_iter_init (Some ti)
+  <\<lambda>(u,v). leaf_nodes_assn k (leaf_nodes t) u v * \<up>(u = r \<and> v = z)>\<^sub>t"
   using assms
   using bplustree_leaf_nodes_help[of k t ti r z]
-  unfolding leaf_iter_init_def
+  unfolding tree_leaf_iter_init_def
   by (sep_auto)
+
 
 definition leaf_iter_next where
 "leaf_iter_next = (\<lambda>(r,z). do {
   p \<leftarrow> !(the r);
-  return (the r, (fwd p, z))
+  return (vals p, (fwd p, z))
 })"
 
 lemma leaf_iter_next_rule_help:
-  "<leaf_nodes_assn k (x#xs) r z>
-      leaf_iter_next (r,f)
-   <\<lambda>(p,(n,_)). leaf_nodes_assn k [x] r n * leaf_nodes_assn k xs n z * \<up>(r = Some p)>"
+  "<leafs_assn (x#xs) r z>
+      leaf_iter_next (r,z)
+   <\<lambda>(p,(n,z')). leafs_assn [x] r n * leafs_assn xs n z' * \<up>(p = x) * \<up>(z=z')>"
   apply(subst leaf_iter_next_def)
   apply(cases r; cases x)
   apply(sep_auto)+
   done
 
-definition leaf_iter_assn where "leaf_iter_assn k xs r xs2 = (\<lambda>(n,z). 
-  (\<exists>\<^sub>Axs1. \<up>(xs = xs1@xs2) * leaf_nodes_assn k xs1 r n * leaf_nodes_assn k xs2 n z))" 
+definition leaf_iter_assn where "leaf_iter_assn xs r xs2 = (\<lambda>(n,z). 
+  (\<exists>\<^sub>Axs1. \<up>(xs = xs1@xs2) * leafs_assn xs1 r n * leafs_assn xs2 n z * \<up>(z=None)))" 
 
-lemma leaf_nodes_assn_imp_iter_assn: "leaf_nodes_assn k xs r z \<Longrightarrow>\<^sub>A leaf_iter_assn k xs r xs (r,z)"
+lemma leaf_nodes_assn_imp_iter_assn: "leafs_assn xs r None \<Longrightarrow>\<^sub>A leaf_iter_assn xs r xs (r,None)"
   unfolding leaf_iter_assn_def
   by sep_auto
 
-lemma leaf_iter_next_rule: "<leaf_iter_assn k xs r (x#xs2) (n,z)>
-leaf_iter_next (n,z)
-<\<lambda>(p, (n',_)). leaf_iter_assn k xs r xs2 (n',z) * \<up>(n = Some p)>"
+definition leaf_iter_init where
+"leaf_iter_init p = do {
+  return  (p, None)
+}"
+
+lemma leaf_iter_init_rule:
+  shows "<leafs_assn xs r None>
+  leaf_iter_init r
+  <\<lambda>u. leaf_iter_assn xs r xs u>"
+  unfolding leaf_iter_init_def
+  using leaf_nodes_assn_imp_iter_assn
+  by (sep_auto)
+
+lemma leaf_iter_next_rule: "<leaf_iter_assn xs r (x#xs2) it>
+leaf_iter_next it
+<\<lambda>(p, it'). leaf_iter_assn xs r xs2 it' * \<up>(p = x)>"
   unfolding leaf_iter_assn_def
-  by (sep_auto heap add: leaf_iter_next_rule_help simp add: leaf_nodes_assn_aux_append)
+  apply(cases it)
+  by (sep_auto heap add: leaf_iter_next_rule_help simp add: leafs_assn_aux_append)
 
 definition leaf_iter_has_next where
 "leaf_iter_has_next  = (\<lambda>(r,z). return (r \<noteq> z))"
@@ -416,34 +389,145 @@ definition leaf_iter_has_next where
 for subintervals, we would need to show that the list of pointers is indeed distinct,
 hence r = z can only occur at the end *)
 lemma leaf_iter_has_next_rule:
-  assumes "z = None"
-  shows "<leaf_iter_assn k xs r xs2 (n,z)> leaf_iter_has_next (n,z) <\<lambda>u. leaf_iter_assn k xs r xs2 (n,z) * \<up>(u \<longleftrightarrow> xs2 \<noteq> [])>"
+  "<leaf_iter_assn xs r xs2 it> leaf_iter_has_next it <\<lambda>u. leaf_iter_assn xs r xs2 it * \<up>(u \<longleftrightarrow> xs2 \<noteq> [])>"
   unfolding leaf_iter_has_next_def
+  apply(cases it)
   apply(sep_auto simp add: leaf_iter_assn_def split!: prod.splits dest!: mod_starD)
-  apply(cases xs2; cases z)
-  using assms by auto
+  subgoal for a
+  apply(cases xs2; cases a)
+    by auto
+  done
+
+(* copied from peter lammichs lseg_prec2 *)
+declare mult.left_commute[simp add]
+lemma leafs_assn_prec2: 
+  "\<forall>l l'. (h\<Turnstile>
+      (leafs_assn l p None * F1) \<and>\<^sub>A (leafs_assn l' p None * F2)) 
+    \<longrightarrow> l=l'"
+  apply (intro allI)
+  subgoal for l l'
+  proof (induct l arbitrary: p l' F1 F2)
+    case Nil thus ?case
+      apply simp_all
+      apply (cases l')
+      apply simp
+      apply (cases p)
+      apply auto
+      done
+  next
+    case (Cons y l)
+    from Cons.prems show ?case
+      apply (cases p)
+      apply simp
+      apply (cases l')
+      apply (auto) []
+      apply (clarsimp)
+      apply (rule)
+      apply (drule_tac p=a in prec_frame[OF sngr_prec])
+      apply frame_inference
+      apply frame_inference
+      apply simp
+      subgoal for a aa b list fwd fwda
+        apply(subgoal_tac "fwd=fwda")
+      using Cons.hyps[of fwd "a \<mapsto>\<^sub>r Btleaf y fwda * F1" list "a \<mapsto>\<^sub>r Btleaf (aa, b) fwd * F2", simplified]
+       apply (simp add: mult.left_assoc mod_and_dist)
+      apply (simp add: ab_semigroup_mult_class.mult.commute)
+      apply (drule_tac p=a in prec_frame[OF sngr_prec])
+      apply frame_inference
+      apply frame_inference
+      apply simp
+      done
+    done
+  qed
+  done
 
 interpretation leaf_node_it: imp_list_iterate
-    "\<lambda>x y. leaf_nodes_assn k x y None"
-    "leaf_iter_assn k"
+    "\<lambda>x y. leafs_assn x y None"
+    leaf_iter_assn
     leaf_iter_init
     leaf_iter_has_next
     leaf_iter_next
   apply(unfold_locales)
   subgoal 
-    by (rule flatten_prec)
-  subgoal for l p
-    by (rule flatten_it_init_rule[of l p])
-  subgoal for  l' l p it
-    by (rule flatten_it_next_rule[of l' l p it]) simp
+    by (simp add: leafs_assn_prec2 precise_def)
+  subgoal for l p 
+    by (sep_auto heap add: leaf_iter_init_rule)
+  subgoal for l' l p it
+    thm leaf_iter_next_rule
+    apply(cases l'; cases it)
+    by (sep_auto heap add: leaf_iter_next_rule)+
+  subgoal for l p l' it'
+    thm leaf_iter_has_next_rule
+    apply(cases it')
+    apply(rule hoare_triple_preI)
+    apply(sep_auto heap add: leaf_iter_has_next_rule)
+    done
   subgoal for l p l' it
-    by (rule flatten_it_has_next_rule[of l p l' it])
-  subgoal for l p l' it
-    by (rule flatten_quit_iteration[of l p l' it])
+  unfolding leaf_iter_assn_def
+  apply(cases it)
+    apply simp_all
+  apply(rule ent_ex_preI)
+  by (sep_auto simp add: leafs_assn_aux_append)
   done
 
+interpretation leaf_elements_iter: flatten_iter
+  "\<lambda>x y. leafs_assn x y None" leaf_iter_assn leaf_iter_init leaf_iter_has_next leaf_iter_next
+  "is_pfa (2*k)" "pfa_is_it (2*k)" pfa_it_init pfa_it_has_next pfa_it_next
+  by (unfold_locales)
 
-end
+thm leaf_elements_iter.is_flatten_list.simps
+thm leaf_elements_iter.is_flatten_it.simps
+thm tree_leaf_iter_init_def
+thm leaf_elements_iter.flatten_it_init_def
+print_theorems
 
+fun leaf_elements_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
+  "leaf_elements_iter_init ti = do {
+        rz \<leftarrow> tree_leaf_iter_init (Some ti);
+        it \<leftarrow> leaf_elements_iter.flatten_it_init (fst rz);
+        return it
+}"
+
+
+(* NOTE: the other direction does not work, we are loosing information here *)
+lemma leaf_nodes_imp_flatten_list: "leaf_nodes_assn k ts r None \<Longrightarrow>\<^sub>A list_assn leaf_node ts (map bplustree.vals ts) * leaf_elements_iter.is_flatten_list k (concat (map bplustree.vals ts)) r"
+  apply(simp add: leaf_nodes_assn_split)
+  apply(rule ent_ex_preI)+
+  subgoal for ps
+    apply(inst_ex_assn ps "map bplustree.vals ts")
+    apply sep_auto
+    done
+  done
+
+lemma concat_leaf_nodes_leaves: "(concat (map bplustree.vals (leaf_nodes t))) = leaves t"
+  apply(induction t rule: leaf_nodes.induct)
+  subgoal by auto
+  subgoal for ts t
+    apply(induction ts)
+    apply simp
+    apply auto
+    done
+  done
+
+lemma leaf_elements_iter_init_rule:
+  assumes "k > 0" "root_order k t"
+  shows "<bplustree_assn k t ti r None>
+leaf_elements_iter_init ti
+<leaf_elements_iter.is_flatten_it k (leaves t) r (leaves t)>\<^sub>t"
+  unfolding leaf_elements_iter_init.simps
+  using assms 
+  apply (sep_auto heap add:
+      tree_leaf_iter_init_rule
+  )
+    find_theorems "<_>_<_>" "_\<Longrightarrow>\<^sub>A_"
+    supply R = Hoare_Triple.cons_pre_rule[OF leaf_nodes_imp_flatten_list[of k "leaf_nodes t" r],
+        where Q="\<lambda>it. leaf_elements_iter.is_flatten_it k (leaves t) r (leaves t) it * true"
+        and c="leaf_elements_iter.flatten_it_init r"]
+    thm R
+    apply(sep_auto heap add: R)
+    apply(simp add: concat_leaf_nodes_leaves)
+    apply sep_auto
+    apply sep_auto
+    done
 
 end

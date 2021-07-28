@@ -374,7 +374,8 @@ qed
 
 sublocale imp_split_tree linear_split split_fun
   apply(unfold_locales)
-  apply(sep_auto heap: split_rule_linear_split)
+  thm split_rule_linear_split
+  apply(sep_auto heap: split_rule_linear_split simp del: last.simps butlast.simps)
   done
 
 end
@@ -394,12 +395,10 @@ begin
 lemma split_list_rule_linear_split: 
   shows
     "sorted_less ts \<Longrightarrow> <
-    is_pfa c tsi (a,n)
-  * list_assn id_assn ts tsi> 
+    is_pfa c ts (a,n)> 
     split_list_fun (a,n) p 
   <\<lambda>i. 
-    is_pfa c tsi (a,n)
-    * list_assn id_assn ts tsi
+    is_pfa c ts (a,n)
     * \<up>(split_relation ts (linear_split_list ts p) i)>\<^sub>t"
   apply(rule hoare_triple_preI)
   apply (sep_auto heap: split_list_rule dest!: mod_starD 
@@ -407,8 +406,7 @@ lemma split_list_rule_linear_split:
     apply(auto simp add: is_pfa_def split_relation_alt)
   subgoal by (smt (verit) eq_len_takeWhile_conv leD length_take length_takeWhile_le linorder_neqE_nat min_eq_arg(2) nth_length_takeWhile nth_take nth_take_eq)
   subgoal by (metis le_neq_implies_less length_take length_takeWhile_le min_eq_arg(2) nth_length_takeWhile nth_take)
-  subgoal 
-    using \<open>\<And>l'a l' bc bb b ac ab aa. \<lbrakk>sorted_less (take n l'a); ts = take n l'a; in_range (ac, bc); \<forall>j<n. l'a ! j < p; (aa, b) \<Turnstile> a \<mapsto>\<^sub>a l'; (ab, bb) \<Turnstile> a \<mapsto>\<^sub>a l'a; c = length l'a; length l' = length l'a; tsi = take n l'a; n \<le> length l'a; take n l' = take n l'a\<rbrakk> \<Longrightarrow> n = length (takeWhile (\<lambda>s. s < p) (take n l'a))\<close> by blast
+  subgoal by (metis le_neq_implies_less length_take length_takeWhile_le min_eq_arg(2) nth_length_takeWhile nth_take)
   done
 
 
