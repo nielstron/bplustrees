@@ -1346,9 +1346,13 @@ lemma insert_rule':
 
 subsection "Deletion"
 
+text "The below definitions work for non-linked-leaf B-Plus-Trees
+but not yet for linked-leaf trees"
+
 
 (* rebalance middle tree gets a list of trees, an index pointing to
 the position of sub/sep and a last tree *)
+(*
 definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder,order_top}) btnode ref option \<times> 'a) pfarray \<Rightarrow> nat \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode Heap"
   where
     "rebalance_middle_tree \<equiv> \<lambda> k tsi i p_ti. ( do {
@@ -2264,7 +2268,7 @@ lemma delete_rule:
   apply(subst delete_def)
   using assms apply (sep_auto heap add: del_rule reduce_root_rule)
   done
-
+*)
 
 end
 
@@ -2274,12 +2278,10 @@ locale imp_split_list = abs_split_list: BPlusTree_Set.split_list split_list
        \<Rightarrow> 'a list \<times> 'a list" +
   fixes imp_split_list:: "('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
   assumes imp_split_list_rule [sep_heap_rules]: "sorted_less xs \<Longrightarrow>
-   <is_pfa c xsi (a,n)
-  * list_assn (id_assn) xs xsi> 
+   <is_pfa c xs (a,n)> 
     imp_split_list (a,n) p 
   <\<lambda>i. 
-    is_pfa c xsi (a,n)
-    * list_assn (id_assn) xs xsi
+    is_pfa c xs (a,n)
     * \<up>(split_relation xs (split_list xs p) i)>\<^sub>t"
 begin
 
@@ -2297,10 +2299,10 @@ definition imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_t
 lemma imp_isin_list_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows
-   "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+   "<is_pfa c ks (a',n')> 
     imp_isin_list x (a',n') 
   <\<lambda>b. 
-    is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi
+    is_pfa c ks (a',n')
     * \<up>(b = abs_split_list.isin_list x ks)>\<^sub>t"
 proof -
   obtain ls rs where list_split: "split_list ks x = (ls, rs)"
@@ -2340,11 +2342,9 @@ definition imp_ins_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_to
 lemma imp_ins_list_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows
-   "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+   "<is_pfa c ks (a',n')> 
     imp_ins_list x (a',n') 
-  <\<lambda>(a'',n''). 
-    \<exists>\<^sub>Aksi''. is_pfa (max c (length (abs_split_list.insert_list x ks))) ksi'' (a'',n'')
-           * list_assn (id_assn) (abs_split_list.insert_list x ks) ksi''
+  <\<lambda>(a'',n''). is_pfa (max c (length (abs_split_list.insert_list x ks))) (abs_split_list.insert_list x ks) (a'',n'')
     >\<^sub>t"
 proof -
   obtain ls rs where list_split: "split_list ks x = (ls, rs)"
@@ -2360,7 +2360,6 @@ proof -
       apply vcg
       using list_split apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
     subgoal
-        apply(rule ent_ex_postI[where x="ksi@[x]"])
       apply(simp add: is_pfa_def)
         apply(rule ent_ex_preI)
       subgoal for l
@@ -2369,7 +2368,6 @@ proof -
       done
     done
     subgoal
-        apply(rule ent_ex_postI[where x="ksi@[x]"])
       apply(simp add: is_pfa_def)
         apply(rule ent_ex_preI)
       subgoal for l
@@ -2396,21 +2394,12 @@ proof -
       prefer 2
       subgoal by (metis (no_types, lifting) id_assn_list list_split local.Cons mod_starD split_relation_access)
       using list_split Cons apply (auto simp add: split_relation_alt list_assn_append_Cons_left split!: prod.splits list.splits dest!: mod_starD list_assn_len)
-    subgoal for _ _ lsi rsi
-        apply(rule ent_ex_postI[where x="lsi@a#rsi"])
-        apply(rule ent_ex_preI)+
-      subgoal for lsi' ai' rsi'
-        apply(rule ent_ex_postI[where x="lsi'"])
-        apply(rule ent_ex_postI[where x="ai'"])
-        apply(rule ent_ex_postI[where x="rsi'"])
-        apply(subgoal_tac "max c (Suc (length lsi + length rsi)) = c")
+        apply(subgoal_tac "max c (Suc (length ls + length rrs)) = c")
       subgoal using assms list_split by (sep_auto simp add: split_relation_alt  dest!: mod_starD id_assn_list)
           subgoal
             apply(auto simp add: is_pfa_def)
             by (metis add_Suc_right length_Cons length_append length_take max.absorb1 min_eq_arg(2))
       done
-    done
-  done
   next
     case False
     then show ?thesis
@@ -2427,24 +2416,15 @@ proof -
       apply vcg
       subgoal by (auto simp add: is_pfa_def)
       using list_split Cons apply (auto simp add: split_relation_alt list_assn_append_Cons_left split!: prod.splits list.splits dest!: mod_starD list_assn_len)
-    subgoal for lsi rsi
-        apply(rule ent_ex_postI[where x="lsi@x#a#rsi"])
-        apply(rule ent_ex_preI)+
-      subgoal for lsi' ai rsi'
-        apply(rule ent_ex_postI[where x="lsi'"])
-        apply(rule ent_ex_postI[where x="x"])
-        apply(rule ent_ex_postI[where x="ai#rsi'"])
-        apply(subgoal_tac "(Suc (Suc (length lsi + length rsi))) = Suc n'")
+    subgoal for _ _ _ _
+        apply(subgoal_tac "(Suc (Suc (length ls + length rrs))) = Suc n'")
         subgoal
-      using assms list_split Cons apply(sep_auto simp add: split_relation_alt dest!: mod_starD id_assn_list)
-      apply(sep_auto simp add: pure_def)
-      done
+      using assms list_split Cons by (sep_auto simp add: split_relation_alt dest!: mod_starD id_assn_list)
       subgoal
         apply(auto simp add: is_pfa_def)
         by (metis add_Suc_right length_Cons length_append length_take min_eq_arg(2))
       done
     done
-  done
 qed
 qed
 qed
@@ -2466,11 +2446,9 @@ definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_to
 
 lemma imp_del_list_rule [sep_heap_rules]:
   assumes "sorted_less ks"
-  shows "<is_pfa c ksi (a',n') * list_assn (id_assn) ks ksi> 
+  shows "<is_pfa c ks (a',n')> 
     imp_del_list x (a',n') 
-  <\<lambda>(a'',n''). 
-    \<exists>\<^sub>Aksi''. is_pfa c ksi'' (a'',n'') * list_assn (id_assn) (abs_split_list.delete_list x ks) ksi''
-    >\<^sub>t"
+  <\<lambda>(a'',n''). is_pfa c (abs_split_list.delete_list x ks) (a'',n'')>\<^sub>t"
 proof -
   obtain ls rs where list_split: "split_list ks x = (ls, rs)"
     by (cases "split_list ks x")
@@ -2500,16 +2478,12 @@ proof -
       apply vcg
       subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
       apply vcg
-      subgoal using list_split Cons by (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+      subgoal using list_split Cons apply (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
+        by (metis add_Suc_right length_Cons length_append length_take less_add_Suc1 min_eq_arg(2))
       prefer 2
       subgoal by (smt (z3) assn_aci(10) ent_pure_pre_iff id_assn_list_alt list_split local.Cons return_cons_rule split_relation_access)
       using list_split Cons apply (auto simp add: split_relation_alt list_assn_append_Cons_left split!: prod.splits list.splits dest!: mod_starD list_assn_len)
-    subgoal for lsi rsi
-        apply(rule ent_ex_postI[where x="lsi@rsi"])
-      subgoal using assms list_split apply (sep_auto simp add: split_relation_alt id_assn_list_alt  dest!: mod_starD)
       done
-    done
-  done
   next
     case False
     then show ?thesis
@@ -2523,7 +2497,6 @@ proof -
       subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
       apply vcg
       subgoal using list_split Cons by (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
-      apply vcg
       subgoal by (smt (z3) ent_pure_pre_iff fr_refl id_assn_list_alt list_split local.Cons split_relation_access)
       apply vcg
       using list_split Cons apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
