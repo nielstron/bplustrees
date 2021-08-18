@@ -94,7 +94,8 @@ locale imp_split_tree = abs_split_tree: BPlusTree_Set.split_tree split
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
   fixes imp_split:: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
   assumes imp_split_rule [sep_heap_rules]:"sorted_less (separators ts) \<Longrightarrow>
-  tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi') \<Longrightarrow>
+  length tsi = length rs \<Longrightarrow>
+  tsi'' = zip (zip (map fst tsi) (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi) \<Longrightarrow>
  <is_pfa c tsi (a,n) 
   * blist_assn k ts tsi'' > 
     imp_split (a,n) p 
@@ -224,6 +225,7 @@ next
       apply(subst isin.simps)
       using ts_non_empty  apply(sep_auto)
       subgoal  using \<open>sorted_less (separators ts)\<close> by blast
+      apply simp
       apply sep_auto
         apply(rule hoare_triple_preI)
       apply (sep_auto)
@@ -1038,6 +1040,7 @@ next
            apply auto
           apply vcg
           subgoal by sep_auto
+          apply simp
           (*this solves a subgoal*) apply simp
             (* at this point, we want to introduce the split, and after that tease the
   hoare triple assumptions out of the bracket, s.t. we don't split twice *)
@@ -1136,6 +1139,7 @@ next
            apply auto
           apply vcg
           subgoal by sep_auto
+          apply simp
           (*this solves a subgoal*) apply simp
             (* at this point, we want to introduce the split, and after that tease the
   hoare triple assumptions out of the bracket, s.t. we don't split twice *)

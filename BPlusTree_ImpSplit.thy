@@ -298,17 +298,20 @@ lemma linear_split_split:
 (* TODO refactor proof? *)
 lemma split_rule_linear_split: 
   shows
-    "sorted_less (separators ts) \<Longrightarrow> <
+    "sorted_less (separators ts) \<Longrightarrow> 
+    min (length ks) (length tsi) = length tsi \<Longrightarrow>
+    tsi' = zip ks (separators tsi) \<Longrightarrow>
+    <
     is_pfa c tsi (a,n)
-  * list_assn (A \<times>\<^sub>a id_assn) ts tsi> 
+  * list_assn (A \<times>\<^sub>a id_assn) ts tsi'> 
     split_fun (a,n) p 
   <\<lambda>i. 
     is_pfa c tsi (a,n)
-    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+    * list_assn (A \<times>\<^sub>a id_assn) ts tsi'
     * \<up>(split_relation ts (linear_split ts p) i)>\<^sub>t"
   apply(rule hoare_triple_preI)
   apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
-      simp add: list_assn_prod_map split_ismeq simp del: linear_split.simps)
+      simp add: list_assn_prod_map split_ismeq map_snd_zip_take simp del: linear_split.simps)
     apply(auto simp add: is_pfa_def simp del: linear_split.simps)
 proof -
 
@@ -374,8 +377,13 @@ qed
 
 sublocale imp_split_tree linear_split split_fun
   apply(unfold_locales)
-  thm split_rule_linear_split
-  apply(sep_auto heap: split_rule_linear_split simp del: last.simps butlast.simps)
+  subgoal for ts tsi rs tsi'' r z c a n k p
+    supply R= split_rule_linear_split[of ts "zip (subtrees tsi) (zip (butlast (r # rs)) (butlast (rs @ [z])))" tsi
+tsi''
+      ]
+    thm R
+    apply(sep_auto heap: R simp del: last.simps butlast.simps)
+    done
   done
 
 end
@@ -463,8 +471,8 @@ global_interpretation btree_imp_binary_split: imp_split_full_smeq bin_split bin'
     and btree_isin = btree_imp_binary_split.isin
     and btree_ins = btree_imp_binary_split.ins
     and btree_insert = btree_imp_binary_split.insert
-    and btree_del = btree_imp_binary_split.del
-    and btree_delete = btree_imp_binary_split.delete
+    (*and btree_del = btree_imp_binary_split.del
+    and btree_delete = btree_imp_binary_split.delete*)
     and btree_empty = btree_imp_binary_split.empty
   apply unfold_locales
   apply(sep_auto heap: bin_split_rule)
@@ -473,10 +481,10 @@ global_interpretation btree_imp_binary_split: imp_split_full_smeq bin_split bin'
 
 thm btree_imp_binary_split.isin.simps[code]
 
-export_code btree_empty btree_isin btree_insert btree_delete checking OCaml SML Scala
-export_code btree_empty btree_isin btree_insert btree_delete in OCaml module_name BPlusTree
-export_code btree_empty btree_isin btree_insert btree_delete in SML module_name BPlusTree
-export_code btree_empty btree_isin btree_insert btree_delete in Scala module_name BPlusTree
+export_code btree_empty btree_isin btree_insert checking OCaml SML Scala
+export_code btree_empty btree_isin btree_insert in OCaml module_name BPlusTree
+export_code btree_empty btree_isin btree_insert in SML module_name BPlusTree
+export_code btree_empty btree_isin btree_insert in Scala module_name BPlusTree
 
 end
 

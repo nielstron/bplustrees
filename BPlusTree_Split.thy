@@ -16,10 +16,9 @@ fun linear_split_list where "linear_split_list xs x = (takeWhile (\<lambda>s. s<
 global_interpretation bplustree_linear_search: split_full linear_split linear_split_list
   (* the below definitions are required to be set here for evaluating example code... *)
   defines bplustree_ls_isin = bplustree_linear_search.isin 
-    and bplustree_ls_insert_list = bplustree_linear_search.insert_list
+    and bplustree_ls_isin_list = bplustree_linear_search.isin_list 
     and bplustree_ls_ins = bplustree_linear_search.ins
     and bplustree_ls_insert = bplustree_linear_search.insert
-    and bplustree_ls_delete_list = bplustree_linear_search.delete_list
     and bplustree_ls_del = bplustree_linear_search.del
     and bplustree_ls_delete = bplustree_linear_search.delete
   apply unfold_locales
@@ -40,7 +39,7 @@ text "Some examples follow to show that the implementation works
       and the above lemmas make sense. The examples are visualized in the thesis."
 
 
-thm bplustree_linear_search.ins.simps
+find_theorems bplustree_ls_isin_list
 
 abbreviation "bplustree\<^sub>i \<equiv> bplustree_ls_insert"
 abbreviation "bplustree\<^sub>d \<equiv> bplustree_ls_delete"
