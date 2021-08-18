@@ -209,7 +209,7 @@ next
   qed
 qed
 
-(* TODO this cleanly separates the heap *)
+(* TODO find a statement that cleanly separates the heap *)
 lemma bplustree_leaf_nodes_sep:
   "bplustree_assn k t ti r z = leaf_nodes_assn k (leaf_nodes t) r z * inner_nodes_assn k t ti r z"
 proof(induction arbitrary: r rule: bplustree_assn.induct)
@@ -223,7 +223,7 @@ next
   case (2 k ts t a r z)
   show ?case
     apply(intro ent_iffI)
-    apply (sep_auto eintros del: exI)
+    apply (sep_auto eintros del: exI simp del: butlast.simps last.simps)
     oops
 
 subsection "Iterator"
@@ -489,8 +489,14 @@ fun leaf_elements_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
 }"
 
 
-(* NOTE: the other direction does not work, we are loosing information here *)
-lemma leaf_nodes_imp_flatten_list: "leaf_nodes_assn k ts r None \<Longrightarrow>\<^sub>A list_assn leaf_node ts (map bplustree.vals ts) * leaf_elements_iter.is_flatten_list k (concat (map bplustree.vals ts)) r"
+(* NOTE: the other direction does not work, we are loosing information here
+  workaround: introduce specialized is_flatten_list assumption, show that all operations
+  preserve its correctness
+*)
+lemma leaf_nodes_imp_flatten_list:
+  "leaf_nodes_assn k ts r None \<Longrightarrow>\<^sub>A
+   list_assn leaf_node ts (map bplustree.vals ts) *
+   leaf_elements_iter.is_flatten_list k (concat (map bplustree.vals ts)) r"
   apply(simp add: leaf_nodes_assn_split)
   apply(rule ent_ex_preI)+
   subgoal for ps
