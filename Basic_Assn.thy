@@ -158,7 +158,42 @@ lemma wand_ent_cancel: "P * ((P * Q) -* R) \<Longrightarrow>\<^sub>A Q -* R"
   by (simp add: ent_wandI2 wand_uncurry)
 
 
+lemma "
+        as \<inter> as' = {} \<Longrightarrow>
+        relH as h h' \<Longrightarrow>
+        in_range (h', as) \<Longrightarrow> (h', as') \<Turnstile> Q \<Longrightarrow> (h', as \<union> as') \<Turnstile> R"
+  oops
 
+lemma "P \<Longrightarrow>\<^sub>A Q * true \<Longrightarrow> P = Q * (Q -* P)"
+  apply(intro ent_iffI)
+proof(goal_cases)
+  case 2
+  then show ?case
+    by (simp add: ent_mp)
+next
+  case test: 1
+  show ?case
+    unfolding entails_def
+    apply clarsimp
+  proof (goal_cases)
+    case (1 a b)
+    then have "(a,b) \<Turnstile> Q * true"
+      using test entails_def
+      by blast
+    then obtain h as1 as2 where *:
+        "(a,b) = (h, as1 \<union> as2) \<and> as1 \<inter> as2 = {} \<and> (h, as1) \<Turnstile> Q \<and> (h, as2) \<Turnstile> true"
+    using mod_star_conv by auto
+  then have "(h, as1 \<union> as2) \<Turnstile> P" "(a,b) = (h, as1 \<union> as2)" 
+    using "1" by blast+
+  then show ?case 
+    apply simp
+    thm star_assnI
+    apply(intro star_assnI)
+    apply (simp_all add: *)
+    apply(intro wand_assnI)
+    apply (meson "*" models_in_range)
+    apply auto
+    oops
 
 
 end

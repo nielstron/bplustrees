@@ -24,11 +24,11 @@ fun inner_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a
   "inner_nodes_assn k (Node ts t) a r z = 
  (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
       a \<mapsto>\<^sub>r Btnode tsi ti
-    * bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
+    * inner_nodes_assn k t ti (last (r#rs)) (last (rs@[z]))
     * is_pfa (2*k) tsi' tsi
     * \<up>(length tsi' = length rs)
     * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
+    * list_assn ((\<lambda> t (ti,r',z'). inner_nodes_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
     )"
 
 
@@ -209,22 +209,64 @@ next
   qed
 qed
 
+lemma inst_same: "\<forall>x. P x = Q x \<Longrightarrow> (\<exists>\<^sub>A x. P x) = (\<exists>\<^sub>A x. Q x)"
+  by simp
+
+lemma pure_eq_pre: "(P \<Longrightarrow> Q = R) \<Longrightarrow> (Q * \<up>P = R * \<up>P)"
+  by fastforce
+
 (* TODO find a statement that cleanly separates the heap *)
+declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_leaf_nodes_sep:
   "bplustree_assn k t ti r z = leaf_nodes_assn k (leaf_nodes t) r z * inner_nodes_assn k t ti r z"
 proof(induction arbitrary: r rule: bplustree_assn.induct)
   case (1 k xs a r z)
   then show ?case
     apply(intro ent_iffI)
-    apply sep_auto
-    apply sep_auto
+    apply sep_auto+
     done
 next
-  case (2 k ts t a r z)
+  case (2 k ts t a r z ra)
   show ?case
-    apply(intro ent_iffI)
-    apply (sep_auto eintros del: exI simp del: butlast.simps last.simps)
-    oops
+      apply simp
+    apply(rule inst_same, standard)+
+    apply(rule pure_eq_pre)
+    proof(goal_cases)
+      case (1 tsi ti tsi' tsi'' rs)
+      have *: "
+          length tsi's = length rss \<Longrightarrow>
+          length rss = length tss \<Longrightarrow>
+          set tsi's \<subseteq> set tsi' \<Longrightarrow>
+          set rss \<subseteq> set rs \<Longrightarrow>
+          set tss \<subseteq> set ts \<Longrightarrow>
+         bplustree_assn k t ti (last (ra # rss)) z * 
+         blist_assn k tss
+          (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) =
+         leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z *
+         list_assn ((\<lambda>t (ti, x, y). inner_nodes_assn k t (the ti) x y) \<times>\<^sub>a id_assn) tss
+         (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) *
+        inner_nodes_assn k t ti (last (ra#rss)) z"
+        for rss tsi's tss
+      proof (induct arbitrary: ra rule: list_induct3)
+        case (Nil r)
+        then show ?case
+          apply sep_auto
+          using 2(1)[of ti r]
+          apply (simp add: last.simps)
+          done
+      next
+        case (Cons subsepi tsi's subleaf rss subsep tss r)
+        then show ?case sorry
+      qed
+      have **: "length rs = length ts"
+        sorry
+      then show ?case
+        using *[of tsi' rs ts] 1
+        apply (auto simp add: mult.assoc mult.commute)
+        using star_aci(3) by presburger
+    qed
+  qed
+declare last.simps[simp add] butlast.simps[simp add]
 
 subsection "Iterator"
 
