@@ -209,11 +209,29 @@ next
   qed
 qed
 
-lemma inst_same: "\<forall>x. P x = Q x \<Longrightarrow> (\<exists>\<^sub>A x. P x) = (\<exists>\<^sub>A x. Q x)"
+lemma inst_same: "(\<And>x. P x = Q x) \<Longrightarrow> (\<exists>\<^sub>A x. P x) = (\<exists>\<^sub>A x. Q x)"
+  by simp
+
+lemma inst_same2: "(\<And>x. P = Q x) \<Longrightarrow> P = (\<exists>\<^sub>A x. Q x)"
   by simp
 
 lemma pure_eq_pre: "(P \<Longrightarrow> Q = R) \<Longrightarrow> (Q * \<up>P = R * \<up>P)"
   by fastforce
+
+(* this doesn't hold, we need to know more about the remaining list,
+specifically because inner_nodes_assn doesn't say anything about next pointers *)
+lemma leaf_nodes_assn_split_spec: "leaf_nodes_assn k
+        (leaf_nodes x @ ys) r z *
+       inner_nodes_assn k x a r m =
+      leaf_nodes_assn k (leaf_nodes x) r m * leaf_nodes_assn k ys m z *
+       inner_nodes_assn k x a r m"
+proof(induction x)
+  case (LNode x)
+  then show ?case 
+    apply auto
+    oops
+
+
 
 (* TODO find a statement that cleanly separates the heap *)
 declare last.simps[simp del] butlast.simps[simp del]
@@ -229,7 +247,7 @@ next
   case (2 k ts t a r z ra)
   show ?case
       apply simp
-    apply(rule inst_same, standard)+
+    apply(rule inst_same)+
     apply(rule pure_eq_pre)
     proof(goal_cases)
       case (1 tsi ti tsi' tsi'' rs)
@@ -256,14 +274,49 @@ next
           done
       next
         case (Cons subsepi tsi's subleaf rss subsep tss r)
-        then show ?case sorry
+        show ?case 
+        apply (sep_auto
+                simp add: butlast_double_Cons last_double_Cons)
+          apply(subst prod_assn_def)
+        apply(simp split!: prod.splits add: mult.left_assoc)
+        (*apply(subst leaf_nodes_assn_split_spec)*)
+        proof(goal_cases)
+          case (1 sub sep)
+          moreover have p: "set tsi's \<subseteq> set tsi'"
+               "set rss \<subseteq> set rs"
+               "set tss \<subseteq> set ts"
+            using Cons.prems by auto
+          moreover have "(sub,sep) \<in> set ts"
+            using "1" Cons.prems(3) by force
+          moreover obtain temp1 temp2 where "((fst subsepi, (temp1:: 'a btnode ref option), subleaf), (temp2::'a)) \<in> set [((fst subsepi, temp1, subleaf), temp2)]"
+            by auto
+          ultimately show ?case
+            apply(inst_ex_assn subleaf)
+            using "Cons.hyps"(3)[of subleaf, OF p]
+            apply (auto simp add: algebra_simps)
+            using "2.IH"(2)[of subsep "((fst subsepi, (temp1, subleaf)),temp2)" "[((fst subsepi, (temp1, subleaf)),temp2)]"
+                "fst subsepi" "(temp1, subleaf)" temp1 subleaf r]
+            apply auto
+            using assn_times_assoc ent_refl by presburger
+        qed
       qed
-      have **: "length rs = length ts"
-        sorry
-      then show ?case
-        using *[of tsi' rs ts] 1
-        apply (auto simp add: mult.assoc mult.commute)
-        using star_aci(3) by presburger
+      show ?case
+        apply(intro ent_iffI)
+        subgoal
+         apply(rule entails_preI)
+          using 1
+        apply(auto dest!: mod_starD list_assn_len)
+        using *[of tsi' rs ts, simplified]
+        apply (smt (z3) assn_aci(10) assn_times_comm entails_def)
+        done
+      subgoal
+         apply(rule entails_preI)
+        using 1
+        apply(auto dest!: mod_starD list_assn_len)
+        using *[of tsi' rs ts, simplified]
+        apply (smt (z3) assn_aci(10) assn_times_comm entails_def)
+        done
+      done
     qed
   qed
 declare last.simps[simp add] butlast.simps[simp add]
