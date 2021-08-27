@@ -535,6 +535,7 @@ lemma leafs_assn_prec2:
     done
   qed
   done
+declare mult.left_commute[simp del]
 
 interpretation leaf_node_it: imp_list_iterate
     "\<lambda>x y. leafs_assn x y None"

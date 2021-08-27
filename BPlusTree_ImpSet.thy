@@ -2,6 +2,7 @@ theory BPlusTree_ImpSet
   imports
     BPlusTree_Imp
     BPlusTree_Set
+    BPlusTree_Iter
     "HOL-Real_Asymp.Inst_Existentials"
 begin
 

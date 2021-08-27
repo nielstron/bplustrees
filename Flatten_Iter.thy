@@ -369,6 +369,7 @@ lemma flatten_quit_iteration:
           done
       qed
   done
+declare mult.left_assoc[simp del]
 
 interpretation flatten_it: imp_list_iterate is_flatten_list is_flatten_it flatten_it_init flatten_it_has_next flatten_it_next
   apply(unfold_locales)
