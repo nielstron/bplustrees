@@ -199,6 +199,13 @@ proof -
     using assms(1,2) by auto
 qed
 
+lemma  "
+   <leaf_nodes_assn k (leaf_nodes (t:: 'a bplustree)) r z>
+     isin ti x
+   <\<lambda>y. leaf_nodes_assn k (leaf_nodes t) r z>\<^sub>t"
+  thm abs_split.isin.induct
+proof(induction t x arbitrary: r z rule: abs_split.isin.induct)
+
 
 lemma  "k > 0 \<Longrightarrow> root_order k t \<Longrightarrow> sorted_less (inorder t) \<Longrightarrow> sorted_less (leaves t) \<Longrightarrow>
    <bplustree_assn k t ti r z>
