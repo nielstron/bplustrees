@@ -218,6 +218,101 @@ lemma inst_same2: "(\<And>x. P = Q x) \<Longrightarrow> P = (\<exists>\<^sub>A x
 lemma pure_eq_pre: "(P \<Longrightarrow> Q = R) \<Longrightarrow> (Q * \<up>P = R * \<up>P)"
   by fastforce
 
+lemma bplustree_leaf_nodes_sep:
+  "leaf_nodes_assn k (leaf_nodes t) r z * (leaf_nodes_assn k (leaf_nodes t) r z -* bplustree_assn k t ti r z) \<Longrightarrow>\<^sub>A bplustree_assn k t ti r z"
+  by (simp add: ent_mp)
+
+declare last.simps[simp del] butlast.simps[simp del]
+lemma bplustree_leaf_nodes_sep:
+  "bplustree_assn k t ti r z = leaf_nodes_assn k (leaf_nodes t) r z * (leaf_nodes_assn k (leaf_nodes t) r z -* bplustree_assn k t ti r z)"
+proof(induction arbitrary: r rule: bplustree_assn.induct)
+  case (1 k xs a r z)
+  then show ?case
+    apply(intro ent_iffI)
+    prefer 2
+    using bplustree_leaf_nodes_sep apply blast
+    apply auto
+    apply (cases r)
+    apply (sep_auto eintros del: exI)+
+    by (smt (verit, del_insts) ent_star_mono ent_wandI2 mult.right_neutral wand_ent_self)
+next
+  case (2 k ts t a r z ra)
+  show ?case
+      apply simp
+    apply(rule inst_same)+
+    apply(rule pure_eq_pre)
+    proof(goal_cases)
+      case (1 tsi ti tsi' tsi'' rs)
+      have *: "
+          length tsi's = length rss \<Longrightarrow>
+          length rss = length tss \<Longrightarrow>
+          set tsi's \<subseteq> set tsi' \<Longrightarrow>
+          set rss \<subseteq> set rs \<Longrightarrow>
+          set tss \<subseteq> set ts \<Longrightarrow>
+         bplustree_assn k t ti (last (ra # rss)) z * 
+         blist_assn k tss
+          (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) =
+         leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z *
+         list_assn ((\<lambda>t (ti, x, y). inner_nodes_assn k t (the ti) x y) \<times>\<^sub>a id_assn) tss
+         (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) *
+        inner_nodes_assn k t ti (last (ra#rss)) z"
+        for rss tsi's tss
+      proof (induct arbitrary: ra rule: list_induct3)
+        case (Nil r)
+        then show ?case
+          apply sep_auto
+          using 2(1)[of ti r]
+          apply (simp add: last.simps)
+          done
+      next
+        case (Cons subsepi tsi's subleaf rss subsep tss r)
+        show ?case 
+        apply (sep_auto
+                simp add: butlast_double_Cons last_double_Cons)
+          apply(subst prod_assn_def)
+        apply(simp split!: prod.splits add: mult.left_assoc)
+        (*apply(subst leaf_nodes_assn_split_spec)*)
+        proof(goal_cases)
+          case (1 sub sep)
+          moreover have p: "set tsi's \<subseteq> set tsi'"
+               "set rss \<subseteq> set rs"
+               "set tss \<subseteq> set ts"
+            using Cons.prems by auto
+          moreover have "(sub,sep) \<in> set ts"
+            using "1" Cons.prems(3) by force
+          moreover obtain temp1 temp2 where "((fst subsepi, (temp1:: 'a btnode ref option), subleaf), (temp2::'a)) \<in> set [((fst subsepi, temp1, subleaf), temp2)]"
+            by auto
+          ultimately show ?case
+            apply(inst_ex_assn subleaf)
+            using "Cons.hyps"(3)[of subleaf, OF p]
+            apply (auto simp add: algebra_simps)
+            using "2.IH"(2)[of subsep "((fst subsepi, (temp1, subleaf)),temp2)" "[((fst subsepi, (temp1, subleaf)),temp2)]"
+                "fst subsepi" "(temp1, subleaf)" temp1 subleaf r]
+            apply auto
+            using assn_times_assoc ent_refl by presburger
+        qed
+      qed
+      show ?case
+        apply(intro ent_iffI)
+        subgoal
+         apply(rule entails_preI)
+          using 1
+        apply(auto dest!: mod_starD list_assn_len)
+        using *[of tsi' rs ts, simplified]
+        apply (smt (z3) assn_aci(10) assn_times_comm entails_def)
+        done
+      subgoal
+         apply(rule entails_preI)
+        using 1
+        apply(auto dest!: mod_starD list_assn_len)
+        using *[of tsi' rs ts, simplified]
+        apply (smt (z3) assn_aci(10) assn_times_comm entails_def)
+        done
+      done
+    qed
+  qed
+declare last.simps[simp add] butlast.simps[simp add]
+
 (* this doesn't hold, we need to know more about the remaining list,
 specifically because inner_nodes_assn doesn't say anything about next pointers *)
 lemma leaf_nodes_assn_split_spec: "leaf_nodes_assn k

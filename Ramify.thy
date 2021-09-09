@@ -79,7 +79,8 @@ lemma overlap_comm: "P \<uplus> Q = Q \<uplus> P"
 
 lemma cross_split: "\<lbrakk>a \<union> b = z; c \<union> d = z; a \<inter> b = {}; c \<inter> d = {}\<rbrakk> \<Longrightarrow> (\<exists>ac ad bc bd.
 ac \<union> ad = a \<and> bc \<union> bd = b \<and> ac \<union> bc = c \<and> ad \<union> bd = d \<and>
-ac \<inter> ad = {} \<and> bc \<inter> bd = {} \<and> ac \<inter> bc = {} \<and> ad \<inter> bd = {})"
+ac \<inter> ad = {} \<and> bc \<inter> bd = {} \<and> ac \<inter> bc = {} \<and> ad \<inter> bd = {} \<and>
+ac \<inter> bd = {} \<and> ad \<inter> bc = {})"
 proof(goal_cases)
   case 1
   then show ?case 
@@ -91,30 +92,34 @@ qed
 lemma overlap_assoc: "R \<uplus> (P \<uplus> Q) = (R \<uplus> P) \<uplus> Q"
   apply(rule ent_iffI; clarsimp simp add: entails_def mod_overlap_conv)
 proof(goal_cases)
-  case (1 h b1 b2 b3 b4 b5 b6)
-  have *: "b5 \<inter> b1 = {}" "b4 \<inter> b5 = {}"
-    using "1" by blast+
-  from 1 have "(b4 \<union> b5) \<inter> b6 = {}"
+  case (1 h r pq' rpq p q pq)
+  then show ?case
+    sledgehammer
+  then have "(p \<union> pq) \<inter> q = {}"
     by auto
-  then obtain ac ad bc bd where "ac \<union> ad = b2" "bc \<union> bd = b3" "ac \<union> bc = b4" "ad \<union> bd = b5 \<union> b6"
-        "ac \<inter> ad = {}" "bc \<inter> bd = {}" "ac \<inter> bc = {}" "ad \<inter> bd = {}"
-    using cross_split[of b2 b3 "b2 \<union> b3" b4 "b5 \<union> b6", simplified]
-    using 1
-    by (smt (verit, ccfv_threshold) Int_Un_distrib boolean_algebra_cancel.sup1 inf_sup_distrib2)
-  then show ?case 
-    using 1
-    apply(inst_existentials "b1 \<union> b4 \<union> bc" "{}::nat set" "b5 \<union> b6" )
-    subgoal by blast
-    subgoal using * by auto
-    subgoal by blast
-    subgoal by blast
-    apply(inst_existentials "b1 \<union> bc" "b4 \<union> ad" "bd")
-    apply blast
-    subgoal sorry
-    subgoal by auto
-    subgoal by auto
-    subgoal 
-      by (metis boolean_algebra_cancel.sup1)
+  then obtain ac ad bc bd where *: "ac \<union> ad = pq' \<and>
+     bc \<union> bd = rpq \<and>
+     ac \<union> bc = pq \<and>
+     ad \<union> bd = (p \<union> q) \<and>
+     ac \<inter> ad = {} \<and> bc \<inter> bd = {} \<and>
+     ac \<inter> bc = {} \<and> ad \<inter> bd = {} \<and> 
+     ac \<inter> bd = {} \<and> ad \<inter> bc = {}"
+    using cross_split[of pq' rpq _ "pq" "p \<union> q"] 1 
+    by (smt (verit, best) Int_Un_distrib Un_commute inf_commute)
+  then obtain ac' ad' bc' bd' where **: "ac' \<union> ad' = ad \<and>
+     bc' \<union> bd' = bd \<and>
+     ac' \<union> bc' = p \<and>
+     ad' \<union> bd' = q \<and>
+     ac' \<inter> ad' = {} \<and> bc' \<inter> bd' = {} \<and>
+     ac' \<inter> bc' = {} \<and> ad' \<inter> bd' = {} \<and> 
+     ac' \<inter> bd' = {} \<and> ad' \<inter> bc' = {}"
+    using cross_split[of ad bd _ p q] 1 
+    by (smt (verit, best) Int_Un_distrib Un_commute inf_commute)
+  show ?case 
+    using 1 * **
+    apply(inst_existentials "r \<union> p" q pq)
+    apply auto
+    apply(inst_existentials "r \<union> bd'" "p \<union> ac" "bc \<union> bc'")
     oops
 
 
