@@ -158,11 +158,8 @@ lemma wand_ent_cancel: "P * ((P * Q) -* R) \<Longrightarrow>\<^sub>A Q -* R"
   by (simp add: ent_wandI2 wand_uncurry)
 
 
-lemma "
-        as \<inter> as' = {} \<Longrightarrow>
-        relH as h h' \<Longrightarrow>
-        in_range (h', as) \<Longrightarrow> (h', as') \<Turnstile> Q \<Longrightarrow> (h', as \<union> as') \<Turnstile> R"
-  oops
+lemma "\<exists>R. Q * R \<Longrightarrow>\<^sub>A P"
+  using ent_mp by auto
 
 lemma "P \<Longrightarrow>\<^sub>A Q * true \<Longrightarrow> P = Q * (Q -* P)"
   apply(intro ent_iffI)

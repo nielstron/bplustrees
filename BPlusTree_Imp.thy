@@ -82,6 +82,7 @@ fun bplustree_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a b
     * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
     )"
 
+
 find_theorems "map _ (zip _ _)"
 (*
 rs = the list of pointers to the leaves of this subtree
@@ -111,4 +112,33 @@ fun btnode_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btno
 abbreviation "blist_assn k ts tsi'' \<equiv> list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi'' "
 
 
+fun bplustree_assn_leafs :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref list \<Rightarrow> assn" where
+  "bplustree_assn_leafs k (LNode xs) a r z leafptrs = 
+ (\<exists>\<^sub>A xsi fwd.
+      a \<mapsto>\<^sub>r Btleaf xsi fwd
+    * is_pfa (2*k) xs xsi
+    * \<up>(fwd = z)
+    * \<up>(r = Some a)
+    * \<up>(leafptrs = [a])
+  )" |
+  "bplustree_assn_leafs k (Node ts t) a r z leafptrs = 
+ (\<exists>\<^sub>A tsi ti tsi' tsi'' rs split.
+      a \<mapsto>\<^sub>r Btnode tsi ti
+    * bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
+    * is_pfa (2*k) tsi' tsi
+    * \<up>(concat split = leafptrs)
+    * \<up>(length tsi' = length rs)
+    * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (zip (butlast (rs@[z])) split))) (map snd tsi'))
+    * list_assn ((\<lambda> t (ti,r',z',lptrs). bplustree_assn_leafs k t (the ti) r' z' lptrs) \<times>\<^sub>a id_assn) ts tsi''
+    )"
+
+lemma "bplustree_assn k t ti r z = (\<exists>\<^sub>Aleafptrs. bplustree_assn_leafs k t ti r z leafptrs)"
+  apply(induction rule: bplustree_assn.induct)
+  apply auto
+  subgoal
+    apply (rule ent_iffI)
+    apply sep_auto
+    apply sep_auto
+    done
+  oops
 end
