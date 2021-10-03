@@ -202,7 +202,7 @@ fun leaf_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree list \<Rightarrow
 fun inner_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref list \<Rightarrow> assn" where
   "inner_nodes_assn k (LNode xs) a r z lptrs = \<up>(r = Some a \<and> lptrs = [a])" |
   "inner_nodes_assn k (Node ts t) a r z lptrs = 
- (\<exists>\<^sub>A tsi ti tsi' split tsi'' rs.
+ (\<exists>\<^sub>A tsi ti tsi' tsi'' rs split.
       a \<mapsto>\<^sub>r Btnode tsi ti
     * inner_nodes_assn k t ti (last (r#rs)) (last (rs@[z])) (last split)
     * is_pfa (2*k) tsi' tsi
@@ -216,39 +216,42 @@ fun inner_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a
 declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_leaf_nodes_sep:
   "bplustree_assn_leafs k t ti r z lptrs = leaf_nodes_assn k (leaf_nodes t) r z lptrs * inner_nodes_assn k t ti r z lptrs"
-proof(induction arbitrary: r rule: bplustree_assn.induct)
+proof(induction arbitrary: r rule: bplustree_assn_leafs.induct)
   case (1 k xs a r z)
   then show ?case
     apply(intro ent_iffI)
     apply sep_auto+
     done
 next
-  case (2 k ts t a r z ra)
+  case (2 k ts t a r z lptrs ra)
   show ?case
       apply simp
     apply(rule inst_same)+
     apply(rule pure_eq_pre)
+    apply(clarsimp)
     proof(goal_cases)
-      case (1 tsi ti tsi' tsi'' rs)
+      case (1 tsia tsin ti tsi' rs split)
       have *: "
           length tsi's = length rss \<Longrightarrow>
           length rss = length tss \<Longrightarrow>
+          length tss = length splits \<Longrightarrow>
           set tsi's \<subseteq> set tsi' \<Longrightarrow>
           set rss \<subseteq> set rs \<Longrightarrow>
           set tss \<subseteq> set ts \<Longrightarrow>
-         bplustree_assn k t ti (last (ra # rss)) z * 
-         blist_assn k tss
-          (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) =
-         leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z *
-         list_assn ((\<lambda>t (ti, x, y). inner_nodes_assn k t (the ti) x y) \<times>\<^sub>a id_assn) tss
-         (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) *
-        inner_nodes_assn k t ti (last (ra#rss)) z"
-        for rss tsi's tss
-      proof (induct arbitrary: ra rule: list_induct3)
+          set splits \<subseteq> set split \<Longrightarrow>
+         bplustree_assn_leafs k t ti (last (ra # rss)) z (last split)* 
+         list_assn ((\<lambda>t (ti, x, y, s). bplustree_assn_leafs k t (the ti) x y s) \<times>\<^sub>a id_assn) tss
+         (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) (zip rss splits))) (separators tsi's)) =
+         leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z (concat splits @ last split) *
+         list_assn ((\<lambda>t (ti, x, y, s). inner_nodes_assn k t (the ti) x y s) \<times>\<^sub>a id_assn) tss
+         (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) (zip rss splits))) (separators tsi's)) *
+        inner_nodes_assn k t ti (last (ra#rss)) z (last split)"
+        for rss tsi's tss splits
+      proof (induct arbitrary: ra rule: list_induct4)
         case (Nil r)
         then show ?case
-          apply sep_auto
-          using 2(1)[of ti r]
+          apply(clarsimp)
+          using 2(1)[of ti r "[]" "split"]
           apply (simp add: last.simps)
           done
       next
