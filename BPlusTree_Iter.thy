@@ -335,7 +335,7 @@ lemma inner_nodes_assn_hd:
   sorry
 
 declare last.simps[simp del] butlast.simps[simp del]
-lemma subleaf_at_head_of_concat: "length tsi's = length rss \<Longrightarrow>
+lemma subleaf_at_head_of_concat_inner: "length tsi's = length rss \<Longrightarrow>
         length rss = length tss \<Longrightarrow>
         length tss = length splits \<Longrightarrow>
 list_assn ((\<lambda>t (ti, x, xa, y). inner_nodes_assn k t (the ti) x xa y) \<times>\<^sub>a R) tss
@@ -366,7 +366,50 @@ list_assn ((\<lambda>t (ti, x, xa, y). inner_nodes_assn k t (the ti) x xa y) \<t
     subgoal by sep_auto
     done
   done
+
+lemma subleaf_at_head_of_concat_bplustree: "length tsi's = length rss \<Longrightarrow>
+        length rss = length tss \<Longrightarrow>
+        length tss = length splits \<Longrightarrow>
+list_assn ((\<lambda>t (ti, x, xa, y). bplustree_assn_leafs k t (the ti) x xa y) \<times>\<^sub>a R) tss
+     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) (zip rss splits)))
+       (separators tsi's)) *
+    bplustree_assn_leafs k t ti (last (subleaf # rss)) z ss
+= 
+list_assn ((\<lambda>t (ti, x, xa, y). bplustree_assn_leafs k t (the ti) x xa y) \<times>\<^sub>a R) tss
+     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) (zip rss splits)))
+       (separators tsi's)) *
+    bplustree_assn_leafs k t ti (last (subleaf # rss)) z ss * \<up>(Some (hd (concat splits@ss)) = subleaf)"
+  apply(cases splits)
+  subgoal
+    apply (sep_auto simp add: last.simps)
+    apply (metis (mono_tags, hide_lams) bplustree_assn_leafs_hd pure_assn_eq_conv)
+    done
+  subgoal
+  apply(cases tss; cases rss; cases tsi's)
+  apply simp_all
+        apply (sep_auto
+                simp add: butlast_double_Cons last_double_Cons)
+  apply(intro ent_iffI)
+    subgoal
+      apply(subst bplustree_assn_leafs_hd)
+      apply(subst bplustree_assn_leafs_not_empty_aux)
+      apply sep_auto
+      done
+    subgoal by sep_auto
+    done
+  done
 declare last.simps[simp add] butlast.simps[simp add]
+
+declare last.simps[simp add] butlast.simps[simp add]
+lemma otf_mult_comm_lem:
+"(a::'a::{comm_monoid_mult}) * b * c * d  * e * f = a * b * c * d * (e * f)"
+"a * b * c * d = b * c * (d * a)"
+"a * b * c * d = a * c * (b * d)"
+"a * b * c * d * e = (a * e * c) * b * d"
+  by (clarsimp_all simp add: algebra_simps)
+
+lemma concat_butlast_last_id: "xs \<noteq> [] \<Longrightarrow> concat (butlast xs) @ (last xs) = concat xs"
+  by (metis append_butlast_last_id append_self_conv concat.simps(1) concat.simps(2) concat_append)
 
 declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_leaf_nodes_sep:
@@ -439,11 +482,21 @@ next
           apply(subst inner_nodes_assn_hd[of k sub])
             apply sep_auto
             apply(intro pure_eq_pre)
-          supply R = subleaf_at_head_of_concat[of tsi's rss tss splits k id_assn subleaf t ti z "last split"]
-          thm R
-          using R
-(* TODO format st R can be applied: issue: multiplication causes term not being recognized*)
-          apply(subst R)
+(* refactor multiplication s.t. we can apply the lemma about two mult. factors with an OTF lemma *)
+          apply(subst otf_mult_comm_lem(1))
+          apply(subst subleaf_at_head_of_concat_inner)
+          subgoal using Cons by simp
+          subgoal using Cons by simp
+          subgoal using Cons by simp
+          apply(simp add: mult.left_assoc)
+(* refactor multiplication s.t. we can apply the lemma about two mult. factors with an OTF lemma *)
+          apply(subst otf_mult_comm_lem(2))
+          apply(subst subleaf_at_head_of_concat_bplustree)
+          subgoal using Cons by simp
+          subgoal using Cons by simp
+          subgoal using Cons by simp
+          apply(simp add: mult.left_assoc)
+            apply(intro pure_eq_pre)
         proof(goal_cases)
           case 1
           moreover have p: "set tsi's \<subseteq> set tsi'"
@@ -464,22 +517,48 @@ next
             apply auto
             using assn_times_assoc ent_refl by presburger
         qed
-      qed
+        done
+    qed
       show ?case
         apply(intro ent_iffI)
         subgoal
          apply(rule entails_preI)
           using 1
         apply(auto dest!: mod_starD list_assn_len)
-        using *[of tsi' rs ts, simplified]
-        apply (smt (z3) assn_aci(10) assn_times_comm entails_def)
-        done
+        apply(subst otf_mult_comm_lem(3))
+          apply (subst *[of tsi' rs ts "butlast split", simplified])
+          subgoal by auto
+          subgoal by auto
+          subgoal by auto
+          subgoal by (meson in_set_butlastD subset_code(1))
+          subgoal
+          apply(subgoal_tac "concat (butlast split) @ (last split) = concat split") 
+            prefer 2
+              subgoal
+                apply(subst concat_butlast_last_id)
+                apply auto
+                done
+              subgoal by sep_auto
+              done
+            done
       subgoal
          apply(rule entails_preI)
         using 1
         apply(auto dest!: mod_starD list_assn_len)
-        using *[of tsi' rs ts, simplified]
-        apply (smt (z3) assn_aci(10) assn_times_comm entails_def)
+          apply(subgoal_tac "concat split = concat (butlast split) @ (last split)") 
+            prefer 2
+              subgoal
+                apply(subst concat_butlast_last_id)
+                apply auto
+                done
+        apply(subst otf_mult_comm_lem(4))
+              apply simp
+              apply(subst *[of tsi' rs ts "butlast split", simplified, symmetric])
+          subgoal by auto
+          subgoal by auto
+          subgoal by auto
+          subgoal by (meson in_set_butlastD subset_code(1))
+          subgoal by sep_auto
         done
       done
     qed
