@@ -60,6 +60,10 @@ lemma pure_eq_pre:
   by fastforce
 
 
+lemma otf_lem_comm_ex:
+"(\<exists>\<^sub>A x. a * b x * c x * d x * e x * f x * g x) = a * (\<exists>\<^sub>A x.  b x * c x * d x * e x * f x * g x)"
+  by (auto simp add: algebra_simps)
+
 declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_extract_leafs:
  "bplustree_assn k t ti r z = (\<exists>\<^sub>Aleafptrs. bplustree_assn_leafs k t ti r z leafptrs)"
@@ -193,6 +197,8 @@ bplustree of the last tree does not get simplified away immediately *)
       apply(clarsimp dest!: mod_starD list_assn_len)
 (*TODO remainder \<rightarrow> extract \<Longrightarrow> direction and use it here?*)
   thm *[of tsi' rs ts, symmetric]
+  find_theorems "\<up>(_ \<and> _)"
+  apply(subst merge_pure_star[symmetric] mult.left_assoc)+
       apply (subst *[of tsi' rs ts, symmetric])
     apply simp_all
 (* show that the remainder is equivalent *)
