@@ -43,9 +43,9 @@ lemma simp_ex_assn: "(\<And>x. f x = g x) \<Longrightarrow> ex_assn f = ex_assn 
   by meson
 
 lemma reorder_ex: 
-  "(\<exists>\<^sub>Aa b c d e f g. z a b c d e f g) = (\<exists>\<^sub>Ab c d e f a g. z a b c d e f g)"
-  "(\<exists>\<^sub>Aa b . x a b) = (\<exists>\<^sub>Ab a. x a b)"
-  "(\<exists>\<^sub>Aa b c d. y a b c d) = (\<exists>\<^sub>Ab c a d. y a b c d)"
+  "\<And>z. (\<exists>\<^sub>Aa b c d e f g. z a b c d e f g) = (\<exists>\<^sub>Ab c d e f a g. z a b c d e f g)"
+  "\<And>z. (\<exists>\<^sub>Aa b . z a b) = (\<exists>\<^sub>Ab a. z a b)"
+  "\<And>z. (\<exists>\<^sub>Aa b c d. z a b c d) = (\<exists>\<^sub>Ab c a d. z a b c d)"
   apply(intro ent_iffI; sep_auto)+
   done
 
@@ -61,7 +61,9 @@ lemma pure_eq_pre:
 
 
 lemma otf_lem_comm_ex:
-"(\<exists>\<^sub>A x. a * b x * c x * d x * e x * f x * g x) = a * (\<exists>\<^sub>A x.  b x * c x * d x * e x * f x * g x)"
+"\<And>a b c d e f g. (\<exists>\<^sub>A x. a * b x * c * d x * e x * f x * g x) = a * c * (\<exists>\<^sub>A x.  b x * d x * e x * f x * g x)"
+"\<And>a b c d e. (\<exists>\<^sub>Aaa x. a * b x * c * d aa * e aa) = (a * c * (\<exists>\<^sub>A aa x. b x * d aa * e aa))"
+"\<And>b d e. (\<exists>\<^sub>A aa x. b x * d aa * e aa) = (\<exists>\<^sub>A x. b x) * (\<exists>\<^sub>A aa. d aa * e aa)"
   by (auto simp add: algebra_simps)
 
 declare last.simps[simp del] butlast.simps[simp del]
@@ -104,8 +106,8 @@ bplustree of the last tree does not get simplified away immediately *)
   proof(goal_cases)
     case (1 tsi ti tsi' rs)
     have *: "
-        length tsi's = length rss \<Longrightarrow>
-        length rss = length tss \<Longrightarrow>
+        length tsi's = length tss \<Longrightarrow>
+        length tss = length rss \<Longrightarrow>
         set tsi's \<subseteq> set tsi' \<Longrightarrow>
         set rss \<subseteq> set rs \<Longrightarrow>
         set tss \<subseteq> set ts \<Longrightarrow>
@@ -123,7 +125,7 @@ bplustree of the last tree does not get simplified away immediately *)
         apply simp_all
         done
     next
-    case (Cons subsepi tsi's subleaf rss subsep tss r)
+    case (Cons subsepi tsi's subsep tss subleaf rss r)
       then show ?case 
         apply (auto simp add: butlast_double_Cons last_double_Cons)
         apply(auto simp add: prod_assn_def split: prod.splits)
@@ -171,13 +173,14 @@ bplustree of the last tree does not get simplified away immediately *)
 (* apply IH to last tree *)
     apply(subst **)
     apply(simp add: simp_ex_assn[OF bplustree_assn_leafs.simps(2)])
-    apply(intro ent_iffI)
-    subgoal
+  proof(intro ent_iffI, goal_cases)
+    case _: (1)
+    show ?case
 (* apply IH to list via rule just shown *)
     apply(rule entails_preI)
       apply(intro ent_ex_preI)
       apply(clarsimp dest!: mod_starD list_assn_len)
-      apply (subst *[of tsi' rs ts])
+      apply (subst *[of tsi' ts rs])
     apply simp_all
 (* show that the remainder is equivalent *)
       apply(intro ent_ex_preI)
@@ -190,28 +193,47 @@ bplustree of the last tree does not get simplified away immediately *)
         apply (sep_auto simp add: last.simps butlast.simps)
       done
     done
+  next
+  case _: (2)
+  show ?case
 (* apply IH to list via rule just shown (other direction) *)
     apply(rule entails_preI)
       apply(rule ent_ex_preI)
       apply(rule ent_ex_preI)
       apply(clarsimp dest!: mod_starD list_assn_len)
-(*TODO remainder \<rightarrow> extract \<Longrightarrow> direction and use it here?*)
-  thm *[of tsi' rs ts, symmetric]
-  find_theorems "\<up>(_ \<and> _)"
   apply(subst merge_pure_star[symmetric] mult.left_assoc)+
-      apply (subst *[of tsi' rs ts, symmetric])
-    apply simp_all
-(* show that the remainder is equivalent *)
-      apply(intro ent_ex_preI)
-    apply(rule entails_preI)
-      apply(clarsimp dest!: mod_starD list_assn_len)
-      subgoal for lsplit _ _ _ _ _ _ _ split
-        find_theorems "\<exists>\<^sub>A_._"
-      apply(inst_ex_assn "concat (split@[lsplit])" "zip (zip (subtrees tsi') (zip (butlast (r # rs)) (zip rs (butlast (split@[lsplit])))))
-           (separators tsi')"  "split@[lsplit]")
-        apply (sep_auto simp add: last.simps butlast.simps)
-      done
-    done
+  apply(subst otf_lem_comm_ex)+
+  apply(rule ent_star_mono)
+  subgoal by sep_auto
+proof(goal_cases) 
+  case (1 c aa d ae bd af be ag bf)
+  have **: "(\<exists>\<^sub>Ax. bplustree_assn_leafs k t ti (last (r # rs)) z (last x) *
+              list_assn
+               ((\<lambda>t (ti, r', x, y). bplustree_assn_leafs k t (the ti) r' x y) \<times>\<^sub>a id_assn)
+               ts aa *
+              \<up> (concat x = c) *
+              \<up> (length x = Suc (length rs)) *
+              \<up> (aa =
+                 zip (zip (subtrees tsi') (zip (butlast (r # rs)) (zip rs (butlast x))))
+                  (separators tsi'))) \<Longrightarrow>\<^sub>A ((\<exists>\<^sub>Asplit. list_assn ((\<lambda>t (ti, r', x, y). bplustree_assn_leafs k t (the ti) r' x y) \<times>\<^sub>a id_assn) ts (zip (zip (subtrees tsi') (zip (butlast (r # rs)) (zip rs split))) (separators tsi')) *
+                  \<up> (length split = length rs)) * (\<exists>\<^sub>Alsplit. bplustree_assn_leafs k t ti (last (r # rs)) z lsplit) 
+)"
+    using 1 by sep_auto
+  from ** show ?case
+    apply(rule ent_trans)
+    apply(subst mult.commute[of "ex_assn (bplustree_assn_leafs k t ti (last (r # rs)) z)"])
+  apply(rule ent_star_mono)
+    prefer 2
+    subgoal by sep_auto
+        subgoal
+          apply(subst *[of tsi' ts rs r, symmetric])
+          apply(simp_all add: 1)
+          apply sep_auto
+          done
+        done
+    qed
+  qed
+qed
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 
@@ -425,7 +447,6 @@ list_assn ((\<lambda>t (ti, x, xa, y). bplustree_assn_leafs k t (the ti) x xa y)
   done
 declare last.simps[simp add] butlast.simps[simp add]
 
-declare last.simps[simp add] butlast.simps[simp add]
 lemma otf_mult_comm_lem:
 "(a::'a::{comm_monoid_mult}) * b * c * d  * e * f = a * b * c * d * (e * f)"
 "a * b * c * d = b * c * (d * a)"
