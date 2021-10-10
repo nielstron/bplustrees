@@ -449,24 +449,129 @@ lemma inner_nodes_assn_not_empty_aux: "inner_nodes_assn k t a r z leafptrs = inn
   done
 declare last.simps[simp add] butlast.simps[simp add]
 
+declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_assn_leafs_hd:
-  "bplustree_assn_leafs k t a r z leafptrs = bplustree_assn_leafs k t a r z leafptrs * \<up>(r = Some (hd leafptrs))"  
-  apply(induction k t a r z leafptrs rule: bplustree_assn_leafs.induct)
-  subgoal 
-    apply(clarsimp)
-    apply(intro ent_iffI)
-    apply sep_auto+
-    done
-  sorry
+  "h \<Turnstile> bplustree_assn_leafs k t a r z leafptrs \<Longrightarrow> r = Some (hd leafptrs)"  
+proof(induction k t a r z leafptrs arbitrary: h rule: bplustree_assn_leafs.induct)
+  case (1 k xs a r z leafptrs)
+  then show ?case
+    by(clarsimp)
+next
+  case (2 k ts t a r z leafptrs h)
+  from "2.prems" show ?case
+    apply(sep_auto dest!: mod_starD)
+  proof(goal_cases)
+    case (1 a b ti tsi' rs split ab bb ad bd ae be af bf)
+    have  "length ts = length rs"
+      using 1 by (auto dest!: list_assn_len)
+    then show ?case
+    proof(cases ts)
+      case Nil
+      then have "length split = 1" "rs = []"
+        using "1"(4) \<open>length ts = length rs\<close> by auto
+      then have *: "split = [last split]"
+        by (metis append_butlast_last_id list.distinct(1) list_decomp_1 list_se_match(4))
+      then have "concat split = last split"
+        apply(subst *)
+        unfolding concat.simps 
+        by simp
+      then show ?thesis
+        using 1
+        using "2.IH"(1)[of ti rs split "(af,bf)"] 
+        using \<open>rs = []\<close>
+        by (auto simp add: last.simps)
+    next
+      case (Cons a list)
+      then obtain ra rss ss1 ss2 splits tss tsi's  where *:
+        "rs = ra#rss"
+        "split = ss1 # ss2 # splits"
+        "tsi' = tss # tsi's"
+        by (metis (no_types, lifting) "1"(3) "1"(4) Suc_length_conv \<open>length ts = length rs\<close>)
+      obtain h1 h2 where first_subtree: "(h1, h2) \<Turnstile> bplustree_assn_leafs k (fst a) (the (fst tss)) r ra ss1"
+        using 1 
+        apply (auto simp add: butlast_double_Cons last_double_Cons * Cons)
+        apply (auto simp add: prod_assn_def split: prod.splits )
+        apply(auto dest!: mod_starD)
+        done
+      then have "ss1 \<noteq> []"
+        using bplustree_assn_leafs_not_empty_aux[of k "(fst a)" "(the (fst tss))" r ra ss1] 
+        by auto
+      then have "hd (concat split) = hd ss1"
+        by (simp add: "*"(2))
+      then show ?thesis 
+        using first_subtree
+        apply auto
+        by (metis "2.IH"(2) fst_conv list.set_intros(1) local.Cons)
+    qed
+  qed
+qed
+declare last.simps[simp add] butlast.simps[simp add]
 
+lemma bplustree_assn_leafs_hd_aux:
+  "bplustree_assn_leafs k t a r z leafptrs = bplustree_assn_leafs k t a r z leafptrs * \<up>(r = Some (hd leafptrs))"  
+  by (meson bplustree_assn_leafs_hd imp_imp_pure)
+
+declare last.simps[simp del] butlast.simps[simp del]
 lemma inner_nodes_assn_hd:
+  "h \<Turnstile> inner_nodes_assn k t a r z leafptrs \<Longrightarrow> r = Some (hd leafptrs)"  
+proof(induction k t a r z leafptrs arbitrary: h rule: inner_nodes_assn.induct)
+  case (1 k xs a r z leafptrs)
+  then show ?case
+    by(clarsimp)
+next
+  case (2 k ts t a r z leafptrs h)
+  from "2.prems" show ?case
+    apply(sep_auto dest!: mod_starD)
+  proof(goal_cases)
+    case (1 a b ti tsi' rs split ab bb ad bd ae be af bf)
+    have  "length ts = length rs"
+      using 1 by (auto dest!: list_assn_len)
+    then show ?case
+    proof(cases ts)
+      case Nil
+      then have "length split = 1" "rs = []"
+        using "1"(4) \<open>length ts = length rs\<close> by auto
+      then have *: "split = [last split]"
+        by (metis append_butlast_last_id list.distinct(1) list_decomp_1 list_se_match(4))
+      then have "concat split = last split"
+        apply(subst *)
+        unfolding concat.simps 
+        by simp
+      then show ?thesis
+        using 1
+        using "2.IH"(1)[of ti rs split "(af,bf)"] 
+        using \<open>rs = []\<close>
+        by (auto simp add: last.simps)
+    next
+      case (Cons a list)
+      then obtain ra rss ss1 ss2 splits tss tsi's  where *:
+        "rs = ra#rss"
+        "split = ss1 # ss2 # splits"
+        "tsi' = tss # tsi's"
+        by (metis (no_types, lifting) "1"(3) "1"(4) Suc_length_conv \<open>length ts = length rs\<close>)
+      obtain h1 h2 where first_subtree: "(h1, h2) \<Turnstile> inner_nodes_assn k (fst a) (the (fst tss)) r ra ss1"
+        using 1 
+        apply (auto simp add: butlast_double_Cons last_double_Cons * Cons)
+        apply (auto simp add: prod_assn_def split: prod.splits )
+        apply(auto dest!: mod_starD)
+        done
+      then have "ss1 \<noteq> []"
+        using inner_nodes_assn_not_empty_aux[of k "(fst a)" "(the (fst tss))" r ra ss1] 
+        by auto
+      then have "hd (concat split) = hd ss1"
+        by (simp add: "*"(2))
+      then show ?thesis 
+        using first_subtree
+        apply auto
+        by (metis "2.IH"(2) fst_conv list.set_intros(1) local.Cons)
+    qed
+  qed
+qed
+declare last.simps[simp add] butlast.simps[simp add]
+
+lemma inner_nodes_assn_hd_aux:
   "inner_nodes_assn k t a r z leafptrs = inner_nodes_assn k t a r z leafptrs * \<up>(r = Some (hd leafptrs))"  
-  apply(induction k t a r z leafptrs rule: bplustree_assn_leafs.induct)
-  subgoal 
-    apply(clarsimp)
-    apply auto
-    done
-  sorry
+  by (simp add: imp_imp_pure inner_nodes_assn_hd)
 
 declare last.simps[simp del] butlast.simps[simp del]
 lemma subleaf_at_head_of_concat_inner: "length tsi's = length rss \<Longrightarrow>
@@ -484,7 +589,7 @@ list_assn ((\<lambda>t (ti, x, xa, y). inner_nodes_assn k t (the ti) x xa y) \<t
   apply(cases splits)
   subgoal
     apply (sep_auto simp add: last.simps)
-    apply (metis (mono_tags, hide_lams) inner_nodes_assn_hd pure_assn_eq_conv)
+    apply (metis (mono_tags, hide_lams) inner_nodes_assn_hd_aux pure_assn_eq_conv)
     done
   subgoal
   apply(cases tss; cases rss; cases tsi's)
@@ -493,7 +598,7 @@ list_assn ((\<lambda>t (ti, x, xa, y). inner_nodes_assn k t (the ti) x xa y) \<t
                 simp add: butlast_double_Cons last_double_Cons)
   apply(intro ent_iffI)
     subgoal
-      apply(subst inner_nodes_assn_hd)
+      apply(subst inner_nodes_assn_hd_aux)
       apply(subst inner_nodes_assn_not_empty_aux)
       apply sep_auto
       done
@@ -516,7 +621,7 @@ list_assn ((\<lambda>t (ti, x, xa, y). bplustree_assn_leafs k t (the ti) x xa y)
   apply(cases splits)
   subgoal
     apply (sep_auto simp add: last.simps)
-    apply (metis (mono_tags, hide_lams) bplustree_assn_leafs_hd pure_assn_eq_conv)
+    apply (metis (mono_tags, hide_lams) bplustree_assn_leafs_hd_aux pure_assn_eq_conv)
     done
   subgoal
   apply(cases tss; cases rss; cases tsi's)
@@ -525,7 +630,7 @@ list_assn ((\<lambda>t (ti, x, xa, y). bplustree_assn_leafs k t (the ti) x xa y)
                 simp add: butlast_double_Cons last_double_Cons)
   apply(intro ent_iffI)
     subgoal
-      apply(subst bplustree_assn_leafs_hd)
+      apply(subst bplustree_assn_leafs_hd_aux)
       apply(subst bplustree_assn_leafs_not_empty_aux)
       apply sep_auto
       done
@@ -611,8 +716,8 @@ next
           subgoal by simp
           subgoal by simp
           (* show that r = hd fsplit *)
-          apply(subst bplustree_assn_leafs_hd[of k sub])
-          apply(subst inner_nodes_assn_hd[of k sub])
+          apply(subst bplustree_assn_leafs_hd_aux[of k sub])
+          apply(subst inner_nodes_assn_hd_aux[of k sub])
             apply sep_auto
             apply(intro pure_eq_pre)
 (* refactor multiplication s.t. we can apply the lemma about two mult. factors with an OTF lemma *)
@@ -698,100 +803,6 @@ next
   qed
 declare last.simps[simp add] butlast.simps[simp add]
 
-declare last.simps[simp del] butlast.simps[simp del]
-declare mult.left_assoc[simp add]
-lemma bplustree_leaf_nodes_help:
-  "bplustree_assn k t ti r z * true \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
-proof(induction arbitrary: r rule: bplustree_assn.induct)
-  case (1 k xs a r z)
-  then show ?case
-    by (sep_auto)
-next
-  case (2 k ts t a r z ra)
-  show ?case
-    apply(sep_auto)
-  proof (goal_cases)
-    case (1 a b ti tsi' rs)
-    have *: "
-        length tsi's = length rss \<Longrightarrow>
-        length rss = length tss \<Longrightarrow>
-        set tsi's \<subseteq> set tsi' \<Longrightarrow>
-        set rss \<subseteq> set rs \<Longrightarrow>
-        set tss \<subseteq> set ts \<Longrightarrow>
-       bplustree_assn k t ti (last (ra # rss)) z * 
-       blist_assn k tss
-        (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) * true \<Longrightarrow>\<^sub>A
-       leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z * true"
-      for rss tsi's tss
-    proof (induct arbitrary: ra rule: list_induct3)
-      case (Nil r)
-      then show ?case
-        apply sep_auto
-        using 2(1)[of ti r]
-      apply (simp add: last.simps butlast.simps)
-      done
-    next
-      case (Cons subsepi tsi's subleaf rss subsep tss r)
-      show ?case
-        apply (sep_auto
-                simp add: butlast_double_Cons last_double_Cons)
-        apply(subst prod_assn_def)
-        apply(simp split!: prod.splits add: mult.left_assoc)
-        apply(subst leaf_nodes_assn_aux_append)
-        apply simp
-        apply(inst_ex_assn subleaf)
-      proof (goal_cases)
-        case (1 sub sep)
-        have "(sub,sep) \<in> set ts"
-          using "1" Cons.prems(3) by force
-        moreover have "set tsi's \<subseteq> set tsi' \<and> set rss \<subseteq> set rs \<and> set tss \<subseteq> set ts"
-          by (meson Cons.prems set_subset_Cons subset_trans)
-        moreover obtain temp1 temp2 where "((fst subsepi, (temp1:: 'a btnode ref option), subleaf), (temp2::'a)) \<in> set [((fst subsepi, temp1, subleaf), temp2)]"
-          by auto
-        ultimately  show ?case
-          using
-           Cons(3)[of subleaf]
-           "2.IH"(2)[of "(sub,sep)"
-                "((fst subsepi, (temp1, subleaf)),temp2)" "[((fst subsepi, (temp1, subleaf)),temp2)]"
-                "fst subsepi" "(temp1, subleaf)" temp1 subleaf r]
-          apply auto
-          thm mult.commute
-          thm star_aci
-          apply(subst mult.commute)
-          supply R=ent_star_mono_true[where
-A="bplustree_assn k sub (the (fst subsepi)) r subleaf * true" and A'="leaf_nodes_assn k (leaf_nodes sub) r subleaf"
-and B="bplustree_assn k t ti (last (subleaf # rss)) z *
-    id_assn sep (snd subsepi) *
-    blist_assn k tss
-     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's)) * true"
-and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ leaf_nodes t) subleaf z"
-          ,simplified]
-          thm R
-          apply(rule R)
-          subgoal
-            by simp
-          subgoal
-            apply(subst mult.commute, simp)
-            apply(rule ent_true_drop_true)
-            apply(subst mult.commute, simp)
-            done
-      done
-      qed
-    qed
-    show ?case
-      apply(rule entails_preI)
-        using 1 apply (auto dest!: mod_starD list_assn_len)
-        using *[of tsi' rs ts, simplified]
-        by (smt (z3) assn_aci(10) assn_times_comm ent_true_drop(1))
-  qed
-qed
-declare last.simps[simp add] butlast.simps[simp add]
-declare mult.left_assoc[simp del]
-
-lemma bplustree_leaf_nodes:
-  "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
-  apply(rule rem_true)
-  using bplustree_leaf_nodes_help[of k t ti r z] by simp
 
 fun leaf_node:: "('a::heap) bplustree \<Rightarrow> 'a list \<Rightarrow> assn" where
   "leaf_node (LNode xs) xsi = \<up>(xs = xsi)" |
