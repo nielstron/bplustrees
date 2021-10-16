@@ -614,8 +614,8 @@ lemma concat_leaf_nodes_leaves: "(concat (map bplustree.vals (leaf_nodes t))) = 
   subgoal by auto
   subgoal for ts t
     apply(induction ts)
-    apply simp
-    apply auto
+    subgoal by simp
+    subgoal by auto
     done
   done
 
@@ -634,9 +634,11 @@ leaf_elements_iter_init ti
         and c="leaf_elements_iter.flatten_it_init r"]
     thm R
     apply(sep_auto heap add: R)
-    apply(simp add: concat_leaf_nodes_leaves)
-    apply sep_auto
-    apply sep_auto
+    subgoal
+      apply(simp add: concat_leaf_nodes_leaves)
+      apply sep_auto
+        done
+    subgoal by sep_auto
     done
 
 end
