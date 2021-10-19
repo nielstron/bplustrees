@@ -1,7 +1,6 @@
 theory Flatten_Iter_Spec
   imports
   Basic_Assn
-  Flatten_Iter
   "Separation_Logic_Imperative_HOL.Imp_List_Spec"
   "HOL-Real_Asymp.Inst_Existentials"
 begin
