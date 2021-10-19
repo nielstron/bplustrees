@@ -3,7 +3,7 @@ theory BPlusTree_Iter
     BPlusTree_Imp
     "HOL-Real_Asymp.Inst_Existentials"
     "Separation_Logic_Imperative_HOL.Imp_List_Spec"
-    Flatten_Iter
+    Flatten_Iter_Spec
     Partially_Filled_Array_Iter
     Subst_Mod_Mult_AC
 begin
@@ -1238,13 +1238,33 @@ fun leaf_elements_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
 lemma leaf_nodes_imp_flatten_list:
   "leaf_nodes_assn k ts r None lptrs \<Longrightarrow>\<^sub>A
    list_assn leaf_node ts (map bplustree.vals ts) *
-   leaf_elements_iter.is_flatten_list lptrs k (concat (map bplustree.vals ts)) r"
+   leaf_elements_iter.is_flatten_list lptrs k (map bplustree.vals ts) (concat (map bplustree.vals ts)) r"
   apply(simp add: leaf_nodes_assn_flatten)
   apply(intro ent_ex_preI)
   subgoal for ps
     apply(inst_ex_assn ps "map bplustree.vals ts")
     apply sep_auto
     done
+  done
+
+lemma leaf_nodes_imp_flatten_list_back:
+   "list_assn leaf_node ts (map bplustree.vals ts) *
+leaf_elements_iter.is_flatten_list lptrs k (map bplustree.vals ts) (concat (map bplustree.vals ts)) r \<Longrightarrow>\<^sub>A
+  leaf_nodes_assn k ts r None lptrs"
+  apply(simp add: leaf_nodes_assn_flatten)
+  apply(intro ent_ex_preI)
+  subgoal for ps
+    apply(inst_ex_assn ps "map bplustree.vals ts")
+    apply sep_auto
+    done
+  done
+
+lemma leaf_nodes_flatten_list: "leaf_nodes_assn k ts r None lptrs =
+   list_assn leaf_node ts (map bplustree.vals ts) *
+   leaf_elements_iter.is_flatten_list lptrs k (map bplustree.vals ts) (concat (map bplustree.vals ts)) r"
+  apply(intro ent_iffI)
+  subgoal by (rule leaf_nodes_imp_flatten_list)
+  subgoal by (rule leaf_nodes_imp_flatten_list_back)
   done
 
 lemma concat_leaf_nodes_leaves: "(concat (map bplustree.vals (leaf_nodes t))) = leaves t"
@@ -1261,7 +1281,7 @@ lemma leaf_elements_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r None>
 leaf_elements_iter_init ti
-<\<lambda>it. \<exists>\<^sub>A lptrs. leaf_elements_iter.is_flatten_it lptrs k (leaves t) r (leaves t) it>\<^sub>t"
+<\<lambda>it. \<exists>\<^sub>A lptrs. leaf_elements_iter.is_flatten_it lptrs k (map bplustree.vals (leaf_nodes t)) (leaves t) r (leaves t) it>\<^sub>t"
   unfolding leaf_elements_iter_init.simps
   using assms 
   thm tree_leaf_iter_init_rule
