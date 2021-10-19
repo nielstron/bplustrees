@@ -736,7 +736,7 @@ next
           subgoal using Cons by simp
           apply(simp add: mult.left_assoc)
 (* refactor multiplication s.t. we can apply the lemma about two mult. factors with an OTF lemma *)
-          apply (subst_mod_mult_ac subleaf_at_head_of_concat_bplustree)
+          (*apply (subst_mod_mult_ac subleaf_at_head_of_concat_bplustree)*)
           apply(subst otf_mult_comm_lem(2))
           apply(subst subleaf_at_head_of_concat_bplustree)
           subgoal using Cons by simp
@@ -833,7 +833,7 @@ lemma leafs_assn_aux_append:
   apply(sep_auto intro!: ent_iffI)+
   done
 
-lemma leaf_nodes_assn_flatten:
+lemma leaf_nodes_assn_flatten_help:
   "length ts = length lptrs \<Longrightarrow> leaf_nodes_assn k ts r z lptrs = (\<exists>\<^sub>Aps. list_assn leaf_node ts (map bplustree.vals ts) * list_assn (is_pfa (2*k)) (map bplustree.vals ts) ps * leafs_assn ps lptrs r z)"
 proof (induction ts lptrs arbitrary: r rule: list_induct2)
   case Nil
@@ -888,9 +888,53 @@ next
   qed
 qed
 
+lemma leaf_nodes_assn_impl_length: "h \<Turnstile> leaf_nodes_assn k xs r z lptrs \<Longrightarrow> length xs = length lptrs" 
+  apply(induction xs arbitrary: h r lptrs)
+  subgoal for h r lptrs
+    apply(cases r; cases lptrs)
+    apply sep_auto+
+    done
+  subgoal for a xs h r lptrs
+    apply(cases r; cases lptrs; cases a)
+    apply (sep_auto dest: mod_starD)+
+    done
+  done
+
+lemma leafs_assn_impl_length: "h \<Turnstile> leafs_assn xs lptrs r z \<Longrightarrow> length xs = length lptrs" 
+  apply(induction xs arbitrary: h r lptrs)
+  subgoal for h r lptrs
+    apply(cases r; cases lptrs)
+    apply sep_auto+
+    done
+  subgoal for a xs h r lptrs
+    apply(cases r; cases lptrs)
+    apply (sep_auto dest: mod_starD)+
+    done
+  done
+
+lemma leaf_nodes_assn_flatten:
+  "leaf_nodes_assn k ts r z lptrs = (\<exists>\<^sub>Aps. list_assn leaf_node ts (map bplustree.vals ts) * list_assn (is_pfa (2*k)) (map bplustree.vals ts) ps * leafs_assn ps lptrs r z)"
+proof(intro ent_iffI, goal_cases)
+  case 1
+  then show ?case
+  apply(rule entails_preI)
+  apply (subst leaf_nodes_assn_flatten_help)
+    subgoal by (sep_auto dest!: mod_starD leaf_nodes_assn_impl_length)
+    subgoal by sep_auto
+    done
+next
+  case 2
+  then show ?case
+  apply(rule entails_preI)
+  apply (subst leaf_nodes_assn_flatten_help)
+    subgoal by (sep_auto dest!: mod_starD leafs_assn_impl_length list_assn_len)
+    subgoal by sep_auto
+    done
+qed
 
 
 subsection "Iterator"
+
 
 partial_function (heap) first_leaf :: "('a::heap) btnode ref \<Rightarrow> 'a btnode ref option Heap"
   where
@@ -1002,6 +1046,25 @@ lemma tree_leaf_iter_init_rule_help:
   unfolding tree_leaf_iter_init_def
   by (sep_auto)
 
+lemma tree_leaf_iter_init_rule_help2:
+  assumes "k > 0" "root_order k t"
+  shows "<bplustree_assn k t ti r z>
+  tree_leaf_iter_init (Some ti)
+  <\<lambda>(u,v). \<exists>\<^sub>A lptrs. leaf_nodes_assn k (leaf_nodes t) r z lptrs * inner_nodes_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
+  using assms
+  apply(vcg heap add: tree_leaf_iter_init_rule_help)
+  by (simp add: bplustree_extract_leafs bplustree_leaf_nodes_sep)
+
+lemma tree_leaf_iter_init_rule:
+  assumes "k > 0" "root_order k t"
+  shows "<bplustree_assn k t ti r z>
+  tree_leaf_iter_init (Some ti)
+  <\<lambda>(u,v). \<exists>\<^sub>A lptrs ps. list_assn leaf_node (leaf_nodes t) (map bplustree.vals (leaf_nodes t)) * list_assn (is_pfa (2*k)) (map bplustree.vals (leaf_nodes t)) ps * leafs_assn ps lptrs r z * inner_nodes_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
+  using assms
+  apply(vcg heap add: tree_leaf_iter_init_rule_help2)
+  apply(sep_auto simp add: leaf_nodes_assn_flatten)
+  done
+
 (* TODO derive version that yields leaf_iter_assn *)
 
 
@@ -1011,24 +1074,12 @@ definition leaf_iter_next where
   return (vals p, (fwd p, z))
 })"
 
-lemma leafs_assn_impl_length: "h \<Turnstile> leafs_assn xs lptrs r z \<Longrightarrow> length xs = length lptrs" 
-  apply(induction xs arbitrary: h r lptrs)
-  subgoal for h r lptrs
-    apply(cases r; cases lptrs)
-    apply sep_auto+
-    done
-  subgoal for a xs h r lptrs
-    apply(cases r; cases lptrs)
-    apply (sep_auto dest: mod_starD)+
-    done
-  done
-
 lemma leaf_iter_next_rule_help:
-  "<leafs_assn (x#xs) lptrs r z>
+  "<leafs_assn (x#xs) (l#lptrs) r z>
       leaf_iter_next (r,z)
-   <\<lambda>(p,(n,z')). leafs_assn [x] [hd lptrs] r n * leafs_assn xs (tl lptrs) n z' * \<up>(p = x) * \<up>(z=z')>"
+   <\<lambda>(p,(n,z')). leafs_assn [x] [l] r n * leafs_assn xs lptrs n z' * \<up>(p = x) * \<up>(z=z')>"
   apply(subst leaf_iter_next_def)
-  apply(cases r; cases x; cases lptrs)
+  apply(cases r; cases x)
   apply(sep_auto)+
   done
 
@@ -1058,12 +1109,20 @@ lemma leaf_iter_next_rule: "<leaf_iter_assn xs lptrs r (x#xs2) it>
 leaf_iter_next it
 <\<lambda>(p, it'). leaf_iter_assn xs lptrs r xs2 it' * \<up>(p = x)>"
   unfolding leaf_iter_assn_def
+  apply(clarsimp split: prod.splits)
+  apply(intro norm_pre_ex_rule)
+  subgoal for n z xs1 lptrs1 lptrs2
     apply(rule hoare_triple_preI)
-  apply(cases it; cases lptrs)
-   apply (sep_auto heap add: leaf_iter_next_rule_help
-                   simp add: leafs_assn_aux_append leafs_assn_impl_length
-                  dest!: mod_starD)+
-  sorry
+  apply(clarsimp dest!: mod_starD leafs_assn_impl_length)
+    apply(cases lptrs2; clarsimp)
+    subgoal for l llptrs2
+   apply (sep_auto heap add: leaf_iter_next_rule_help eintros del: exI)
+      apply(inst_existentials "xs1@[x]" "lptrs1@[l]" llptrs2)
+      subgoal by sep_auto
+      subgoal by (sep_auto simp add: leafs_assn_aux_append)
+      done
+    done
+  done
 
 definition leaf_iter_has_next where
 "leaf_iter_has_next  = (\<lambda>(r,z). return (r \<noteq> z))"
@@ -1072,30 +1131,30 @@ definition leaf_iter_has_next where
 for subintervals, we would need to show that the list of pointers is indeed distinct,
 hence r = z can only occur at the end *)
 lemma leaf_iter_has_next_rule:
-  "<leaf_iter_assn xs r xs2 it> leaf_iter_has_next it <\<lambda>u. leaf_iter_assn xs r xs2 it * \<up>(u \<longleftrightarrow> xs2 \<noteq> [])>"
-  unfolding leaf_iter_has_next_def
-  apply(cases it)
-  apply(sep_auto simp add: leaf_iter_assn_def split!: prod.splits dest!: mod_starD)
-  subgoal for a
-  apply(cases xs2; cases a)
-    by auto
-  done
+  "<leaf_iter_assn xs lptrs r xs2 it> leaf_iter_has_next it <\<lambda>u. leaf_iter_assn xs lptrs r xs2 it * \<up>(u \<longleftrightarrow> xs2 \<noteq> [])>"
+  unfolding leaf_iter_has_next_def leaf_iter_assn_def
+  apply(cases it; simp)
+  apply(intro norm_pre_ex_rule)
+  apply(rule hoare_triple_preI)
+  apply(clarsimp dest!: mod_starD leafs_assn_impl_length)
+  apply(sep_auto split!: prod.splits dest!: mod_starD)
+  by (metis leafs_assn.simps list.exhaust mod_false option.exhaust)
 
-(* copied from peter lammichs lseg_prec2 *)
+(* copied from peter lammichs lseg_prec2, don't ask what happens in the induction step
+(or ask peter lammich) *)
 declare mult.left_commute[simp add]
 lemma leafs_assn_prec2: 
   "\<forall>l l'. (h\<Turnstile>
-      (leafs_assn l p None * F1) \<and>\<^sub>A (leafs_assn l' p None * F2)) 
+      (leafs_assn l lptrs p None * F1) \<and>\<^sub>A (leafs_assn l' lptrs p None * F2)) 
     \<longrightarrow> l=l'"
   apply (intro allI)
   subgoal for l l'
-  proof (induct l arbitrary: p l' F1 F2)
+  proof (induct l arbitrary: lptrs p l' F1 F2)
     case Nil thus ?case
-      apply simp_all
       apply (cases l')
       apply simp
       apply (cases p)
-      apply auto
+      apply (auto simp add: mod_and_dist dest!: mod_starD leafs_assn_impl_length)
       done
   next
     case (Cons y l)
@@ -1103,31 +1162,27 @@ lemma leafs_assn_prec2:
       apply (cases p)
       apply simp
       apply (cases l')
-      apply (auto) []
-      apply (clarsimp)
+      subgoal by (auto simp add: mod_and_dist dest!: mod_starD leafs_assn_impl_length)[]
+      apply(cases lptrs)
+      subgoal by (auto simp add: mod_and_dist dest!: mod_starD leafs_assn_impl_length)[]
       apply (rule)
-      apply (drule_tac p=a in prec_frame[OF sngr_prec])
+      apply clarsimp
+      apply(subgoal_tac "y = (aa, b) \<and> fwd = fwda", simp)
+      using Cons.hyps apply (erule prec_frame')
       apply frame_inference
       apply frame_inference
-      apply simp
-      subgoal for a aa b list fwd fwda
-        apply(subgoal_tac "fwd=fwda")
-      using Cons.hyps[of fwd "a \<mapsto>\<^sub>r Btleaf y fwda * F1" list "a \<mapsto>\<^sub>r Btleaf (aa, b) fwd * F2", simplified]
-       apply (simp add: mult.left_assoc mod_and_dist)
-      apply (simp add: ab_semigroup_mult_class.mult.commute)
       apply (drule_tac p=a in prec_frame[OF sngr_prec])
       apply frame_inference
       apply frame_inference
       apply simp
       done
-    done
   qed
   done
 declare mult.left_commute[simp del]
 
 interpretation leaf_node_it: imp_list_iterate
-    "\<lambda>x y. leafs_assn x y None"
-    leaf_iter_assn
+    "\<lambda>x y. leafs_assn x lptrs y None"
+    "\<lambda>x y. leaf_iter_assn x lptrs y"
     leaf_iter_init
     leaf_iter_has_next
     leaf_iter_next
@@ -1150,12 +1205,15 @@ interpretation leaf_node_it: imp_list_iterate
   unfolding leaf_iter_assn_def
   apply(cases it)
     apply simp_all
-  apply(rule ent_ex_preI)
+  apply(intro ent_ex_preI)
+  apply(rule entails_preI)
+  apply(clarsimp dest!: mod_starD leafs_assn_impl_length)
   by (sep_auto simp add: leafs_assn_aux_append)
   done
 
 interpretation leaf_elements_iter: flatten_iter
-  "\<lambda>x y. leafs_assn x y None" leaf_iter_assn leaf_iter_init leaf_iter_has_next leaf_iter_next
+  "\<lambda>x y. leafs_assn x lptrs y None" "\<lambda>x y. leaf_iter_assn x lptrs y"
+  leaf_iter_init leaf_iter_has_next leaf_iter_next
   "is_pfa (2*k)" "pfa_is_it (2*k)" pfa_it_init pfa_it_has_next pfa_it_next
   by (unfold_locales)
 
@@ -1178,11 +1236,11 @@ fun leaf_elements_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
   preserve its correctness
 *)
 lemma leaf_nodes_imp_flatten_list:
-  "leaf_nodes_assn k ts r None \<Longrightarrow>\<^sub>A
+  "leaf_nodes_assn k ts r None lptrs \<Longrightarrow>\<^sub>A
    list_assn leaf_node ts (map bplustree.vals ts) *
-   leaf_elements_iter.is_flatten_list k (concat (map bplustree.vals ts)) r"
-  apply(simp add: leaf_nodes_assn_split)
-  apply(rule ent_ex_preI)+
+   leaf_elements_iter.is_flatten_list lptrs k (concat (map bplustree.vals ts)) r"
+  apply(simp add: leaf_nodes_assn_flatten)
+  apply(intro ent_ex_preI)
   subgoal for ps
     apply(inst_ex_assn ps "map bplustree.vals ts")
     apply sep_auto
@@ -1203,15 +1261,17 @@ lemma leaf_elements_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r None>
 leaf_elements_iter_init ti
-<leaf_elements_iter.is_flatten_it k (leaves t) r (leaves t)>\<^sub>t"
+<\<lambda>it. \<exists>\<^sub>A lptrs. leaf_elements_iter.is_flatten_it lptrs k (leaves t) r (leaves t) it>\<^sub>t"
   unfolding leaf_elements_iter_init.simps
   using assms 
+  thm tree_leaf_iter_init_rule
   apply (sep_auto heap add:
       tree_leaf_iter_init_rule
   )
+  subgoal for lptrs
     find_theorems "<_>_<_>" "_\<Longrightarrow>\<^sub>A_"
-    supply R = Hoare_Triple.cons_pre_rule[OF leaf_nodes_imp_flatten_list[of k "leaf_nodes t" r],
-        where Q="\<lambda>it. leaf_elements_iter.is_flatten_it k (leaves t) r (leaves t) it * true"
+    supply R = Hoare_Triple.cons_pre_rule[OF leaf_nodes_imp_flatten_list[of k "leaf_nodes t" r lptrs],
+        where Q="\<lambda>it. leaf_elements_iter.is_flatten_it lptrs k (leaves t) r (leaves t) it * true"
         and c="leaf_elements_iter.flatten_it_init r"]
     thm R
     apply(sep_auto heap add: R)
