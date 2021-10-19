@@ -833,6 +833,8 @@ lemma leafs_assn_aux_append:
   apply(sep_auto intro!: ent_iffI)+
   done
 
+abbreviation "leaf_lists \<equiv> \<lambda>t. map bplustree.vals (leaf_nodes t)"  
+
 lemma leaf_nodes_assn_flatten_help:
   "length ts = length lptrs \<Longrightarrow> leaf_nodes_assn k ts r z lptrs = (\<exists>\<^sub>Aps. list_assn leaf_node ts (map bplustree.vals ts) * list_assn (is_pfa (2*k)) (map bplustree.vals ts) ps * leafs_assn ps lptrs r z)"
 proof (induction ts lptrs arbitrary: r rule: list_induct2)
@@ -1046,7 +1048,7 @@ lemma tree_leaf_iter_init_rule_help:
   unfolding tree_leaf_iter_init_def
   by (sep_auto)
 
-lemma tree_leaf_iter_init_rule_help2:
+lemma tree_leaf_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
   tree_leaf_iter_init (Some ti)
@@ -1055,13 +1057,13 @@ lemma tree_leaf_iter_init_rule_help2:
   apply(vcg heap add: tree_leaf_iter_init_rule_help)
   by (simp add: bplustree_extract_leafs bplustree_leaf_nodes_sep)
 
-lemma tree_leaf_iter_init_rule:
+lemma tree_leaf_iter_init_rule_alt:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
   tree_leaf_iter_init (Some ti)
   <\<lambda>(u,v). \<exists>\<^sub>A lptrs ps. list_assn leaf_node (leaf_nodes t) (map bplustree.vals (leaf_nodes t)) * list_assn (is_pfa (2*k)) (map bplustree.vals (leaf_nodes t)) ps * leafs_assn ps lptrs r z * inner_nodes_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
   using assms
-  apply(vcg heap add: tree_leaf_iter_init_rule_help2)
+  apply(vcg heap add: tree_leaf_iter_init_rule)
   apply(sep_auto simp add: leaf_nodes_assn_flatten)
   done
 
@@ -1277,27 +1279,49 @@ lemma concat_leaf_nodes_leaves: "(concat (map bplustree.vals (leaf_nodes t))) = 
     done
   done
 
+
 lemma leaf_elements_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r None>
 leaf_elements_iter_init ti
-<\<lambda>it. \<exists>\<^sub>A lptrs. leaf_elements_iter.is_flatten_it lptrs k (map bplustree.vals (leaf_nodes t)) (leaves t) r (leaves t) it>\<^sub>t"
+<\<lambda>it. \<exists>\<^sub>A lptrs.
+  leaf_elements_iter.is_flatten_it lptrs k (map bplustree.vals (leaf_nodes t)) (leaves t) r (leaves t) it *
+  list_assn leaf_node (leaf_nodes t) (map bplustree.vals (leaf_nodes t)) *
+  inner_nodes_assn k t ti r None lptrs
+>\<^sub>t"
   unfolding leaf_elements_iter_init.simps
   using assms 
-  thm tree_leaf_iter_init_rule
-  apply (sep_auto heap add:
-      tree_leaf_iter_init_rule
-  )
+  apply (sep_auto heap add: tree_leaf_iter_init_rule)
+  apply(subst leaf_nodes_flatten_list)
+  apply(vcg heap add: leaf_elements_iter.flatten_it_init_rule)
   subgoal for lptrs
-    find_theorems "<_>_<_>" "_\<Longrightarrow>\<^sub>A_"
-    supply R = Hoare_Triple.cons_pre_rule[OF leaf_nodes_imp_flatten_list[of k "leaf_nodes t" r lptrs],
-        where Q="\<lambda>it. leaf_elements_iter.is_flatten_it lptrs k (leaves t) r (leaves t) it * true"
-        and c="leaf_elements_iter.flatten_it_init r"]
-    thm R
-    apply(sep_auto heap add: R)
-    apply(simp add: concat_leaf_nodes_leaves)
-    apply sep_auto
-    apply sep_auto
-    done
+    apply(inst_ex_assn lptrs)
+    apply(sep_auto simp add: concat_leaf_nodes_leaves)
+  done
+  done
 
+(* using is_flatten_it we can now iterate through elements in the leafs *)
+
+(* TODO examples? *)
+
+(* and quit where we want *)
+lemma leaf_elements_iter_quit: 
+" leaf_elements_iter.is_flatten_it lptrs k (map bplustree.vals (leaf_nodes t)) (leaves t) r (leaves t) it *
+  list_assn leaf_node (leaf_nodes t) (map bplustree.vals (leaf_nodes t)) *
+  inner_nodes_assn k t ti r None lptrs \<Longrightarrow>\<^sub>A bplustree_assn k t ti r None * true"
+  apply(rule ent_frame_fwd[OF leaf_elements_iter.flatten_quit_iteration, where F="list_assn leaf_node (leaf_nodes t) (leaf_lists t) *
+    inner_nodes_assn k t ti r None lptrs"])
+  apply solve_entails
+  find_theorems bplustree_assn_leafs leaf_nodes_assn
+  apply(simp add:
+        bplustree_extract_leafs
+        bplustree_leaf_nodes_sep
+        leaf_nodes_flatten_list
+        concat_leaf_nodes_leaves
+  )
+  apply(rule ent_ex_preI)
+  subgoal for lsi'
+  apply(inst_ex_assn lptrs lsi')
+  apply sep_auto
+    done
 end
