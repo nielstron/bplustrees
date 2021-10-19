@@ -378,7 +378,8 @@ interpretation flatten_it: imp_list_iterate is_flatten_list is_flatten_it flatte
   subgoal for l p
     by (rule flatten_it_init_rule[of l p])
   subgoal for  l' l p it
-    by (rule flatten_it_next_rule[of l' l p it]) simp
+    thm flatten_it_next_rule
+    by (rule flatten_it_next_rule[of l' l p it])
   subgoal for l p l' it
     by (rule flatten_it_has_next_rule[of l p l' it])
   subgoal for l p l' it

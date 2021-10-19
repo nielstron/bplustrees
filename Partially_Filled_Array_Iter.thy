@@ -45,13 +45,11 @@ next
   apply (case_tac l', simp)
   apply sep_auto
     subgoal by (metis drop_all list.simps(3) not_le_imp_less)
-  apply sep_auto
-    subgoal by (metis drop_eq_ConsD list.sel(3))
-    subgoal 
-      by (meson Suc_leI \<open>\<And>list ba b aa a. \<lbrakk>it = ((a, b), ba); l' = drop ba l; aa # list = drop ba l; ba \<le> length l; p = (a, b)\<rbrakk> \<Longrightarrow> ba < length l\<close>)
-    subgoal 
-      by (metis list.sel(1) nth_via_drop)
-    subgoal by sep_auto
+  apply (sep_auto)
+    apply (metis drop_eq_ConsD list.sel(3))
+    subgoal by (meson Suc_leI \<open>\<And>list ba b aa a. \<lbrakk>it = ((a, b), ba); l' = drop ba l; aa # list = drop ba l; ba \<le> length l; p = (a, b)\<rbrakk> \<Longrightarrow> ba < length l\<close>)
+    subgoal by (metis list.sel(1) nth_via_drop)
+    subgoal using ent_refl_true by presburger
     done
 next
   case (4 l p l' it)
