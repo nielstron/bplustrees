@@ -1,6 +1,7 @@
 theory Flatten_Iter_Spec
   imports
   Basic_Assn
+  Flatten_Iter
   "Separation_Logic_Imperative_HOL.Imp_List_Spec"
   "HOL-Real_Asymp.Inst_Existentials"
 begin
@@ -23,6 +24,7 @@ locale flatten_iter =
   and inner_it_has_next :: "'iit \<Rightarrow> bool Heap"
   and inner_it_next :: "'iit \<Rightarrow> ('a\<times>'iit) Heap"
 begin
+
 
 fun is_flatten_list :: "'a list list \<Rightarrow> 'a list \<Rightarrow> 'm \<Rightarrow> assn" where
   "is_flatten_list ls' ls lsi = (\<exists>\<^sub>A lsi'.
@@ -74,7 +76,6 @@ partial_function (heap) flatten_it_adjust:: "'oit \<Rightarrow> 'iit \<Rightarro
   }
 "
 
-thm list_assn_len
 
 lemma flatten_it_adjust_rule: 
   " <list_assn is_inner_list ls1' ls1 * list_assn is_inner_list ls2' ls2 *
@@ -171,8 +172,6 @@ definition flatten_it_init :: "'m \<Rightarrow> _ Heap"
 
 lemma flatten_it_init_rule[sep_heap_rules]: 
     "<is_flatten_list l' l p> flatten_it_init p <is_flatten_it l' l p l>\<^sub>t"
-  sorry
-(*
   unfolding flatten_it_init_def
   apply simp
   apply(rule norm_pre_ex_rule)+
@@ -195,21 +194,19 @@ lemma flatten_it_init_rule[sep_heap_rules]:
   apply (vcg (ss))
   apply (vcg (ss))
   apply (vcg (ss))
-  apply(case_tac ls')
+  apply(case_tac ls'; case_tac l')
   apply simp+
   apply(rule impI)
   thm inner_list.it_init_rule
   apply (vcg heap add: inner_list.it_init_rule)
-  subgoal for _ nxt oit a list
-  supply R = flatten_it_adjust_rule[of "[]" "[]" list a p oit "[]", simplified]
+  subgoal for _ nxt oit a list aa lista xaa
+  supply R = flatten_it_adjust_rule[of "[]" "[]" lista list a p oit "[]" aa xaa, simplified]
   thm R
   apply (sep_auto heap add: R)
   done
   done
-  apply (sep_auto eintros del: exI)
-  apply(inst_existentials "[]::'l list" "[]::'a list list" "[]::'a list list" "[]::'l list" "[]::'l list")
-  apply simp_all
-  done*)
+  apply (sep_auto)
+  done
 
 definition flatten_it_next where 
   "flatten_it_next \<equiv> \<lambda>(oit,iit). do {
@@ -292,18 +289,16 @@ lemma flatten_quit_iteration:
   next
   case (4 iit lsim ll')
     then show ?case
-      sorry
-(*
       apply (sep_auto eintros del: exI)
-      subgoal for lsi' ls2' ls1' lsi1 lsi2 lsima ls2m
+      subgoal for ls2' ls1' lsi1 lsi2 lsima ls2m ls1m
         apply(inst_existentials "(lsi1 @ lsima # lsi2)")
+        apply(rule entails_preI)
+        apply(sep_auto dest!: mod_starD list_assn_len)
             subgoal
-              apply(rule impI; rule entails_preI)
-              apply (auto dest!: mod_starD list_assn_len)
               apply(simp add:
                   mult.commute[where ?b="outer_is_it (lsi1 @ lsima # lsi2) p lsi2 oit"]
                   mult.commute[where ?b="is_outer_list (lsi1 @ lsima # lsi2) p"]
-                  mult.left_assoc)
+                  mult.left_assoc )?
               apply(rule rem_true)
               supply R = ent_star_mono_true[of
                   "outer_is_it (lsi1 @ lsima # lsi2) p lsi2 oit"
@@ -338,7 +333,6 @@ lemma flatten_quit_iteration:
               done
             done
           done
-*)
       qed
   done
 declare mult.left_assoc[simp del]
