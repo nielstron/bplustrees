@@ -646,15 +646,6 @@ list_assn ((\<lambda>t (ti, x, xa, y). bplustree_assn_leafs k t (the ti) x xa y)
   done
 declare last.simps[simp add] butlast.simps[simp add]
 
-lemma otf_mult_comm_lem:
-"(a::'a::{comm_monoid_mult}) * b * c * d  * e * f = a * b * c * d * (e * f)"
-"a * b * c * d = b * c * (d * a)"
-"a * b * c * d = a * c * (b * d)"
-"a * b * c * d * e = (a * e * c) * b * d"
-  by (clarsimp_all simp add: algebra_simps)
-
-lemma concat_butlast_last_id: "xs \<noteq> [] \<Longrightarrow> concat (butlast xs) @ (last xs) = concat xs"
-  by (metis append_butlast_last_id append_self_conv concat.simps(1) concat.simps(2) concat_append)
 
 declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_leaf_nodes_sep:
@@ -734,15 +725,15 @@ next
           subgoal using Cons by simp
           subgoal using Cons by simp
           subgoal using Cons by simp
-          apply(simp add: mult.left_assoc)
+          apply(simp add: mult.left_assoc)?
 (* refactor multiplication s.t. we can apply the lemma about two mult. factors with an OTF lemma *)
-          (*apply (subst_mod_mult_ac subleaf_at_head_of_concat_bplustree)*)
-          apply(subst otf_mult_comm_lem(2))
-          apply(subst subleaf_at_head_of_concat_bplustree)
+          supply R=subleaf_at_head_of_concat_bplustree[of tsi's rss tss splits k id_assn subleaf t ti z "last split"]
+          thm R
+          apply (subst_mod_mult_ac R)
           subgoal using Cons by simp
           subgoal using Cons by simp
           subgoal using Cons by simp
-          apply(simp add: mult.left_assoc)
+          apply(simp add: mult.left_assoc)?
             apply(intro pure_eq_pre)
         proof(goal_cases)
           case 1
@@ -772,8 +763,7 @@ next
          apply(rule entails_preI)
           using 1
         apply(auto dest!: mod_starD list_assn_len)
-        apply(subst otf_mult_comm_lem(3))
-          apply (subst *[of tsi' rs ts "butlast split", simplified])
+          apply(subst_mod_mult_ac *[of tsi' rs ts "butlast split", simplified])
           subgoal by auto
           subgoal by auto
           subgoal by auto
@@ -782,7 +772,7 @@ next
           apply(subgoal_tac "concat (butlast split) @ (last split) = concat split") 
             prefer 2
               subgoal
-                apply(subst concat_butlast_last_id)
+                apply(subst concat_append_butlast)
                 apply auto
                 done
               subgoal by sep_auto
@@ -795,12 +785,11 @@ next
           apply(subgoal_tac "concat split = concat (butlast split) @ (last split)") 
             prefer 2
               subgoal
-                apply(subst concat_butlast_last_id)
+                apply(subst concat_append_butlast)
                 apply auto
                 done
-        apply(subst otf_mult_comm_lem(4))
               apply simp
-              apply(subst *[of tsi' rs ts "butlast split", simplified, symmetric])
+              apply(subst_mod_mult_ac *[of tsi' rs ts "butlast split", simplified, symmetric])
           subgoal by auto
           subgoal by auto
           subgoal by auto
