@@ -91,9 +91,7 @@ next
   case Istep: (2 k ts t a r z)
   show ?case
     apply(simp (no_asm))
-(* TODO improve s.t. we get both directions for free *)
     thm bplustree_assn_leafs.simps(2)
-    (*apply(simp add: simp_ex_assn[OF bplustree_assn_leafs.simps(2)])*)
     apply(subst reorder_ex(1))
     apply(intro inst_same)
     thm reorder_ex(2)
@@ -1222,10 +1220,6 @@ fun leaf_elements_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
 }"
 
 
-(* NOTE: the other direction does not work, we are loosing information here
-  workaround: introduce specialized is_flatten_list assumption, show that all operations
-  preserve its correctness
-*)
 lemma leaf_nodes_imp_flatten_list:
   "leaf_nodes_assn k ts r None lptrs \<Longrightarrow>\<^sub>A
    list_assn leaf_node ts (map bplustree.vals ts) *
