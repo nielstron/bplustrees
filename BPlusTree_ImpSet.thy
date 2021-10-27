@@ -2,7 +2,6 @@ theory BPlusTree_ImpSet
   imports
     BPlusTree_Imp
     BPlusTree_Set
-    BPlusTree_Iter
     "HOL-Real_Asymp.Inst_Existentials"
 begin
 
@@ -198,20 +197,6 @@ proof -
   ultimately show ?thesis
     using assms(1,2) by auto
 qed
-
-lemma  "
-   <bplustree_assn k t ti r z \<and>\<^sub>A leaf_nodes_assn k (leaf_nodes (t:: 'a bplustree)) r z>
-     isin ti x
-   <\<lambda>y. leaf_nodes_assn k (leaf_nodes t) r z>\<^sub>t"
-  thm abs_split.isin.induct
-proof(induction t x arbitrary: r z rule: abs_split.isin.induct)
-  case (1 ks x)
-  then show ?case 
-    apply sep_auto
-    done
-next
-  case (2 ts t x)
-  then show ?case oops
 
 
 lemma  "k > 0 \<Longrightarrow> root_order k t \<Longrightarrow> sorted_less (inorder t) \<Longrightarrow> sorted_less (leaves t) \<Longrightarrow>
@@ -1371,13 +1356,13 @@ but not yet for linked-leaf trees"
 
 (* rebalance middle tree gets a list of trees, an index pointing to
 the position of sub/sep and a last tree *)
-(*
+
 definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder,order_top}) btnode ref option \<times> 'a) pfarray \<Rightarrow> nat \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode Heap"
   where
     "rebalance_middle_tree \<equiv> \<lambda> k tsi i p_ti. ( do {
   ti \<leftarrow> !p_ti;
   case ti of
-  Btleaf txsi \<Rightarrow> do {
+  Btleaf txsi n_p \<Rightarrow> do {
       (r_sub,sep) \<leftarrow> pfa_get tsi i;
       subi \<leftarrow> !(the r_sub);
       l_sub \<leftarrow> pfa_length (vals subi);
@@ -1388,7 +1373,8 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
         l_tsi \<leftarrow> pfa_length tsi;
         if i+1 = l_tsi then do {
           mts' \<leftarrow> pfa_extend_grow (vals subi) (txsi);
-          res_node\<^sub>i \<leftarrow> Lnode\<^sub>i k mts';
+          (the r_sub) := Btleaf mts' n_p;
+          res_node\<^sub>i \<leftarrow> Lnode\<^sub>i k (the r_sub);
           case res_node\<^sub>i of
             T\<^sub>i u \<Rightarrow> do {
               tsi' \<leftarrow> pfa_shrink i tsi;
@@ -1402,7 +1388,8 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
           (r_rsub,rsep) \<leftarrow> pfa_get tsi (i+1);
           rsub \<leftarrow> !(the r_rsub);
           mts' \<leftarrow> pfa_extend_grow (vals subi) (vals rsub);
-          res_node\<^sub>i \<leftarrow> Lnode\<^sub>i k mts';
+          (the r_sub) := Btleaf mts' (fwd rsub);
+          res_node\<^sub>i \<leftarrow> Lnode\<^sub>i k (the r_sub);
           case res_node\<^sub>i of
            T\<^sub>i u \<Rightarrow> do {
             tsi' \<leftarrow> pfa_set tsi i (Some u,rsep);
@@ -1427,7 +1414,8 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
         l_tsi \<leftarrow> pfa_length tsi;
         if i+1 = l_tsi then do {
           mts' \<leftarrow> pfa_append_extend_grow (kvs subi) (Some (lst subi),sep) (ttsi);
-          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (lst ti);
+          (the r_sub) := Btnode mts' (lst ti);
+          res_node\<^sub>i \<leftarrow> node\<^sub>i k (the r_sub);
           case res_node\<^sub>i of
             T\<^sub>i u \<Rightarrow> do {
               tsi' \<leftarrow> pfa_shrink i tsi;
@@ -1441,7 +1429,8 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
           (r_rsub,rsep) \<leftarrow> pfa_get tsi (i+1);
           rsub \<leftarrow> !(the r_rsub);
           mts' \<leftarrow> pfa_append_extend_grow (kvs subi) (Some (lst subi),sep) (kvs rsub);
-          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (lst rsub);
+          (the r_sub) := Btnode mts' (lst rsub);
+          res_node\<^sub>i \<leftarrow> node\<^sub>i k (the r_sub);
           case res_node\<^sub>i of
            T\<^sub>i u \<Rightarrow> do {
             tsi' \<leftarrow> pfa_set tsi i (Some u,rsep);
@@ -1474,6 +1463,7 @@ subsection "Refinement of the abstract B-tree operations"
 lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
 
+(*
 lemma node\<^sub>i_rule_ins: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = length lsi\<rbrakk> \<Longrightarrow>
  <is_pfa c (lsi @ (Some li, a) # rsi) (aa, al) *
    blist_assn k ls lsi *
@@ -1488,7 +1478,9 @@ proof -
   ultimately show ?thesis
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
 qed
+*)
 
+(*
 lemma Lnode\<^sub>i_rule_extend: "\<lbrakk>2*k \<le> c; c \<le> 4*k; length ls = length lsi\<rbrakk> \<Longrightarrow>
  <is_pfa c (lsi @ rsi) (aa, al) *
    list_assn id_assn ls lsi *
@@ -1501,13 +1493,14 @@ proof -
   ultimately show ?thesis
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
 qed
+*)
 
 
-lemma btupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t) (T\<^sub>i x) \<Longrightarrow> abs_split.node\<^sub>i k ts t = abs_split.T\<^sub>i (Node ts t)"
+lemma btupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t) (T\<^sub>i x) r z \<Longrightarrow> abs_split.node\<^sub>i k ts t = abs_split.T\<^sub>i (Node ts t)"
   apply(auto simp add: abs_split.node\<^sub>i.simps dest!: mod_starD split!: list.splits prod.splits)
   done
 
-lemma btupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t) (Up\<^sub>i l a r) \<Longrightarrow>
+lemma btupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t) (Up\<^sub>i l a r) r' z \<Longrightarrow>
   abs_split.node\<^sub>i k ts t = (
     case BPlusTree_Set.split_half ts of (ls,rs) \<Rightarrow> (
       case last ls of (sub,sep) \<Rightarrow>
@@ -1517,12 +1510,12 @@ lemma btupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t
   apply(auto simp add: abs_split.node\<^sub>i.simps split!: list.splits prod.splits)
   done
 
-lemma Lbtupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split.Lnode\<^sub>i k ts) (T\<^sub>i x) \<Longrightarrow> abs_split.Lnode\<^sub>i k ts = abs_split.T\<^sub>i (LNode ts)"
+lemma Lbtupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split.Lnode\<^sub>i k ts) (T\<^sub>i x) r z \<Longrightarrow> abs_split.Lnode\<^sub>i k ts = abs_split.T\<^sub>i (LNode ts)"
   apply(cases "length ts \<le> 2*k")
   apply(auto simp add: abs_split.Lnode\<^sub>i.simps split!: list.splits prod.splits)
   done
 
-lemma Lbtupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.Lnode\<^sub>i k ts) (Up\<^sub>i l a r) \<Longrightarrow>
+lemma Lbtupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.Lnode\<^sub>i k ts) (Up\<^sub>i l a r) r' z \<Longrightarrow>
   abs_split.Lnode\<^sub>i k ts = (
     case BPlusTree_Set.split_half ts of (ls,rs) \<Rightarrow> (
       case last ls of sep \<Rightarrow>
@@ -1545,9 +1538,11 @@ lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
     and "i = length ls"
-  shows "<is_pfa (2*k) tsi (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi * bplustree_assn k t ti>
+    and "tsi'' = zip (zip (map fst tsi') (zip (butlast (r'#pointers)) (butlast (pointers@[z])))) (map snd tsi')"
+    and "length pointers = length tsi'"
+  shows "<is_pfa (2*k) tsi' (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi'' * bplustree_assn k t ti r z>
   rebalance_middle_tree k (a,n) i ti
-  <\<lambda>r. btnode_assn k (abs_split.rebalance_middle_tree k ls sub sep rs t) r >\<^sub>t"
+  <\<lambda>ti. btnode_assn k (abs_split.rebalance_middle_tree k ls sub sep rs t) ti r' z>\<^sub>t"
 apply(simp add: list_assn_append_Cons_left prod_assn_def)
   apply(rule norm_pre_ex_rule)+
 proof(goal_cases)
@@ -2077,9 +2072,9 @@ partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,
   where
     "del k x tp = do {
   ti \<leftarrow> !tp;
-  (case ti of Btleaf xs \<Rightarrow> do { 
+  (case ti of Btleaf xs np \<Rightarrow> do { 
       xs' \<leftarrow> imp_del_list x xs;
-      tp := (Btleaf xs');
+      tp := (Btleaf xs' np);
       return tp
 } |
    Btnode tsi tti \<Rightarrow> do {
@@ -2122,9 +2117,9 @@ qed
 
 lemma del_rule:
   assumes "bal t" and "sorted_less (leaves t)" and "root_order k t" and "k > 0" and "Laligned t u"
-  shows "<bplustree_assn k t ti>
+  shows "<bplustree_assn k t ti r z>
   del k x ti
-  <bplustree_assn k (abs_split.del k x t)>\<^sub>t"
+  <\<lambda>ti. bplustree_assn k (abs_split.del k x t) ti r z>\<^sub>t"
   using assms
 proof (induction k x t arbitrary: ti u rule: abs_split.del.induct)
 case (1 k x xs ti u)
@@ -2259,7 +2254,7 @@ definition reduce_root ::"('a::{default,heap,linorder,order_top}) btnode ref \<R
     "reduce_root tp = do {
   ti \<leftarrow> !tp; 
   (case ti of
-  Btleaf xs \<Rightarrow> return tp |
+  Btleaf xs f \<Rightarrow> return tp |
   Btnode ts t \<Rightarrow> do {
     tsl \<leftarrow> pfa_length ts;
     case tsl of 0 \<Rightarrow> return t |
@@ -2268,7 +2263,8 @@ definition reduce_root ::"('a::{default,heap,linorder,order_top}) btnode ref \<R
 }"
 
 lemma reduce_root_rule:
-"<bplustree_assn k t ti> reduce_root ti <bplustree_assn k (abs_split.reduce_root t)>\<^sub>t"
+"<bplustree_assn k t ti r z> reduce_root ti
+<\<lambda>ti. bplustree_assn k (abs_split.reduce_root t) ti r z>\<^sub>t"
   apply(subst reduce_root_def)
   apply(cases t; cases ti)
   apply (sep_auto split!: nat.splits list.splits)+
@@ -2283,7 +2279,7 @@ definition delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linor
 
 lemma delete_rule:
   assumes "bal t" and "root_order k t" and "k > 0" and "sorted (leaves t)" and "Laligned t u"
-  shows "<bplustree_assn k t ti> delete k x ti <bplustree_assn k (abs_split.delete k x t)>\<^sub>t"
+  shows "<bplustree_assn k t ti r z> delete k x ti <\<lambda>ti. bplustree_assn k (abs_split.delete k x t) ti r z>\<^sub>t"
   apply(subst delete_def)
   using assms apply (sep_auto heap add: del_rule reduce_root_rule)
   done
