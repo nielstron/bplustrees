@@ -75,6 +75,8 @@ partial_function (heap) flatten_it_adjust:: "'oit \<Rightarrow> 'iit \<Rightarro
   }
 "
 
+declare flatten_it_adjust.simps[code]
+
 
 lemma flatten_it_adjust_rule: 
   " <list_assn is_inner_list ls1' ls1 * list_assn is_inner_list ls2' ls2 *

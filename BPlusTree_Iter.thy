@@ -1200,10 +1200,14 @@ interpretation leaf_node_it: imp_list_iterate
   by (sep_auto simp add: leafs_assn_aux_append)
   done
 
-interpretation leaf_elements_iter: flatten_iter
+global_interpretation leaf_elements_iter: flatten_iter
   "\<lambda>x y. leafs_assn x lptrs y None" "\<lambda>x y. leaf_iter_assn x lptrs y"
   leaf_iter_init leaf_iter_has_next leaf_iter_next
   "is_pfa (2*k)" "pfa_is_it (2*k)" pfa_it_init pfa_it_has_next pfa_it_next
+  defines leaf_elements_adjust = leaf_elements_iter.flatten_it_adjust
+      and leaf_elements_init = leaf_elements_iter.flatten_it_init
+      and leaf_elements_next = leaf_elements_iter.flatten_it_next
+      and leaf_elements_has_next = leaf_elements_iter.flatten_it_has_next
   by (unfold_locales)
 
 thm leaf_elements_iter.is_flatten_list.simps
@@ -1215,7 +1219,7 @@ print_theorems
 fun leaf_elements_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
   "leaf_elements_iter_init ti = do {
         rz \<leftarrow> tree_leaf_iter_init (Some ti);
-        it \<leftarrow> leaf_elements_iter.flatten_it_init (fst rz);
+        it \<leftarrow> leaf_elements_init (fst rz);
         return it
 }"
 
@@ -1305,7 +1309,7 @@ leaf_elements_iter_init ti
 
 (* using is_flatten_it we can now iterate through elements in the leafs *)
 
-abbreviation "leaf_elements_next \<equiv> leaf_elements_iter.flatten_it_next" 
+(* abbreviation "leaf_elements_next \<equiv> leaf_elements_iter.flatten_it_next" *) 
 
 lemma leaf_elements_next_rule: "vs \<noteq> [] \<Longrightarrow>
     <leaf_elements_iter k t ti r vs it>
@@ -1315,7 +1319,7 @@ lemma leaf_elements_next_rule: "vs \<noteq> [] \<Longrightarrow>
   apply(sep_auto heap add: leaf_elements_iter.flatten_it_next_rule)
   done
 
-abbreviation "leaf_elements_has_next \<equiv> leaf_elements_iter.flatten_it_has_next" 
+(* abbreviation "leaf_elements_has_next \<equiv> leaf_elements_iter.flatten_it_has_next" *) 
 
 lemma leaf_elements_has_next_rule: "
     <leaf_elements_iter k t ti r vs it>
@@ -1346,4 +1350,13 @@ lemma leaf_elements_iter_quit:
     done
   done
   done
+
+declare first_leaf.simps[code]
+declare last_leaf.simps[code]
+(* declare leaf_elements_iter.flatten_it_adjust.simps[code] *)
+
+export_code leaf_elements_iter_init leaf_elements_next leaf_elements_has_next checking OCaml SML Scala
+export_code leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in OCaml module_name BPlusTree_Iter
+export_code leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in SML module_name BPlusTree_Iter
+export_code leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in Scala module_name BPlusTree_Iter
 end

@@ -1534,13 +1534,16 @@ lemma second_last_update:"(xs@a#b#ys)[Suc(length xs) := c] = (xs@a#c#ys)"
 lemma clean_heap:"\<lbrakk>(a, b) \<Turnstile> P \<Longrightarrow> Q; (a, b) \<Turnstile> P\<rbrakk> \<Longrightarrow> Q"
   by auto
 
+
+declare last.simps[simp del] butlast.simps[simp del]
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
     and "i = length ls"
     and "tsi'' = zip (zip (map fst tsi') (zip (butlast (r'#pointers)) (butlast (pointers@[z])))) (map snd tsi')"
-    and "length pointers = length tsi'"
-  shows "<is_pfa (2*k) tsi' (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi'' * bplustree_assn k t ti r z>
+    and "length tsi' = length pointers"
+    and "length tsi'' = length pointers"
+  shows "<is_pfa (2*k) tsi' (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi'' * bplustree_assn k t ti (last (r'#pointers)) z>
   rebalance_middle_tree k (a,n) i ti
   <\<lambda>ti. btnode_assn k (abs_split.rebalance_middle_tree k ls sub sep rs t) ti r' z>\<^sub>t"
 apply(simp add: list_assn_append_Cons_left prod_assn_def)
@@ -1549,7 +1552,10 @@ proof(goal_cases)
   case (1 lsi z rsi)
   then show ?case 
   proof(cases z)
-    case z_split[simp]: (Pair subi sepi)
+    case z_split[simp]: (Pair subi_pair sepi)
+    then show ?thesis 
+  proof(cases subi_pair)
+    case subi_pair_split[simp]: (fields subi fleaf lleaf)
     then show ?thesis 
 proof(cases sub)
   case sub_leaf[simp]: (LNode mxs)
@@ -1563,26 +1569,20 @@ proof(cases sub)
       apply(rule hoare_triple_preI)
       apply(sep_auto)
       subgoal using assms by (auto  dest!: mod_starD list_assn_len)
-      subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ x
-      using assms apply(sep_auto  split!: prod.splits)
+      subgoal for aa b aaa ba ab bb ac bc ad bd x
+        apply(rule hoare_triple_preI)
         apply(subgoal_tac "x = (subi, sepi)")
-      using assms apply(sep_auto  split!: prod.splits)
-      subgoal using assms by (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-    subgoal for subi' sepi' x
       apply(auto dest!: mod_starD list_assn_len)[]
         apply(vcg)
        apply(auto split!: prod.splits)[]
       subgoal
-        apply (rule ent_ex_postI[where x="lsi@(subi', sepi)#rsi"])
-        apply (sep_auto)
+        apply(inst_ex_assn tsi' "lsi @ ((subi, Some (the subi), lleaf), sep) # rsi" pointers
+"(ac,bc)" z)
+        using assms apply (sep_auto)
         done
-      subgoal
-        apply(rule hoare_triple_preI)
-        using True apply(auto dest!: mod_starD list_assn_len)
-        done
+      subgoal sorry
       done
     done
-  done
   next
     case False
     then show ?thesis  
@@ -1593,32 +1593,24 @@ proof(cases sub)
       apply(rule hoare_triple_preI)
       apply(sep_auto)
        subgoal using assms by (auto dest!: mod_starD dest!: list_assn_len)[]
-      subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _  x
-      using assms apply(sep_auto  split!: prod.splits)
+      subgoal for aa b aaa ba ab bb ac bc ad bd x
+        apply(rule hoare_triple_preI)
         apply(subgoal_tac "x = (subi, sepi)")
-      using assms apply(sep_auto  split!: prod.splits)
-      subgoal using assms by (auto simp del: height_bplustree.simps dest!: mod_starD list_assn_len)[]
-      apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
-      apply(vcg)
-       apply(auto)[]
-     using False apply(auto dest!: mod_starD list_assn_len)
-     done
+        using assms subgoal by (sep_auto  split!: prod.splits)
+        subgoal sorry
+      done
       apply(sep_auto)
       subgoal using assms by (auto dest!: mod_starD list_assn_len)[]
       subgoal using assms by (auto dest!: mod_starD list_assn_len)[]
-      subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ x
-        apply(sep_auto dest!: mod_starD)
+      subgoal for aa b aaa ba ab bb ac bc ad bd x
+        apply(rule hoare_triple_preI)
         apply(subgoal_tac "x = (subi, sepi)")
+        apply(sep_auto dest!: mod_starD)
      prefer 2
-        subgoal by (metis assms(3) list_assn_len nth_append_length)
+        subgoal 
         using assms apply(sep_auto  split!: prod.splits)
-        subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ r_sub r_sep
-          apply(subgoal_tac "r_sub = subi \<and> r_sep = sepi")
-          using assms apply(sep_auto  split!: prod.splits)
-          apply (metis assms(3) list_assn_len nth_append_length prod.inject)
-          done
-        apply simp
-        apply sep_auto
+(* TODO use correct nodei rule here *)
+        sorry
      subgoal
   (* still the "IF" branch *)
   (* solves impossible case*)

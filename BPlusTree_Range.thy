@@ -336,19 +336,19 @@ locale split_range = split_tree split
   for split::
     "('a bplustree \<times> 'a::{linorder,order_top,order_bot}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
-  fixes lb2_list ::  "'a \<Rightarrow> ('a::{linorder,order_top,order_bot}) list \<Rightarrow> 'a"
+  fixes lb_list ::  "'a \<Rightarrow> ('a::{linorder,order_top,order_bot}) list \<Rightarrow> 'a"
   assumes lb2_list_req:
     (* TODO locale that derives such a function from a split function similar to the above *)
-    "sorted_less ks \<Longrightarrow> lb2_list x ks = lower_bound2 x ks"
+    "sorted_less ks \<Longrightarrow> lb_list x ks = lower_bound x ks"
 begin
 
-fun lb2:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a" where
-  "lb2 (LNode ks) x = (lb2_list x ks)" |
-  "lb2 (Node ts t) x = (
+fun lb:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a" where
+  "lb (LNode ks) x = (lb_list x ks)" |
+  "lb (Node ts t) x = (
       case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
-             lb2 sub x
+             lb sub x
       )
-   | (_,[]) \<Rightarrow> lb2 t x
+   | (_,[]) \<Rightarrow> lb t x
   )"
 
 text "lower bound 2 proof"
@@ -371,14 +371,14 @@ lemma leaves_split: "split ts x = (ls,rs) \<Longrightarrow> leaves (Node ts t) =
  cannot be excluded from the search for lower_bound2/lower_bound
 and hence we cannot make any guarantees on the quality
 of our result (just that it will be \<le> lower_bound for example)
-
+Solution: we can guarantee that we retrieve *either* lb or lb2
 *)
 
-lemma lb2_sorted_split:
+lemma lb_sorted_split:
   assumes "Laligned (Node ts t) u"
     and "sorted_less (leaves (Node ts t))"
     and "split ts x = (ls, rs)"
-  shows "lower_bound2 x (leaves (Node ts t)) = lower_bound2 x (leaves_list rs @ leaves t)"
+  shows "lower_bound x (leaves (Node ts t)) = lower_bound x (leaves_list rs @ leaves t)"
 proof (cases ls)
   case Nil
   then have "ts = rs"
@@ -424,8 +424,10 @@ next
       using le_less_trans x_sm_sep by blast
     then show ?thesis
       using assms(2) ls_tail_split leaves_tail_split leaves_split x_sm_sep
-      using lower_bound2_split[of "leavesls'" l' "leaves_list rs @ leaves t" x]
-      oops
+      using lower_bound_split[of "leavesls'" l' "leaves_list rs @ leaves t" x]
+      by auto
+  qed
+qed
 
 
 lemma lb2_sorted_split_right:
@@ -466,12 +468,12 @@ proof -
 qed
 
 
-theorem lb2_set_inorder: 
+theorem lb_set_inorder: 
   assumes "sorted_less (leaves t)"
     and "aligned l t u"
-  shows "lb2 t x = lower_bound2 x (leaves t)"
+  shows "lb t x = lower_bound x (leaves t) \<or> lb t x = lower_bound2 x (leaves t)"
   using assms
-proof(induction t x arbitrary: l u rule: lb2.induct)
+proof(induction t x arbitrary: l u rule: lb.induct)
   case (2 ts t x)
   then obtain ls rs where list_split: "split ts x = (ls, rs)"
     by (meson surj_pair)
@@ -480,13 +482,34 @@ proof(induction t x arbitrary: l u rule: lb2.induct)
   show ?case
   proof (cases rs)
     case Nil
-    then have "lb2 (Node ts t) x = lb2 t x"
+    then have "lb (Node ts t) x = lb t x"
       by (simp add: list_split)
-    also have "\<dots> = lower_bound2 x (leaves t)"
+    have "lb t x = lower_bound x (leaves t) \<or> lb t x = lower_bound2 x (leaves t)"
       using "2.IH"(1)[of ls rs] list_split Nil
       using "2.prems" sorted_leaves_induct_last align_last'
       by metis
-    also have "\<dots> = lower_bound2 x (leaves (Node ts t))"
+    then show ?thesis
+    proof (standard, goal_cases)
+      case 1
+      have "lower_bound x (leaves t) = lower_bound x (leaves (Node ts t))"
+        using lower_bound_split
+        using "2.prems" list_split list_conc Nil
+        by (metis (no_types, lifting) aligned_imp_Laligned lb_sorted_split leaves.simps(2) same_append_eq self_append_conv split_range.leaves_split split_range_axioms)
+      then show ?case 
+        using "1" \<open>lb (Node ts t) x = lb t x\<close> by presburger
+    next
+      case 2
+      have "lower_bound2 x (leaves t) = lower_bound2 x (leaves (Node ts t))
+            \<or> lower_bound2 x (leaves t) = lower_bound x (leaves (Node ts t))"
+
+        using lower_bound2_split
+        using "2.prems" list_split list_conc Nil
+        apply auto
+      then show ?case 
+        using "1" \<open>lb (Node ts t) x = lb t x\<close> by presburger
+    qed
+
+    also have "\<dots> = lower_bound x (leaves (Node ts t))"
       using lower_bound2_split
       using "2.prems" list_split list_conc Nil
       sorry
