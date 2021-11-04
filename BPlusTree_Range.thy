@@ -332,29 +332,58 @@ proof(goal_cases)
   qed
 qed
 
+definition Lrange where
+  "Lrange l X = {x \<in> X. x \<ge> l}"
+
+definition "lrange_filter l = filter (\<lambda>x. x \<ge> l)"
+
+lemma lrange_filter_iff_Lrange: "set (lrange_filter l xs) = Lrange l (set xs)" 
+  by (auto simp add: lrange_filter_def Lrange_def)
+
+fun lrange_list where
+  "lrange_list l (x#xs) = (if x \<ge> l then (x#xs) else lrange_list l xs)" |
+  "lrange_list l [] = []"
+
+lemma sorted_leq_lrange: "sorted_wrt (\<le>) xs \<Longrightarrow> lrange_list (l::'a::linorder) xs = lrange_filter l xs"
+  apply(induction xs)
+  apply(auto simp add: lrange_filter_def)
+  by (metis dual_order.trans filter_True)
+
+lemma sorted_less_lrange: "sorted_less xs \<Longrightarrow> lrange_list (l::'a::linorder) xs = lrange_filter l xs"
+  by (metis sorted_leq_lrange sorted_sorted_wrt strict_sorted_iff strict_sorted_sorted_wrt)
+
+lemma lrange_list_sorted: "sorted_less (xs@x#ys) \<Longrightarrow>
+  lrange_list l (xs@x#ys) =
+  (if l < x then (lrange_list l xs)@x#ys else lrange_list l (x#ys))" 
+  by (induction xs arbitrary: x) auto
+
+lemma lrange_filter_sorted: "sorted_less (xs@x#ys) \<Longrightarrow>
+  lrange_filter l (xs@x#ys) =
+  (if l < x then (lrange_filter l xs)@x#ys else lrange_filter l (x#ys))" 
+  by (metis lrange_list_sorted sorted_less_lrange sorted_wrt_append)
+
+
 locale split_range = split_tree split
   for split::
-    "('a bplustree \<times> 'a::{linorder,order_top,order_bot}) list \<Rightarrow> 'a
+    "('a bplustree \<times> 'a::{linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
-  fixes lb_list ::  "'a \<Rightarrow> ('a::{linorder,order_top,order_bot}) list \<Rightarrow> 'a"
-  assumes lb2_list_req:
+  fixes lrange_list ::  "'a \<Rightarrow> ('a::{linorder,order_top}) list \<Rightarrow> 'a list"
+  assumes lrange_list_req:
     (* TODO locale that derives such a function from a split function similar to the above *)
-    "sorted_less ks \<Longrightarrow> lb_list x ks = lower_bound x ks"
+    "sorted_less ks \<Longrightarrow> lrange_list l ks = lrange_filter l ks"
 begin
 
-fun lb:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a" where
-  "lb (LNode ks) x = (lb_list x ks)" |
-  "lb (Node ts t) x = (
+fun lrange:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a list" where
+  "lrange (LNode ks) x = (lrange_list x ks)" |
+  "lrange (Node ts t) x = (
       case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
-             lb sub x
-      )
-   | (_,[]) \<Rightarrow> lb t x
+             lrange sub x @ leaves_list rs @ leaves t
+      ) 
+   | (_,[]) \<Rightarrow> lrange t x
   )"
 
-text "lower bound 2 proof"
+text "lrange proof"
 
-thm lower_bound2_simps
-  (* copied from comment in List_Ins_Del *)
 
 (* lift to split *)
 
@@ -367,18 +396,12 @@ lemma leaves_split: "split ts x = (ls,rs) \<Longrightarrow> leaves (Node ts t) =
   using leaves_conc split_conc by blast
 
 
-(* Problem: the elements left/right of the separators
- cannot be excluded from the search for lower_bound2/lower_bound
-and hence we cannot make any guarantees on the quality
-of our result (just that it will be \<le> lower_bound for example)
-Solution: we can guarantee that we retrieve *either* lb or lb2
-*)
 
-lemma lb_sorted_split:
+lemma lrange_sorted_split:
   assumes "Laligned (Node ts t) u"
     and "sorted_less (leaves (Node ts t))"
     and "split ts x = (ls, rs)"
-  shows "lower_bound x (leaves (Node ts t)) = lower_bound x (leaves_list rs @ leaves t)"
+  shows "lrange_filter x (leaves (Node ts t)) = lrange_filter x (leaves_list rs @ leaves t)"
 proof (cases ls)
   case Nil
   then have "ts = rs"
@@ -424,17 +447,17 @@ next
       using le_less_trans x_sm_sep by blast
     then show ?thesis
       using assms(2) ls_tail_split leaves_tail_split leaves_split x_sm_sep
-      using lower_bound_split[of "leavesls'" l' "leaves_list rs @ leaves t" x]
-      by auto
+      using lrange_filter_sorted[of "leavesls'" l' "leaves_list rs @ leaves t" x]
+      by (auto simp add: lrange_filter_def) 
   qed
 qed
 
 
-lemma lb2_sorted_split_right:
+lemma lrange_sorted_split_right:
   assumes "split ts x = (ls, (sub,sep)#rs)"
     and "sorted_less (leaves (Node ts t))"
     and "Laligned (Node ts t) u"
-  shows "lower_bound2 x (leaves_list ((sub,sep)#rs) @ leaves t) = lower_bound2 x (leaves sub)"
+  shows "lrange_filter x (leaves_list ((sub,sep)#rs) @ leaves t) = lrange_filter x (leaves sub)@leaves_list rs@leaves t"
 proof -
   from assms have "x \<le> sep"
   proof -
@@ -462,18 +485,23 @@ proof -
       using assms sorted_wrt_append split_conc
       by fastforce
     ultimately show ?thesis
-      using lower_bound2_split[of "leaves sub" "r'" "rs'" x] Cons 
+      using lrange_filter_sorted[of "leaves sub" "r'" "rs'" x] Cons 
       by auto
   qed
 qed
 
 
-theorem lb_set_inorder: 
+theorem lrange_set: 
   assumes "sorted_less (leaves t)"
     and "aligned l t u"
-  shows "lb t x = lower_bound x (leaves t) \<or> lb t x = lower_bound2 x (leaves t)"
+  shows "lrange t x = lrange_filter x (leaves t)"
   using assms
-proof(induction t x arbitrary: l u rule: lb.induct)
+proof(induction t x arbitrary: l u rule: lrange.induct)
+  case (1 ks x)
+  then show ?case
+    using lrange_list_req
+    by auto
+next
   case (2 ts t x)
   then obtain ls rs where list_split: "split ts x = (ls, rs)"
     by (meson surj_pair)
@@ -482,109 +510,31 @@ proof(induction t x arbitrary: l u rule: lb.induct)
   show ?case
   proof (cases rs)
     case Nil
-    then have "lb (Node ts t) x = lb t x"
+    then have "lrange (Node ts t) x = lrange t x"
       by (simp add: list_split)
-    have "lb t x = lower_bound x (leaves t) \<or> lb t x = lower_bound2 x (leaves t)"
-      using "2.IH"(1)[of ls rs] list_split Nil
-      using "2.prems" sorted_leaves_induct_last align_last'
-      by metis
-    then show ?thesis
-    proof (standard, goal_cases)
-      case 1
-      have "lower_bound x (leaves t) = lower_bound x (leaves (Node ts t))"
-        using lower_bound_split
-        using "2.prems" list_split list_conc Nil
-        by (metis (no_types, lifting) aligned_imp_Laligned lb_sorted_split leaves.simps(2) same_append_eq self_append_conv split_range.leaves_split split_range_axioms)
-      then show ?case 
-        using "1" \<open>lb (Node ts t) x = lb t x\<close> by presburger
-    next
-      case 2
-      have "lower_bound2 x (leaves t) = lower_bound2 x (leaves (Node ts t))
-            \<or> lower_bound2 x (leaves t) = lower_bound x (leaves (Node ts t))"
-
-        using lower_bound2_split
-        using "2.prems" list_split list_conc Nil
-        apply auto
-      then show ?case 
-        using "1" \<open>lb (Node ts t) x = lb t x\<close> by presburger
-    qed
-
-    also have "\<dots> = lower_bound x (leaves (Node ts t))"
-      using lower_bound2_split
-      using "2.prems" list_split list_conc Nil
-      sorry
+    also have "\<dots> = lrange_filter x (leaves t)"
+      by (metis "2.IH"(1) "2.prems"(1) "2.prems"(2) align_last' list_split local.Nil sorted_leaves_induct_last)
+    also have "\<dots> = lrange_filter x (leaves (Node ts t))"
+      by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) aligned_imp_Laligned leaves.simps(2) list_conc list_split local.Nil lrange_sorted_split same_append_eq self_append_conv split_range.leaves_split split_range_axioms)
     finally show ?thesis .
   next
     case (Cons a list)
     then obtain sub sep where a_split: "a = (sub,sep)"
       by (cases a)
-      then have "lb2 (Node ts t) x = lb2 sub x"
+      then have "lrange (Node ts t) x = lrange sub x @ leaves_list list @ leaves t"
         using list_split Cons a_split
         by auto
-      also have "\<dots> = lower_bound2 x (leaves sub)"
+      also have "\<dots> = lrange_filter x (leaves sub) @ leaves_list list @ leaves t"
         using "2.IH"(2)[of ls rs "(sub,sep)" list sub sep]
         using "2.prems" a_split list_conc list_split local.Cons sorted_leaves_induct_subtree
               align_sub
         by (metis in_set_conv_decomp)
-      also have "\<dots> = lower_bound2 x (leaves (Node ts t))"
-        using lower_bound2_split
-        using lb2_sorted_split_right "2.prems" list_split Cons a_split
-        using aligned_imp_Laligned sorry
+      also have "\<dots> = lrange_filter x (leaves (Node ts t))"
+        by (metis "2.prems"(1) "2.prems"(2) a_split aligned_imp_Laligned list_split local.Cons lrange_sorted_split lrange_sorted_split_right)
       finally show ?thesis  .
     qed
-qed (auto simp add: lb2_list_req)
+qed
 
-
-theorem lb2_set_Linorder: 
-  assumes "sorted_less (leaves t)"
-    and "Laligned t u"
-  shows "lb2 t x = lower_bound2 x (leaves t)"
-  using assms
-proof(induction t x arbitrary: u rule: lb2.induct)
-  case (2 ts t x)
-  then obtain ls rs where list_split: "split ts x = (ls, rs)"
-    by (meson surj_pair)
-  then have list_conc: "ts = ls @ rs" 
-    using split_conc by auto
-  show ?case
-  proof (cases rs)
-    case Nil
-    then have "lb2 (Node ts t) x = lb2 t x"
-      by (simp add: list_split)
-    also have "\<dots> = lower_bound2 x (leaves t)"
-      using "2.IH"(1)[of ls rs] list_split Nil
-      using "2.prems" sorted_leaves_induct_last
-      by (metis Lalign_Llast)
-    also have "\<dots> = lower_bound2 x (leaves (Node ts t))"
-      using lower_bound2_split
-      using "2.prems" list_split list_conc Nil
-      sorry
-    finally show ?thesis .
-  next
-    case (Cons a list)
-    then obtain sub sep where a_split: "a = (sub,sep)"
-      by (cases a)
-      then have "lb2 (Node ts t) x = lb2 sub x"
-        using list_split Cons a_split
-        by auto
-      also have "\<dots> = lower_bound2 x (leaves sub)"
-        using "2.IH"(2)[of ls rs "(sub,sep)" list sub sep]
-        using "2.prems" a_split list_conc list_split local.Cons sorted_leaves_induct_subtree
-        by (metis Lalign_Llast Laligned_split_left)
-      also have "\<dots> = lower_bound2 x (leaves (Node ts t))"
-        using lower_bound2_split
-        using lb2_sorted_split_right "2.prems" list_split Cons a_split
-        using aligned_imp_Laligned sorry
-      finally show ?thesis  .
-    qed
-qed (auto simp add: lb2_list_req)
-
-corollary isin_set_Linorder_top: 
-  assumes "sorted_less (leaves t)"
-    and "Laligned t top"
-  shows "lb2 t x = lower_bound2 x (leaves t)"
-  using assms lb2_set_Linorder
-  by simp
 
 end
 
