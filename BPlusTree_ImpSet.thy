@@ -1580,7 +1580,8 @@ proof(cases sub)
 "(ac,bc)" z)
         using assms apply (sep_auto)
         done
-      subgoal sorry
+      subgoal
+        sorry
       done
     done
   next
@@ -1602,52 +1603,43 @@ proof(cases sub)
       apply(sep_auto)
       subgoal using assms by (auto dest!: mod_starD list_assn_len)[]
       subgoal using assms by (auto dest!: mod_starD list_assn_len)[]
+        apply(thin_tac "_ \<Turnstile> _")+
       subgoal for aa b aaa ba ab bb ac bc ad bd x
         apply(rule hoare_triple_preI)
         apply(subgoal_tac "x = (subi, sepi)")
-        apply(sep_auto dest!: mod_starD)
      prefer 2
         subgoal 
         using assms apply(sep_auto  split!: prod.splits)
-(* TODO use correct nodei rule here *)
         sorry
-     subgoal
+      supply R=Lnode\<^sub>i_rule[where k=k and a="the subi" and c="(max (2 * k) (bd + bc))" and r="Some (the subi)"]
+        apply(sep_auto dest!: mod_starD heap: R)
+      subgoal by (auto simp add: is_pfa_def)
+      subgoal by (auto simp add: is_pfa_def)
+      apply (sep_auto del: impCE)
   (* still the "IF" branch *)
   (* solves impossible case*)
-       apply(rule entailsI)
-       using False apply (sep_auto del: impCE dest!: list_assn_len mod_starD)[]
-      (*TODO subst by nice solution *)
-       done
-     subgoal
-  (* still the "IF" branch *)
-  (* solves impossible case*)
-       apply (rule entailsI)
-       using False apply (sep_auto del: impCE dest!: list_assn_len mod_starD)[]
-       done
-     apply simp
-     apply(rule hoare_triple_preI)
-(* for each possible combination of \<le> and \<not>\<le>, a subgoal is created *)
-     apply(sep_auto heap add: Lnode\<^sub>i_rule_extend dest!: mod_starD)
-     subgoal by (auto simp add: is_pfa_def)
-     subgoal by (auto simp add: is_pfa_def)
-    subgoal by (auto simp add: is_pfa_def)
-    subgoal by (auto simp add: is_pfa_def)
-    subgoal by (auto simp add: is_pfa_def dest!: list_assn_len)
-     subgoal
-       apply(rule hoare_triple_preI)
      apply(sep_auto del: impCE split!: btupi.splits)
        subgoal 
-         apply(auto del: impCE dest!: Lbtupi_assn_T mod_starD)
-         apply(rule ent_ex_postI[where x="lsi"])
-         apply sep_auto
+         apply(rule entails_preI)
+         apply(auto del: impCE exI dest!: Lbtupi_assn_T mod_starD)
+         apply(inst_ex_assn "(take i tsi')" lsi "take i pointers")
+         apply (sep_auto del: impCE)
+         subgoal sorry
+         subgoal using assms by auto
+         subgoal sorry
          done
-       subgoal for _ _ li ai ri
-       apply (sep_auto del: impCE)
-       apply(auto del: impCE dest!: Lbtupi_assn_Up mod_starD split!: list.splits)
-         apply(rule ent_ex_postI[where x="lsi @ [(Some li, ai)]"])
-         apply sep_auto
+       subgoal for aa ba ada bda ah bh aj bj ak bk al li ai ri
+         apply (sep_auto del: impCE)
+         apply(thin_tac "_ \<Turnstile> _")+
+         apply(rule entails_preI)
+         apply(auto del: impCE exI dest!: Lbtupi_assn_Up mod_starD)
+         apply(inst_ex_assn "tsi'[i := (Some ai, ri)]" lsi "pointers")
+         apply (sep_auto del: impCE)
+         subgoal sorry
+         subgoal using assms by metis
+         subgoal sorry
+         subgoal sorry
          done
-       done
      apply (sep_auto del: impCE)
      subgoal using assms by (auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
      apply (sep_auto del: impCE)
