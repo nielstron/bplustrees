@@ -1,6 +1,7 @@
 theory BPlusTree_Range
 imports BPlusTree
     "HOL-Data_Structures.Set_Specs"
+    "HOL-Library.Sublist"
     BPlusTree_Set
 begin
 
@@ -363,6 +364,12 @@ lemma lrange_filter_sorted: "sorted_less (xs@x#ys) \<Longrightarrow>
   by (metis lrange_list_sorted sorted_less_lrange sorted_wrt_append)
 
 
+lemma lrange_suffix: "suffix (lrange_list l xs) xs" 
+  apply(induction xs)
+  apply (auto dest: suffix_ConsI)
+  done
+
+
 locale split_range = split_tree split
   for split::
     "('a bplustree \<times> 'a::{linorder,order_top}) list \<Rightarrow> 'a
@@ -535,7 +542,60 @@ next
     qed
 qed
 
+fun leafs_range:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a list" where
+  "leafs_range (LNode ks) x = ks" |
+  "leafs_range (Node ts t) x = (
+      case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
+             leafs_range sub x @ leaves_list rs @ leaves t
+      ) 
+   | (_,[]) \<Rightarrow> leafs_range t x
+  )"
 
+text "lrange proof"
+
+
+(* lift to split *)
+
+
+theorem leafs_range_set: 
+  assumes "sorted_less (leaves t)"
+    and "aligned l t u"
+  shows "suffix (lrange_filter x (leaves t)) (leafs_range t x)"
+  using assms
+proof(induction t x arbitrary: l u rule: lrange.induct)
+  case (1 ks x)
+  then show ?case
+    by (metis leafs_range.simps(1) leaves.simps(1) lrange_suffix sorted_less_lrange)
+next
+  case (2 ts t x)
+  then obtain ls rs where list_split: "split ts x = (ls, rs)"
+    by (meson surj_pair)
+  then have list_conc: "ts = ls @ rs" 
+    using split_conc by auto
+  show ?case
+  proof (cases rs)
+    case Nil
+    then have *: "leafs_range (Node ts t) x = leafs_range t x"
+      by (simp add: list_split)
+    moreover have "suffix (lrange_filter x (leaves t)) (leafs_range t x)"
+      by (metis "2.IH"(1) "2.prems"(1) "2.prems"(2) align_last' list_split local.Nil sorted_leaves_induct_last)
+    then have "suffix (lrange_filter x (leaves (Node ts t))) (leafs_range t x)"
+      by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) aligned_imp_Laligned leaves.simps(2) list_conc list_split local.Nil lrange_sorted_split same_append_eq self_append_conv split_range.leaves_split split_range_axioms)
+    ultimately show ?thesis by simp
+  next
+    case (Cons a list)
+    then obtain sub sep where a_split: "a = (sub,sep)"
+      by (cases a)
+      then have "leafs_range (Node ts t) x = leafs_range sub x @ leaves_list list @ leaves t"
+        using list_split Cons a_split
+        by auto
+      moreover have "suffix (lrange_filter x (leaves sub)) (leafs_range sub x)"
+        by (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) a_split align_sub in_set_conv_decomp list_conc list_split local.Cons sorted_leaves_induct_subtree)
+      then have "suffix (lrange_filter x (leaves (Node ts t))) (leafs_range sub x @ leaves_list list @ leaves t)"
+        by (smt (verit, ccfv_threshold) "2.prems"(1) "2.prems"(2) a_split aligned_imp_Laligned list_split local.Cons lrange_sorted_split lrange_sorted_split_right suffix_append)
+      ultimately show ?thesis by simp
+    qed
+qed
 end
 
 end

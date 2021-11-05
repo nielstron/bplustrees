@@ -42,14 +42,13 @@ locale imp_split2 = abs_split_range: split_range split lrange_list + imp_split_r
 begin
 
 partial_function (heap) lrange_iter_init ::
-  "'a btnode ref \<Rightarrow> 'a \<Rightarrow> (('a btnode ref option \<times> 'a btnode ref option) \<times> 'a pfa_it option) Heap"
+  "'a btnode ref \<Rightarrow> 'a \<Rightarrow> 'a btnode ref option Heap"
   where
     "lrange_iter_init p x = do {
   node \<leftarrow> !p;
   (case node of
-     Btleaf xs _ \<Rightarrow> do {
-        local_iter \<leftarrow> imp_lrange_list x xs;
-        return (((Some p,None),Some local_iter))
+     Btleaf xs z \<Rightarrow> do {
+        return (Some p)
       }
        |
      Btnode ts t \<Rightarrow> do {
@@ -66,11 +65,34 @@ partial_function (heap) lrange_iter_init ::
 
 (*TODO prove correct *)
 (* might need a modularization, where a z is inserted somewhere *)
+find_theorems leafs_assn
 lemma lrange_iter_init_rule:
   assumes "k > 0" "root_order k t"
-  shows "<bplustree_assn k t ti r None>
+  shows "<bplustree_assn_leafs k t ti r z lptrs>
 lrange_iter_init ti x
-<\<lambda>it. leaf_elements_iter k t ti r (abs_split_range.lrange t x) it>\<^sub>t"
+<\<lambda>p. (\<exists>\<^sub>A xs1 xs2 lptrs1 lptrs2 ps.
+  inner_nodes_assn k t ti r z lptrs *
+  leaf_nodes_assn k xs1 r p lptrs1 *
+  list_assn leaf_node xs2 (map bplustree.vals xs2) *
+  list_assn (is_pfa (2 * k)) (map bplustree.vals xs2) ps *
+  leafs_assn ps lptrs2 p z *
+  \<up>(concat (map bplustree.vals xs2) = abs_split_range.leafs_range t x) *
+  \<up>(lptrs = lptrs1@lptrs2) *
+  \<up>(leaf_nodes t = xs1@xs2)
+)>\<^sub>t"
+  find_theorems leaf_nodes_assn
+(* this does not hold but maybe we can create something like
+inner_nodes_assn * leafs_assn first_half * leafs_assn second_half * 
+the second half concats to leafs_range
+
+  (*leaf_nodes_assn k xs2 p z lptrs2 **)
+
+
+
+leafs_assn xs * hd xs = ys * (take i ys)@(tl xs) = lrange t x
+which will eventually translate to the leaf elements iter
+but can be extended at the last position
+*)
   sorry
 
 end
