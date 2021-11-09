@@ -429,9 +429,6 @@ declare last.simps[simp add] butlast.simps[simp add]
 lemma inner_nodes_assn_leafs_len_aux: "inner_nodes_assn k t a r z leafptrs = inner_nodes_assn k t a r z leafptrs * \<up>(length leafptrs = length (leaf_nodes t))"  
   by (meson inner_nodes_assn_leafs_len_imp imp_imp_pure)
 
-lemma leaf_nodes_not_empty: "leaf_nodes t \<noteq> []"
-  by (induction t) auto
-
 declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_assn_leafs_not_empty_aux: "bplustree_assn_leafs k t a r z leafptrs = bplustree_assn_leafs k t a r z leafptrs * \<up>(leafptrs \<noteq> [])"
   apply(intro ent_iffI)
@@ -820,10 +817,10 @@ lemma leafs_assn_aux_append:
   apply(sep_auto intro!: ent_iffI)+
   done
 
-abbreviation "leaf_lists \<equiv> \<lambda>t. map bplustree.vals (leaf_nodes t)"  
+abbreviation "leaf_lists \<equiv> \<lambda>t. map leaves (leaf_nodes t)"  
 
 lemma leaf_nodes_assn_flatten_help:
-  "length ts = length lptrs \<Longrightarrow> leaf_nodes_assn k ts r z lptrs = (\<exists>\<^sub>Aps. list_assn leaf_node ts (map bplustree.vals ts) * list_assn (is_pfa (2*k)) (map bplustree.vals ts) ps * leafs_assn ps lptrs r z)"
+  "length ts = length lptrs \<Longrightarrow> leaf_nodes_assn k ts r z lptrs = (\<exists>\<^sub>Aps. list_assn leaf_node ts (map leaves ts) * list_assn (is_pfa (2*k)) (map leaves ts) ps * leafs_assn ps lptrs r z)"
 proof (induction ts lptrs arbitrary: r rule: list_induct2)
   case Nil
   then show ?case
@@ -855,7 +852,7 @@ next
       done
   next
     case 2
-    have *: "list_assn leaf_node xs (map bplustree.vals xs) * list_assn (is_pfa (2 * k)) (map bplustree.vals xs) ps' * leafs_assn ps' lptrs r'' z 
+    have *: "list_assn leaf_node xs (map leaves xs) * list_assn (is_pfa (2 * k)) (map leaves xs) ps' * leafs_assn ps' lptrs r'' z 
           \<Longrightarrow>\<^sub>A leaf_nodes_assn k xs r'' z lptrs" 
       for ps' r''
       using assn_eq_split(1)[OF sym[OF "Cons.IH"[of r'']]]
@@ -902,7 +899,7 @@ lemma leafs_assn_impl_length: "h \<Turnstile> leafs_assn xs lptrs r z \<Longrigh
   done
 
 lemma leaf_nodes_assn_flatten:
-  "leaf_nodes_assn k ts r z lptrs = (\<exists>\<^sub>Aps. list_assn leaf_node ts (map bplustree.vals ts) * list_assn (is_pfa (2*k)) (map bplustree.vals ts) ps * leafs_assn ps lptrs r z)"
+  "leaf_nodes_assn k ts r z lptrs = (\<exists>\<^sub>Aps. list_assn leaf_node ts (map leaves ts) * list_assn (is_pfa (2*k)) (map leaves ts) ps * leafs_assn ps lptrs r z)"
 proof(intro ent_iffI, goal_cases)
   case 1
   then show ?case
@@ -1048,7 +1045,7 @@ lemma tree_leaf_iter_init_rule_alt:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
   tree_leaf_iter_init (Some ti)
-  <\<lambda>(u,v). \<exists>\<^sub>A lptrs ps. list_assn leaf_node (leaf_nodes t) (map bplustree.vals (leaf_nodes t)) * list_assn (is_pfa (2*k)) (map bplustree.vals (leaf_nodes t)) ps * leafs_assn ps lptrs r z * inner_nodes_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
+  <\<lambda>(u,v). \<exists>\<^sub>A lptrs ps. list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) * list_assn (is_pfa (2*k)) (map leaves (leaf_nodes t)) ps * leafs_assn ps lptrs r z * inner_nodes_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
   using assms
   apply(vcg heap add: tree_leaf_iter_init_rule)
   apply(sep_auto simp add: leaf_nodes_assn_flatten)
@@ -1226,49 +1223,39 @@ fun leaf_elements_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
 
 lemma leaf_nodes_imp_flatten_list:
   "leaf_nodes_assn k ts r None lptrs \<Longrightarrow>\<^sub>A
-   list_assn leaf_node ts (map bplustree.vals ts) *
-   leaf_elements_iter.is_flatten_list lptrs k (map bplustree.vals ts) (concat (map bplustree.vals ts)) r"
+   list_assn leaf_node ts (map leaves ts) *
+   leaf_elements_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r"
   apply(simp add: leaf_nodes_assn_flatten)
   apply(intro ent_ex_preI)
   subgoal for ps
-    apply(inst_ex_assn ps "map bplustree.vals ts")
+    apply(inst_ex_assn ps "map leaves ts")
     apply sep_auto
     done
   done
 
 lemma leaf_nodes_imp_flatten_list_back:
-   "list_assn leaf_node ts (map bplustree.vals ts) *
-leaf_elements_iter.is_flatten_list lptrs k (map bplustree.vals ts) (concat (map bplustree.vals ts)) r \<Longrightarrow>\<^sub>A
+   "list_assn leaf_node ts (map leaves ts) *
+leaf_elements_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r \<Longrightarrow>\<^sub>A
   leaf_nodes_assn k ts r None lptrs"
   apply(simp add: leaf_nodes_assn_flatten)
   apply(intro ent_ex_preI)
   subgoal for ps
-    apply(inst_ex_assn ps "map bplustree.vals ts")
+    apply(inst_ex_assn ps "map leaves ts")
     apply sep_auto
     done
   done
 
 lemma leaf_nodes_flatten_list: "leaf_nodes_assn k ts r None lptrs =
-   list_assn leaf_node ts (map bplustree.vals ts) *
-   leaf_elements_iter.is_flatten_list lptrs k (map bplustree.vals ts) (concat (map bplustree.vals ts)) r"
+   list_assn leaf_node ts (map leaves ts) *
+   leaf_elements_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r"
   apply(intro ent_iffI)
   subgoal by (rule leaf_nodes_imp_flatten_list)
   subgoal by (rule leaf_nodes_imp_flatten_list_back)
   done
 
-lemma concat_leaf_nodes_leaves: "(concat (map bplustree.vals (leaf_nodes t))) = leaves t"
-  apply(induction t rule: leaf_nodes.induct)
-  subgoal by auto
-  subgoal for ts t
-    apply(induction ts)
-    apply simp
-    apply auto
-    done
-  done
-
 definition "leaf_elements_list k t ti r = (\<exists>\<^sub>A lptrs.
-  leaf_elements_iter.is_flatten_list lptrs k (map bplustree.vals (leaf_nodes t)) (leaves t) r *
-  list_assn leaf_node (leaf_nodes t) (map bplustree.vals (leaf_nodes t)) *
+  leaf_elements_iter.is_flatten_list lptrs k (map leaves (leaf_nodes t)) (leaves t) r *
+  list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) *
   inner_nodes_assn k t ti r None lptrs)"
 
 lemma bplustree_iff_leaf_view: "bplustree_assn k t ti r None = leaf_elements_list k t ti r"
@@ -1283,8 +1270,8 @@ lemma bplustree_iff_leaf_view: "bplustree_assn k t ti r None = leaf_elements_lis
   done
 
 definition "leaf_elements_iter k t ti r vs it = (\<exists>\<^sub>A lptrs.
-  leaf_elements_iter.is_flatten_it lptrs k (map bplustree.vals (leaf_nodes t)) (leaves t) r vs it *
-  list_assn leaf_node (leaf_nodes t) (map bplustree.vals (leaf_nodes t)) *
+  leaf_elements_iter.is_flatten_it lptrs k (map leaves (leaf_nodes t)) (leaves t) r vs it *
+  list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) *
   inner_nodes_assn k t ti r None lptrs)"
 
 (* Now finally, we can hide away that we extracted anything

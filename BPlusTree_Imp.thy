@@ -59,11 +59,6 @@ of a is r and the forward pointer in the last leaf node is z"
 find_theorems list_assn
 find_theorems id_assn
 
-fun leaf_nodes where
-"leaf_nodes (LNode xs) = [LNode xs]" |
-"leaf_nodes (Node ts t) = concat (map leaf_nodes (subtrees ts)) @ leaf_nodes t"
-
-
 fun bplustree_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
   "bplustree_assn k (LNode xs) a r z = 
  (\<exists>\<^sub>A xsi fwd.

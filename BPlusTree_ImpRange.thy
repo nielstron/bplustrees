@@ -63,9 +63,8 @@ partial_function (heap) lrange_iter_init ::
     }
 )}"
 
-(*TODO prove correct *)
-(* might need a modularization, where a z is inserted somewhere *)
-find_theorems leafs_assn
+
+(* HT when expressed on list of leaves 
 lemma lrange_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn_leafs k t ti r z lptrs>
@@ -80,20 +79,33 @@ lrange_iter_init ti x
   \<up>(lptrs = lptrs1@lptrs2) *
   \<up>(leaf_nodes t = xs1@xs2)
 )>\<^sub>t"
-  find_theorems leaf_nodes_assn
-(* this does not hold but maybe we can create something like
-inner_nodes_assn * leafs_assn first_half * leafs_assn second_half * 
-the second half concats to leafs_range
-
-  (*leaf_nodes_assn k xs2 p z lptrs2 **)
-
-
-
-leafs_assn xs * hd xs = ys * (take i ys)@(tl xs) = lrange t x
-which will eventually translate to the leaf elements iter
-but can be extended at the last position
+sorry
 *)
-  sorry
+
+(* much shorter when expressed on the nodes themselves *)
+lemma lrange_iter_init_rule:
+  assumes "k > 0" "root_order k t"
+  shows "<bplustree_assn_leafs k t ti r z lptrs>
+lrange_iter_init ti x
+<\<lambda>p. (\<exists>\<^sub>A xs1 lptrs1 lptrs2.
+  inner_nodes_assn k t ti r z lptrs *
+  leaf_nodes_assn k xs1 r p lptrs1 *
+  leaf_nodes_assn k (abs_split_range.leafs_range t x) p z lptrs2 *
+  \<up>(lptrs = lptrs1@lptrs2) *
+  \<up>(leaf_nodes t = xs1@(abs_split_range.leafs_range t x))
+)
+>\<^sub>t"
+  apply(induction t x rule: abs_split_range.leafs_range.induct)
+  subgoal for ks x
+    apply(subst lrange_iter_init.simps)
+    apply (sep_auto eintros del: exI)
+    apply(inst_existentials "[]::'a bplustree list" "[]::'a btnode ref list" "[ti]")
+    apply sep_auto+
+    done
+  subgoal for ts t x
+    apply(subst lrange_iter_init.simps)
+    apply (sep_auto heap add: imp_split_rule)
+  (* TODO *)
 
 end
 

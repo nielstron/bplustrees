@@ -542,11 +542,11 @@ next
     qed
 qed
 
-fun leafs_range:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a list" where
-  "leafs_range (LNode ks) x = ks" |
+fun leafs_range:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a bplustree list" where
+  "leafs_range (LNode ks) x = [LNode ks]" |
   "leafs_range (Node ts t) x = (
       case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
-             leafs_range sub x @ leaves_list rs @ leaves t
+             leafs_range sub x @ leaf_nodes_list rs @ leaf_nodes t
       ) 
    | (_,[]) \<Rightarrow> leafs_range t x
   )"
@@ -556,16 +556,22 @@ text "lrange proof"
 
 (* lift to split *)
 
+lemma concat_leaf_nodes_leaves_list: "(concat (map leaves (leaf_nodes_list ts))) = leaves_list ts"
+  apply(induction ts)
+  subgoal by auto
+  subgoal using concat_leaf_nodes_leaves by auto
+  done
 
 theorem leafs_range_set: 
   assumes "sorted_less (leaves t)"
     and "aligned l t u"
-  shows "suffix (lrange_filter x (leaves t)) (leafs_range t x)"
+  shows "suffix (lrange_filter x (leaves t)) (concat (map leaves (leafs_range t x)))"
   using assms
 proof(induction t x arbitrary: l u rule: lrange.induct)
   case (1 ks x)
   then show ?case
-    by (metis leafs_range.simps(1) leaves.simps(1) lrange_suffix sorted_less_lrange)
+    apply simp
+    by (metis lrange_suffix sorted_less_lrange)
 next
   case (2 ts t x)
   then obtain ls rs where list_split: "split ts x = (ls, rs)"
@@ -577,25 +583,85 @@ next
     case Nil
     then have *: "leafs_range (Node ts t) x = leafs_range t x"
       by (simp add: list_split)
-    moreover have "suffix (lrange_filter x (leaves t)) (leafs_range t x)"
+    moreover have "suffix (lrange_filter x (leaves t)) (concat (map leaves (leafs_range t x)))"
       by (metis "2.IH"(1) "2.prems"(1) "2.prems"(2) align_last' list_split local.Nil sorted_leaves_induct_last)
-    then have "suffix (lrange_filter x (leaves (Node ts t))) (leafs_range t x)"
+    then have "suffix (lrange_filter x (leaves (Node ts t))) (concat (map leaves (leafs_range t x)))"
       by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) aligned_imp_Laligned leaves.simps(2) list_conc list_split local.Nil lrange_sorted_split same_append_eq self_append_conv split_range.leaves_split split_range_axioms)
     ultimately show ?thesis by simp
   next
     case (Cons a list)
     then obtain sub sep where a_split: "a = (sub,sep)"
       by (cases a)
-      then have "leafs_range (Node ts t) x = leafs_range sub x @ leaves_list list @ leaves t"
+      then have "leafs_range (Node ts t) x = leafs_range sub x @ leaf_nodes_list list @ leaf_nodes t"
         using list_split Cons a_split
         by auto
-      moreover have "suffix (lrange_filter x (leaves sub)) (leafs_range sub x)"
+      moreover have *: "suffix (lrange_filter x (leaves sub)) (concat (map leaves (leafs_range sub x)))"
         by (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) a_split align_sub in_set_conv_decomp list_conc list_split local.Cons sorted_leaves_induct_subtree)
-      then have "suffix (lrange_filter x (leaves (Node ts t))) (leafs_range sub x @ leaves_list list @ leaves t)"
-        by (smt (verit, ccfv_threshold) "2.prems"(1) "2.prems"(2) a_split aligned_imp_Laligned list_split local.Cons lrange_sorted_split lrange_sorted_split_right suffix_append)
+      then have "suffix (lrange_filter x (leaves (Node ts t))) (concat (map leaves (leafs_range sub x @ leaf_nodes_list list @ leaf_nodes t)))"
+      proof (goal_cases)
+        case 1
+        have "lrange_filter x (leaves (Node ts t)) = lrange_filter x (leaves sub @ leaves_list list @ leaves t)" 
+          by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) a_split aligned_imp_Laligned append.assoc concat_map_maps fst_conv list.simps(9) list_split local.Cons lrange_sorted_split maps_simps(1))
+        also have "\<dots> = lrange_filter x (leaves sub) @ leaves_list list @ leaves t"
+          by (metis "2.prems"(1) "2.prems"(2) a_split aligned_imp_Laligned calculation list_split local.Cons lrange_sorted_split_right split_range.lrange_sorted_split split_range_axioms)
+        moreover have "(concat (map leaves (leafs_range sub x @ leaf_nodes_list list @ leaf_nodes t))) = (concat (map leaves (leafs_range sub x)) @ leaves_list list @ leaves t)" 
+          using concat_leaf_nodes_leaves_list[of list] concat_leaf_nodes_leaves[of t]
+          by simp
+        ultimately show ?case
+          using *
+          by simp
+      qed
       ultimately show ?thesis by simp
     qed
 qed
+
+lemma leafs_range_not_empty: "\<exists>ks list. leafs_range t x = (LNode ks)#list" 
+  apply(induction t x rule: leafs_range.induct)
+  apply (auto split!: prod.splits list.splits)
+  by fastforce
+
+
+(* Note that, conveniently, this argument is purely syntactic,
+we do not need to show that this has anything to do with smeq relationships *)
+lemma leafs_range_pre_lrange: "leafs_range t x = (LNode ks)#list \<Longrightarrow> lrange_list x ks @ (concat (map leaves list)) = lrange t x"
+proof(induction t x arbitrary: ks list rule: leafs_range.induct)
+  case (1 ks x)
+  then show ?case by simp
+next
+  case (2 ts t x ks list)
+  then show ?case
+  proof(cases "split ts x")
+    case split: (Pair ls rs)
+    then show ?thesis
+    proof (cases rs)
+      case Nil
+      then show ?thesis
+        using "2.IH"(1) "2.prems" split by auto
+    next
+      case (Cons subsep rss)
+      then show ?thesis
+      proof(cases subsep)
+        case sub_sep: (Pair sub sep)
+        thm "2.IH"(2) "2.prems"
+        have "\<exists>list'. leafs_range sub x = (LNode ks)#list'"
+          using "2.prems" split Cons sub_sep leafs_range_not_empty[of sub x]
+            apply simp
+          by fastforce
+        then obtain list' where *: "leafs_range sub x = (LNode ks)#list'"
+          by blast
+        moreover have "list = list'@concat (map (leaf_nodes \<circ> fst) rss) @ leaf_nodes t"
+          using * 
+          using "2.prems" split Cons sub_sep
+          by simp
+        ultimately show ?thesis
+          using split "2.IH"(2)[OF split[symmetric] Cons sub_sep[symmetric] *,symmetric]
+                Cons sub_sep concat_leaf_nodes_leaves_list[of rss] concat_leaf_nodes_leaves[of t]
+          by simp
+      qed
+    qed
+  qed
+qed
+
 end
 
 end

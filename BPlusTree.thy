@@ -52,6 +52,14 @@ fun leaves :: "'a bplustree \<Rightarrow> 'a list" where
 
 abbreviation "leaves_list ts \<equiv> concat (map leaves (subtrees ts))"
 
+fun leaf_nodes where
+"leaf_nodes (LNode xs) = [LNode xs]" |
+"leaf_nodes (Node ts t) = concat (map leaf_nodes (subtrees ts)) @ leaf_nodes t"
+
+abbreviation "leaf_nodes_list ts \<equiv> concat (map leaf_nodes (subtrees ts))"
+
+
+
 text "And the elems view contains all elements of the tree"
 (* NOTE this doesn't help *)
 
@@ -627,5 +635,18 @@ Laligned (Node (ls@(sub',subl)#(subsub,subsep)#rs) t) u"
   apply auto
   apply (meson aligned.simps(2) aligned_subst)
   done
+
+lemma concat_leaf_nodes_leaves: "(concat (map leaves (leaf_nodes t))) = leaves t"
+  apply(induction t rule: leaf_nodes.induct)
+  subgoal by auto
+  subgoal for ts t
+    apply(induction ts)
+    apply simp
+    apply auto
+    done
+  done
+
+lemma leaf_nodes_not_empty: "leaf_nodes t \<noteq> []"
+  by (induction t) auto
 
 end
