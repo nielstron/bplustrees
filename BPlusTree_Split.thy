@@ -104,8 +104,8 @@ value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode
       sorted_less (inorder x)"
 value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
       x"
-value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
-      bplustree\<^sub>i k 9 x"
+(*value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+      bplustree\<^sub>i k 9 x"*)
 value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x)"
 value "let k=2::nat; x::uint32 bplustree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
