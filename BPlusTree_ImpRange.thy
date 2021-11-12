@@ -148,20 +148,6 @@ qed
 
 lemmas leaf_elements_adjust_rule = leaf_elements_iter.flatten_it_adjust_rule
 
-lemma leaf_elements_adjust_rule_tweaked:
-"<list_assn (is_pfa (2 * k)) ls1' ls1 * list_assn (is_pfa (2 * k)) ls2' ls2 *
-     leaf_iter_assn (ls1 @ lsim # ls2) lptrs lsi ls2 oit *
-     pfa_is_it (2 * k) (lsm1 @ lsm2) lsim lsm2 iit *
-    list_assn leaf_node (leaf_nodes t) (leaf_lists t) *
-    inner_nodes_assn k t ti r None lptrs * true
->
-  leaf_elements_adjust oit iit
-<\<lambda>it. leaf_elements_iter.is_flatten_it lptrs k (ls1' @ (lsm1 @ lsm2) # ls2') (concat (ls1' @ (lsm1 @ lsm2) # ls2')) lsi (concat (lsm2 # ls2')) it *
-    list_assn leaf_node (leaf_nodes t) (leaf_lists t) *
-    inner_nodes_assn k t ti r None lptrs
->\<^sub>t"
-  by (sep_auto heap: leaf_elements_adjust_rule)
-
 lemma concat_leafs_range_rule:
   assumes "k > 0" "root_order k t" "sorted_less (leaves t)"
   shows "<bplustree_assn_leafs k t ti r None lptrs>
@@ -177,7 +163,7 @@ concat_leafs_range ti x
   apply(auto dest!: mod_starD)
 proof(goal_cases)
   case (1 l xs1 lptrs1 lptrs2)
-  obtain ks list where [simp]: "abs_split_range.leafs_range t x = (LNode ks)#list \<and> (LNode ks) \<in> set (leaf_nodes t)"
+  obtain ks list where *[simp]: "abs_split_range.leafs_range t x = (LNode ks)#list \<and> (LNode ks) \<in> set (leaf_nodes t)"
     using abs_split_range.leafs_range_not_empty by blast
   then obtain r' lptrs2' where [simp]: "lptrs2 = r' # lptrs2'"
     using 1
@@ -217,14 +203,16 @@ proof(goal_cases)
       apply(simp)
       apply(rule norm_pre_ex_rule)+
       subgoal for ksia ksin it ps2 ps1
-      supply R = Hoare_Triple.cons_pre_rule[rotated, OF leaf_elements_adjust_rule_tweaked]
+      supply R = fi_rule[
+            OF leaf_elements_adjust_rule,
+            where F="list_assn leaf_node (leaf_nodes t) (leaf_lists t) *
+                     inner_nodes_assn k t ti r None (lptrs1 @ r' # lptrs2') *
+                     true"]
         thm R
         supply R' = R[of _ k "map leaves xs1" ps1 "map leaves list" ps2 "(ksia,ksin)"
-                         "lptrs1 @ r' # lptrs2'" r "(fwd,None)" pref "lrange_list x ks"
-                         it t ti r]
+                         "lptrs1@r'#lptrs2'" r "(fwd,None)" pref "lrange_list x ks" it]
       thm R'
       apply(vcg heap: R')
-      thm leaf_iter_assn_def
       apply(subst leaf_iter_assn_def)
       apply simp
       subgoal
@@ -237,28 +225,20 @@ proof(goal_cases)
             subgoal
               apply simp
               apply(inst_ex_assn "Some r'")
-              apply(subgoal_tac "leaf_lists t = (map leaves xs1 @ ks # map leaves list)")
-              apply(subgoal_tac "pref @ lrange_list x ks = ks")
-              apply(subgoal_tac "leaf_nodes t = xs1 @ (LNode ks) # list")
-              subgoal by sep_auto
-              subgoal sorry
-              subgoal using ks_split by simp
-              subgoal sorry
+              subgoal using 1(1) ks_split by sep_auto
               done
         done
       done
       subgoal
         apply (sep_auto eintros del: exI simp add: leaf_elements_iter_def)
         apply(inst_existentials lptrs)
-        apply(subgoal_tac "lptrs = lptrs1 @ r' # lptrs2'")
-        apply(subgoal_tac "leaf_lists t = (map leaves xs1 @ (pref @ lrange_list x ks) # map leaves list)")
         apply(subgoal_tac "leaves t = (concat (map leaves xs1) @ pref @ lrange_list x ks @ concat (map leaves list))")
         apply(subgoal_tac "abs_split_range.lrange t x = (lrange_list x ks @ concat (map leaves list))")
-        subgoal by sep_auto
+        subgoal using 1(1) 1(2) ks_split by sep_auto
         subgoal by (metis \<open>abs_split_range.leafs_range t x = LNode ks # list \<and> LNode ks \<in> set (leaf_nodes t)\<close> abs_split_range.split_range_axioms split_range.leafs_range_pre_lrange)
-        subgoal sorry
-        subgoal sorry
-        subgoal sorry
+        subgoal
+          using concat_leaf_nodes_leaves[symmetric, of t] 1(1) ks_split
+          by auto
         done
       done
     done
