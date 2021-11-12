@@ -16,7 +16,7 @@ that refines the abstract split function."
 
 
 (* TODO separate into split_tree and split + split_list  *)
-locale imp_split = abs_split_set: BPlusTree_Set.split_set split + imp_split_tree split imp_split
+locale imp_split_set = abs_split_set: BPlusTree_Set.split_set split + imp_split_tree split imp_split
   for split::
     "('a bplustree \<times> 'a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" 
@@ -1440,7 +1440,7 @@ lemma second_last_update:"(xs@a#b#ys)[Suc(length xs) := c] = (xs@a#c#ys)"
 lemma clean_heap:"\<lbrakk>(a, b) \<Turnstile> P \<Longrightarrow> Q; (a, b) \<Turnstile> P\<rbrakk> \<Longrightarrow> Q"
   by auto
 
-
+text \<open>
 declare last.simps[simp del] butlast.simps[simp del]
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
@@ -2174,10 +2174,11 @@ lemma delete_rule:
   using assms apply (sep_auto heap add: del_rule reduce_root_rule)
   done
 *)
+\<close>
 
 end
 
-locale imp_split_list = abs_split_set_list: BPlusTree_SplitSpec.split_list split_list
+locale imp_split_list = abs_split_set_list: BPlusTree_Set.split_list split_list
   for split_list::
     "('a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> 'a list \<times> 'a list" +
@@ -2421,7 +2422,7 @@ locale imp_split_full = imp_split_tree: imp_split_tree split + imp_split_list: i
          \<Rightarrow> 'a list \<times> 'a list"
 begin
 
-sublocale imp_split imp_split_list.abs_split_set_list.isin_list imp_split_list.abs_split_set_list.insert_list 
+sublocale imp_split_set imp_split_list.abs_split_set_list.isin_list imp_split_list.abs_split_set_list.insert_list 
   imp_split_list.abs_split_set_list.delete_list split imp_split imp_split_list.imp_isin_list imp_split_list.imp_ins_list imp_split_list.imp_del_list
   using imp_split_list.abs_split_set_list.isin_list_set imp_split_list.abs_split_set_list.insert_list_set imp_split_list.abs_split_set_list.delete_list_set
   apply unfold_locales 

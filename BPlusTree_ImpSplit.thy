@@ -441,7 +441,7 @@ text "In order to obtain fully defined functions,
 we need to plug our split function implementations
 into the locales we introduced previously."
 
-interpretation btree_imp_linear_split_tree: imp_split_tree_smeq lin_split
+interpretation bplustree_imp_linear_split_tree: imp_split_tree_smeq lin_split
   apply unfold_locales
   apply(sep_auto heap: lin_split_rule)
   done
@@ -451,40 +451,53 @@ text "Obtaining actual code turns out to be slightly more difficult
   due to the use of locales. However, we successfully obtain
 the B-tree insertion and membership query with binary search splitting."
 
-(*interpretation btree_imp_bin_split_tree: imp_split_tree_smeq bin_split
+interpretation bplustree_imp_bin_split_tree: imp_split_tree_smeq bin_split
   apply unfold_locales
   apply(sep_auto heap: bin_split_rule)
-  done*)
+  done
 
-(*global_interpretation btree_imp_binary_split_list: imp_split_list_smeq bin'_split
-  defines btree_isin_list = btree_imp_binary_split_list.imp_isin_list
-    and btree_ins_list = btree_imp_binary_split_list.imp_ins_list
-    and btree_del_list = btree_imp_binary_split_list.imp_del_list
+global_interpretation bplustree_imp_binary_split_list: imp_split_list_smeq bin'_split
+  defines bplustree_isin_list = bplustree_imp_binary_split_list.imp_isin_list
+    and bplustree_ins_list = bplustree_imp_binary_split_list.imp_ins_list
+    and bplustree_del_list = bplustree_imp_binary_split_list.imp_del_list
   apply unfold_locales
-  apply(sep_auto heap: bin'_split_rule)
-  done*)
-
-global_interpretation btree_imp_binary_split: imp_split_full_smeq bin_split bin'_split
-  defines btree_isin_list = btree_imp_binary_split.imp_isin_list
-    and btree_ins_list = btree_imp_binary_split.imp_ins_list
-    and btree_del_list = btree_imp_binary_split.imp_del_list
-    and btree_isin = btree_imp_binary_split.isin
-    and btree_ins = btree_imp_binary_split.ins
-    and btree_insert = btree_imp_binary_split.insert
-    (*and btree_del = btree_imp_binary_split.del
-    and btree_delete = btree_imp_binary_split.delete*)
-    and btree_empty = btree_imp_binary_split.empty
-  apply unfold_locales
-  apply(sep_auto heap: bin_split_rule)
   apply(sep_auto heap: bin'_split_rule)
   done
 
-thm btree_imp_binary_split.isin.simps[code]
+print_theorems
 
-export_code btree_empty btree_isin btree_insert checking OCaml SML Scala
-export_code btree_empty btree_isin btree_insert in OCaml module_name BPlusTree
-export_code btree_empty btree_isin btree_insert in SML module_name BPlusTree
-export_code btree_empty btree_isin btree_insert in Scala module_name BPlusTree
+global_interpretation bplustree_imp_binary_split: 
+  imp_split_set bplustree_ls_isin_list bplustree_ls_insert_list bplustree_ls_delete_list
+  linear_split bin_split bplustree_isin_list bplustree_ins_list bplustree_del_list
+  defines bplustree_isin = bplustree_imp_binary_split.isin
+    and bplustree_ins = bplustree_imp_binary_split.ins
+    and bplustree_insert = bplustree_imp_binary_split.insert
+    (*and bplustree_del = bplustree_imp_binary_split.del
+    and bplustree_delete = bplustree_imp_binary_split.delete*)
+    and bplustree_empty = bplustree_imp_binary_split.empty
+  apply unfold_locales
+  subgoal
+    apply(vcg heap: bplustree_imp_binary_split_list.imp_isin_list_rule)
+    apply (simp add: bplustree_ls_isin_list_def)
+    done
+  subgoal
+    apply(vcg heap: bplustree_imp_binary_split_list.imp_ins_list_rule)
+    apply (simp add: bplustree_ls_insert_list_def)
+    done
+  subgoal
+    apply(vcg heap: bplustree_imp_binary_split_list.imp_del_list_rule)
+    apply (simp add: bplustree_ls_delete_list_def)
+    done
+  done
+
+thm bplustree_imp_binary_split.ins.simps
+declare bplustree_imp_binary_split.ins.simps[code]
+declare bplustree_imp_binary_split.isin.simps[code]
+
+export_code bplustree_empty bplustree_isin bplustree_insert checking OCaml SML Scala
+export_code bplustree_empty bplustree_isin bplustree_insert in OCaml module_name BPlusTree
+export_code bplustree_empty bplustree_isin bplustree_insert in SML module_name BPlusTree
+export_code bplustree_empty bplustree_isin bplustree_insert in Scala module_name BPlusTree
 
 end
 
