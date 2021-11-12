@@ -615,10 +615,10 @@ next
     qed
 qed
 
-lemma leafs_range_not_empty: "\<exists>ks list. leafs_range t x = (LNode ks)#list" 
+lemma leafs_range_not_empty: "\<exists>ks list. leafs_range t x = (LNode ks)#list \<and> (LNode ks) \<in> set (leaf_nodes t)" 
   apply(induction t x rule: leafs_range.induct)
   apply (auto split!: prod.splits list.splits)
-  by fastforce
+  by (metis Cons_eq_appendI fst_conv in_set_conv_decomp split_conc)
 
 
 (* Note that, conveniently, this argument is purely syntactic,
@@ -660,6 +660,22 @@ next
       qed
     qed
   qed
+qed
+
+(* A function that is way easier to reason about in the imperative setting *)
+fun concat_leafs_range where
+  "concat_leafs_range t x = (case leafs_range t x of (LNode ks)#list \<Rightarrow> lrange_list x ks @ (concat (map leaves list)))"
+
+lemma concat_leafs_range_lrange: "concat_leafs_range t x = lrange t x"
+proof -
+  obtain ks list where *: "leafs_range t x = (LNode ks)#list"
+    using leafs_range_not_empty by blast
+  then have "concat_leafs_range t x = lrange_list x ks @ (concat (map leaves list))"
+    by simp
+  also have "\<dots> = lrange t x"
+    using leafs_range_pre_lrange[OF *]
+    by simp
+  finally show ?thesis .
 qed
 
 end
