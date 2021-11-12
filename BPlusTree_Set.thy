@@ -64,7 +64,7 @@ lemma del_list_length[simp]:
 s.th. f :: 'a \<Rightarrow> ('b::linorder) and g :: 'a \<Rightarrow> 'a bplustree
 this would allow for key,pointer pairs to be inserted into the tree *)
 (* TODO what if the keys are the pointers? *)
-locale split = split_tree: split_tree split
+locale split_set = split_tree: split_tree split
   for split::
     "('a bplustree \<times> 'a::{linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
@@ -124,6 +124,7 @@ fun isin:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> bool" where
       )
    | (_,[]) \<Rightarrow> isin t x
   )"
+
 
 text "Isin proof"
 
@@ -232,7 +233,7 @@ proof -
   next
     case (Cons r' rs')
     then have "sep < r'"
-      by (metis Laligned_split_right aligned_leaves_inbetween assms(1) assms(3) leaves.simps(2) list.set_intros(1) split.split_conc split_axioms)
+      by (metis Laligned_split_right aligned_leaves_inbetween assms(1) assms(3) leaves.simps(2) list.set_intros(1) split_set.split_conc split_set_axioms)
     then have  "x < r'"
       using \<open>x \<le> sep\<close> by auto
     moreover have "sorted_less (leaves_list ((sub,sep)#rs) @ leaves t)"
@@ -1080,13 +1081,13 @@ proof -
   next
     case (Cons r' rs')
     then have "sep < r'"
-      by (metis aligned_leaves_inbetween Laligned_split_right assms(1) assms(3) leaves.simps(2) list.set_intros(1) split.split_conc split_axioms)
+      by (metis aligned_leaves_inbetween Laligned_split_right assms(1) assms(3) leaves.simps(2) list.set_intros(1) split_set.split_conc split_set_axioms)
     then have  "x < r'"
       using \<open>x \<le> sep\<close> by auto
     moreover have "sorted_less (leaves sub @ [r'])"
     proof -
       have "sorted_less (leaves_list ls @ leaves sub @ leaves_list rs @ leaves t)"
-        using assms(1) assms(2) split.leaves_split split_axioms by fastforce
+        using assms(1) assms(2) split_set.leaves_split split_set_axioms by fastforce
       then show ?thesis
         using assms 
         by (metis Cons sorted_mid_iff sorted_wrt_append)
@@ -1145,7 +1146,7 @@ proof(induction k x t arbitrary: l u rule: ins.induct)
     from 1 have "aligned l (LNode (insert_list x ks)) u" 
       by (metis aligned_insert_list leaves.simps(1))
     moreover have "sorted_less (insert_list x ks)"
-      using "1.prems"(3) split.insert_list_req split_axioms
+      using "1.prems"(3) split_set.insert_list_req split_set_axioms
       by auto
     ultimately show ?case
       using Lnode\<^sub>i_aligned[of l "insert_list x ks" u k] 1
@@ -1156,7 +1157,7 @@ next
   then obtain ls rs where list_split: "split ts x = (ls,rs)"
     by (cases "split ts x")
   then have list_conc: "ts = ls@rs"
-    using split.split_conc split_axioms by blast
+    using split_set.split_conc split_set_axioms by blast
   then show ?case
   proof (cases rs)
     case Nil
@@ -1257,7 +1258,7 @@ next
       then have IH: "leaves_up\<^sub>i (ins k x sub) = ins_list x (leaves sub) \<and> aligned_up\<^sub>i l (ins k x sub) sep"
       proof -
         have "x \<le> sep"
-          using "2.prems"(2) aligned_sorted_separators h_split list_split local.Cons sorted_cons sorted_snoc split.split_req(3) split_axioms
+          using "2.prems"(2) aligned_sorted_separators h_split list_split local.Cons sorted_cons sorted_snoc split_set.split_req(3) split_set_axioms
           by blast
         then show ?thesis
         using "2.IH"(2)[OF sym[OF list_split] Cons sym[OF h_split], of l sep]
@@ -1330,10 +1331,10 @@ next
       then have IH: "leaves_up\<^sub>i (ins k x sub) = ins_list x (leaves sub) \<and> aligned_up\<^sub>i sep' (ins k x sub) sep"
       proof -
         have "x \<le> sep"
-          using "2.prems"(2) aligned_sorted_separators h_split list_split local.Cons sorted_cons sorted_snoc split.split_req(3) split_axioms
+          using "2.prems"(2) aligned_sorted_separators h_split list_split local.Cons sorted_cons sorted_snoc split_set.split_req(3) split_set_axioms
           by blast
         moreover have "sep' < x"
-          using "2.prems"(2) aligned_sorted_separators list_split ls_split sorted_cons sorted_snoc split.split_req(2) split_axioms
+          using "2.prems"(2) aligned_sorted_separators list_split ls_split sorted_cons sorted_snoc split_set.split_req(2) split_set_axioms
           by blast
         ultimately show ?thesis
         using "2.IH"(2)[OF sym[OF list_split] Cons sym[OF h_split], of sep' sep]
@@ -1476,7 +1477,7 @@ proof(induction k x t arbitrary: u rule: ins.induct)
     from 1 have "Laligned (LNode (insert_list x ks)) u" 
       by (metis Laligned_insert_list leaves.simps(1))
     moreover have "sorted_less (insert_list x ks)"
-      using "1.prems"(3) split.insert_list_req split_axioms
+      using "1.prems"(3) split_set.insert_list_req split_set_axioms
       by auto
     ultimately show ?case
       using Lnode\<^sub>i_Laligned[of "insert_list x ks" u k] 1
@@ -1487,7 +1488,7 @@ next
   then obtain ls rs where list_split: "split ts x = (ls,rs)"
     by (cases "split ts x")
   then have list_conc: "ts = ls@rs"
-    using split.split_conc split_axioms by blast
+    using split_set.split_conc split_set_axioms by blast
   then show ?case
   proof (cases rs)
     case Nil
@@ -1585,7 +1586,7 @@ next
       then have IH: "leaves_up\<^sub>i (ins k x sub) = ins_list x (leaves sub) \<and> Laligned_up\<^sub>i (ins k x sub) sep"
       proof -
         have "x \<le> sep"
-          using "2.prems"(2) Laligned_sorted_separators h_split list_split local.Cons sorted_snoc split.split_req(3) split_axioms
+          using "2.prems"(2) Laligned_sorted_separators h_split list_split local.Cons sorted_snoc split_set.split_req(3) split_set_axioms
           by blast
         then show ?thesis
         using "2.IH"(2)[OF sym[OF list_split] Cons sym[OF h_split], of sep]
@@ -1657,10 +1658,10 @@ next
       then have IH: "leaves_up\<^sub>i (ins k x sub) = ins_list x (leaves sub) \<and> aligned_up\<^sub>i sep' (ins k x sub) sep"
       proof -
         have "x \<le> sep"
-          using "2.prems"(2) Laligned_sorted_separators h_split list_split local.Cons sorted_snoc split.split_req(3) split_axioms
+          using "2.prems"(2) Laligned_sorted_separators h_split list_split local.Cons sorted_snoc split_set.split_req(3) split_set_axioms
           by blast
         moreover have "sep' < x"
-          using "2.prems"(2) Laligned_sorted_separators list_split ls_split sorted_cons sorted_snoc split.split_req(2) split_axioms
+          using "2.prems"(2) Laligned_sorted_separators list_split ls_split sorted_cons sorted_snoc split_set.split_req(2) split_set_axioms
           by blast
         ultimately show ?thesis
           using "2.prems"(1) aligned_sub ins_inorder order_sub sorted_inorder_sub
@@ -2016,7 +2017,7 @@ proof(induction k x t rule: del.induct)
     from Cons obtain sub sep where a_split: "a = (sub,sep)" by (cases a)
 
       have height_t_sub: "height t = height sub"
-        using "2.prems"(3) a_split list_split local.Cons split.split_set(1) split_axioms by fastforce
+        using "2.prems"(3) a_split list_split local.Cons split_set.split_set(1) split_set_axioms by fastforce
       have height_t_del: "height (del k x sub) = height t"
         by (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) "2.prems"(3) a_split bal.simps(2) list_split local.Cons order_impl_root_order root_order.simps(2) some_child_sub(1) split_set(1))
       then have "height (rebalance_middle_tree k ls (del k x sub) sep rs t) = height (Node (ls@((del k x sub),sep)#rs) t)"
@@ -2999,7 +3000,7 @@ proof -
   next
     case (Cons r' rs')
     then have "sep < r'"
-      by (metis aligned_leaves_inbetween Laligned_split_right assms(1) assms(3) leaves.simps(2) list.set_intros(1) split.split_conc split_axioms)
+      by (metis aligned_leaves_inbetween Laligned_split_right assms(1) assms(3) leaves.simps(2) list.set_intros(1) split_set.split_conc split_set_axioms)
     then have  "x < r'"
       using \<open>x \<le> sep\<close> by auto
     moreover have "sorted_less (leaves sub @ leaves_list rs @ leaves t)"
@@ -3022,7 +3023,7 @@ corollary del_list_split_right_aligned:
     and "sorted_less (leaves (Node ts t))"
     and "split ts x = (ls, (sub,sep)#rs)"
   shows "del_list x (leaves_list ((sub,sep)#rs) @ leaves t) = del_list x (leaves sub) @ leaves_list rs @ leaves t"
-  using aligned_imp_Laligned assms(1) assms(2) assms(3) split.del_list_split_right split_axioms by blast
+  using aligned_imp_Laligned assms(1) assms(2) assms(3) split_set.del_list_split_right split_set_axioms by blast
 
 thm del_list_idem
 
@@ -3056,7 +3057,7 @@ next
   then obtain ls rs where list_split: "split ts x = (ls, rs)"
     by (meson surj_pair)
   then have list_conc: "ts = ls @ rs"
-    using split.split_conc split_axioms by blast
+    using split_set.split_conc split_set_axioms by blast
   show ?case
   proof (cases rs)
     case Nil
@@ -3064,7 +3065,7 @@ next
       by (metis "2.prems"(2) append_Nil2 list.size(3) list_conc old.prod.exhaust root_order.simps(2) snoc_eq_iff_butlast zero_less_iff_neq_zero)
     then have IH: "leaves (del k x t) = del_list x (leaves t) \<and>  aligned lsep (del k x t) u"
         using "2.IH"(1)[OF list_split[symmetric] Nil, of lsep u]
-        by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) "2.prems"(3) "2.prems"(4) "2.prems"(5) "2.prems"(7) \<open>ls = ls' @ [(lsub, lsep)]\<close> align_last aligned_sorted_separators bal.simps(2) list_conc list_split local.Nil order_impl_root_order root_order.simps(2) self_append_conv sorted_cons sorted_leaves_induct_last sorted_snoc split.split_req(2) split_axioms)
+        by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) "2.prems"(3) "2.prems"(4) "2.prems"(5) "2.prems"(7) \<open>ls = ls' @ [(lsub, lsep)]\<close> align_last aligned_sorted_separators bal.simps(2) list_conc list_split local.Nil order_impl_root_order root_order.simps(2) self_append_conv sorted_cons sorted_leaves_induct_last sorted_snoc split_set.split_req(2) split_set_axioms)
     have "leaves (del k x (Node ts t)) = leaves (rebalance_last_tree k ts (del k x t))"
       using list_split Nil list_conc by auto
     also have "\<dots> = leaves_list ts @ leaves (del k x t)"
@@ -3082,7 +3083,7 @@ next
     also have "\<dots> = leaves_list ts @ del_list x (leaves t)"
       using IH by blast
     also have "\<dots> = del_list x (leaves (Node ts t))"
-      by (metis "2.prems"(4) "2.prems"(5) aligned_imp_Laligned append_self_conv2 concat.simps(1) list.simps(8) list_conc list_split local.Nil self_append_conv split.del_list_split split_axioms)
+      by (metis "2.prems"(4) "2.prems"(5) aligned_imp_Laligned append_self_conv2 concat.simps(1) list.simps(8) list_conc list_split local.Nil self_append_conv split_set.del_list_split split_set_axioms)
     finally have 0: "leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))" .
     moreover have "aligned l (del k x (Node ts t)) u"
     proof -
@@ -3137,7 +3138,7 @@ next
       case Nil
       then have IH: "leaves (del k x sub) = del_list x (leaves sub) \<and> aligned l (del k x sub) sep"
         using "2.IH"(2)[OF list_split[symmetric] Cons h_split[symmetric], of l sep]
-        by (metis "2.prems"(1) "2.prems"(2) "2.prems"(5) "2.prems"(6) aligned.simps(2) aligned_sorted_separators append_self_conv2 bal.simps(2) h_split inbetween.simps(2) list.set_intros(1) list_conc list_split local.Cons local.Nil node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_cons sorted_leaves_induct_subtree sorted_snoc split.split_req(3) split_axioms)
+        by (metis "2.prems"(1) "2.prems"(2) "2.prems"(5) "2.prems"(6) aligned.simps(2) aligned_sorted_separators append_self_conv2 bal.simps(2) h_split inbetween.simps(2) list.set_intros(1) list_conc list_split local.Cons local.Nil node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_cons sorted_leaves_induct_subtree sorted_snoc split_set.split_req(3) split_set_axioms)
       then have "leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))"
         using \<open>leaves (del k x sub) = del_list x (leaves sub) \<Longrightarrow> leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))\<close> by blast
       then have "sorted_less (leaves (del k x (Node ts t)))"
@@ -3169,7 +3170,7 @@ next
         by blast
       then have IH: "leaves (del k x sub) = del_list x (leaves sub) \<and> aligned lsep (del k x sub) sep"
         using "2.IH"(2)[OF list_split[symmetric] Cons h_split[symmetric], of lsep sep]
-        by (metis "2.prems"(1) "2.prems"(2) "2.prems"(5) aligned_sorted_separators bal.simps(2) bal_split_left(1) h_split l_split list_split local.Cons node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_cons sorted_leaves_induct_subtree sorted_snoc split.split_req(2) split.split_req(3) split_axioms split_set(1))
+        by (metis "2.prems"(1) "2.prems"(2) "2.prems"(5) aligned_sorted_separators bal.simps(2) bal_split_left(1) h_split l_split list_split local.Cons node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_cons sorted_leaves_induct_subtree sorted_snoc split_set.split_req(2) split_set.split_req(3) split_set_axioms split_set(1))
       then have "leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))"
         using \<open>leaves (del k x sub) = del_list x (leaves sub) \<Longrightarrow> leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))\<close> by blast
       then have "sorted_less (leaves (del k x (Node ts t)))"
@@ -3225,14 +3226,14 @@ next
   then obtain ls rs where list_split: "split ts x = (ls, rs)"
     by (meson surj_pair)
   then have list_conc: "ts = ls @ rs"
-    using split.split_conc split_axioms by blast
+    using split_set.split_conc split_set_axioms by blast
   show ?case
   proof (cases rs)
     case Nil
     then obtain ls' lsub lsep where ls_split: "ls = ls' @ [(lsub,lsep)]"
       by (metis "2.prems"(2) append_Nil2 list.size(3) list_conc old.prod.exhaust root_order.simps(2) snoc_eq_iff_butlast zero_less_iff_neq_zero)
     then have IH: "leaves (del k x t) = del_list x (leaves t) \<and>  aligned lsep (del k x t) u"
-        by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) "2.prems"(3) "2.prems"(4) "2.prems"(5) "2.prems"(6) Lalign_last Laligned_sorted_separators bal.simps(2) del_inorder list_conc list_split local.Nil order_impl_root_order root_order.simps(2) self_append_conv sorted_leaves_induct_last sorted_snoc split.split_req(2) split_axioms)
+        by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) "2.prems"(3) "2.prems"(4) "2.prems"(5) "2.prems"(6) Lalign_last Laligned_sorted_separators bal.simps(2) del_inorder list_conc list_split local.Nil order_impl_root_order root_order.simps(2) self_append_conv sorted_leaves_induct_last sorted_snoc split_set.split_req(2) split_set_axioms)
     have "leaves (del k x (Node ts t)) = leaves (rebalance_last_tree k ts (del k x t))"
       using list_split Nil list_conc by auto
     also have "\<dots> = leaves_list ts @ leaves (del k x t)"
@@ -3250,7 +3251,7 @@ next
     also have "\<dots> = leaves_list ts @ del_list x (leaves t)"
       using IH by blast
     also have "\<dots> = del_list x (leaves (Node ts t))"
-      by (metis "2.prems"(4) "2.prems"(5) append_self_conv2 concat.simps(1) list.simps(8) list_conc list_split local.Nil self_append_conv split.del_list_split split_axioms)
+      by (metis "2.prems"(4) "2.prems"(5) append_self_conv2 concat.simps(1) list.simps(8) list_conc list_split local.Nil self_append_conv split_set.del_list_split split_set_axioms)
     finally have 0: "leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))" .
     moreover have "Laligned (del k x (Node ts t)) u"
     proof -
@@ -3303,7 +3304,7 @@ next
     proof (cases ls)
       case Nil
       then have IH: "leaves (del k x sub) = del_list x (leaves sub) \<and> Laligned (del k x sub) sep"
-        by (smt (verit, ccfv_threshold) "2.IH"(2) "2.prems"(1) "2.prems"(2) "2.prems"(5) Laligned_nonempty_Node Laligned_sorted_separators append_self_conv2 bal.simps(2) h_split list.set_intros(1) list_conc list_split local.Cons node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_leaves_induct_subtree sorted_wrt_append split.split_req(3) split_axioms)
+        by (smt (verit, ccfv_threshold) "2.IH"(2) "2.prems"(1) "2.prems"(2) "2.prems"(5) Laligned_nonempty_Node Laligned_sorted_separators append_self_conv2 bal.simps(2) h_split list.set_intros(1) list_conc list_split local.Cons node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_leaves_induct_subtree sorted_wrt_append split_set.split_req(3) split_set_axioms)
       then have "leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))"
         using \<open>leaves (del k x sub) = del_list x (leaves sub) \<Longrightarrow> leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))\<close> by blast
       then have "sorted_less (leaves (del k x (Node ts t)))"
@@ -3333,7 +3334,7 @@ next
       then have "aligned lsep sub sep"
         using "2.prems"(5) Lalign_last Laligned_split_left h_split list_conc local.Cons by blast
       then have IH: "leaves (del k x sub) = del_list x (leaves sub) \<and> aligned lsep (del k x sub) sep"
-        by (metis "2.prems"(1) "2.prems"(2) "2.prems"(5) Laligned_sorted_separators bal.simps(2) bal_split_left(1) del_inorder h_split l_split list_split local.Cons node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_leaves_induct_subtree sorted_snoc split.split_req(2) split.split_req(3) split_axioms split_set(1))
+        by (metis "2.prems"(1) "2.prems"(2) "2.prems"(5) Laligned_sorted_separators bal.simps(2) bal_split_left(1) del_inorder h_split l_split list_split local.Cons node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_leaves_induct_subtree sorted_snoc split_set.split_req(2) split_set.split_req(3) split_set_axioms split_set(1))
       then have "leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))"
         using \<open>leaves (del k x sub) = del_list x (leaves sub) \<Longrightarrow> leaves (del k x (Node ts t)) = del_list x (leaves (Node ts t))\<close> by blast
       then have "sorted_less (leaves (del k x (Node ts t)))"
@@ -3674,7 +3675,7 @@ locale split_full = split_tree: split_tree split + split_list split_list
          \<Rightarrow> 'a list \<times> 'a list"
 begin
 
-sublocale split split isin_list insert_list delete_list 
+sublocale split_set split isin_list insert_list delete_list 
   using isin_list_set insert_list_set delete_list_set
   by unfold_locales auto
 
