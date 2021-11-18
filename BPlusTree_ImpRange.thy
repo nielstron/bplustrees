@@ -72,7 +72,7 @@ declare butlast.simps[simp del] last.simps[simp del]
 lemma imp_split_leafs_rule[sep_heap_rules]: "sorted_less (separators ts) \<Longrightarrow>
   length tsi = length rs \<Longrightarrow>
   length spl = length rs + 1 \<Longrightarrow>
-  tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (zip (butlast (rs@[z])) (butlast spl)))) (map snd tsi') \<Longrightarrow>
+  tsi'' = zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip (butlast (rs@[z])) (butlast spl)))) (map snd tsi) \<Longrightarrow>
  <is_pfa c tsi (a,n) 
   * blist_leafs_assn k ts tsi'' > 
     imp_split (a,n) p 
@@ -80,8 +80,22 @@ lemma imp_split_leafs_rule[sep_heap_rules]: "sorted_less (separators ts) \<Longr
     is_pfa c tsi (a,n)
     * blist_leafs_assn k ts tsi''
     * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
-  apply simp
+proof(rule hoare_triple_preI, goal_cases) 
+  case 1
+  have "length tsi'' = length rs"
+    using 1 by auto
+  then have *: "length ts = length tsi''"
+    using 1 by (auto dest!: mod_starD list_assn_len)
+  then have **: "length ts = length tsi"
+    using 1 by (auto dest!: mod_starD list_assn_len)
+  note R = imp_split_rule[of ts tsi rs "zip (zip (subtrees tsi) (zip (butlast (r # rs)) rs)) (separators tsi)" r]
+  note blist_assn_extract_leafs[OF ** 1(2), of k r]
+  find_theorems "<_> _ <_>" "_ \<Longrightarrow>\<^sub>A _"
+  then show ?thesis
+    using R 1
+    apply simp
   sorry
+qed
 
 end
 
@@ -209,7 +223,7 @@ lemma simp_map_temp: "(map (leaf_nodes \<circ> fst)) = map (\<lambda>a. (leaf_no
   by (meson comp_apply)
 
 declare last.simps[simp del] butlast.simps[simp del]
-lemma
+lemma blist_leafs_assn_split:
 "   length tsi' = length rrs \<Longrightarrow>
     length rrs = length ts \<Longrightarrow>
     length ts = length spl \<Longrightarrow>
@@ -218,7 +232,7 @@ lemma
       =
      list_assn ((\<lambda>t (ti, r', x, y). inner_nodes_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) ts
       (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi')) *
-     leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts)) r (last (r#rrs)) (concat (butlast spl))
+     leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts)) r (last (r#rrs)) (concat spl)
 ) "
 proof(induction tsi' rrs ts spl arbitrary: r rule: list_induct4)
   case Nil
@@ -226,8 +240,6 @@ proof(induction tsi' rrs ts spl arbitrary: r rule: list_induct4)
     by (sep_auto simp add: last.simps butlast.simps)
 next
   case (Cons x xs y ys z zs w ws r)
-  have split_ws: "concat (butlast (w#ws)) = w @ (concat (butlast ws))"
-    sorry
   obtain y' where y'_simp: "y = Some y'"
     sorry
   show ?case
@@ -237,7 +249,6 @@ next
         apply(simp add: bplustree_leaf_nodes_sep)
     apply(subst Cons.IH[of y])
     subgoal for sub sep
-      apply(simp add: split_ws)
       apply(intro ent_iffI)
       subgoal
       apply(rule entails_preI)
@@ -259,66 +270,9 @@ next
       done
     done
 qed
+declare last.simps[simp add] butlast.simps[simp add]
 
 
-(* show how we can transform a list of bplustree assertions
-into leaf/inner assertions. compare the transformation for the whole tree *)
-declare last.simps[simp del] butlast.simps[simp del]
-lemma
-"   length tsi' = length rrs \<Longrightarrow>
-    length rrs = length ts \<Longrightarrow>
-    length spl = Suc (length rrs) \<Longrightarrow>
-    last spl = lptrs1 @ lptrs2 \<Longrightarrow>
-    leaf_nodes t = xs1 @ abs_split_range.leafs_range t x \<Longrightarrow>
-    (inner_nodes_assn k t tii (last (r # rrs)) z (lptrs1 @ lptrs2) *
-     leaf_nodes_assn k xs1 (last (r # rrs)) r' lptrs1 *
-     leaf_nodes_assn k (abs_split_range.leafs_range t x) r' z lptrs2 *
-     blist_leafs_assn k ts
-      (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
-        (separators tsi')) *
-     true \<Longrightarrow>\<^sub>A
-     inner_nodes_assn k t tii (last (r # rrs)) z (last spl) *
-     list_assn ((\<lambda>t (ti, r', x, y). inner_nodes_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) ts
-      (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
-        (separators tsi')) *
-     leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts) @ xs1) r r' (concat (butlast spl) @ lptrs1) *
-     leaf_nodes_assn k (abs_split_range.leafs_range t x) r' z lptrs2 *
-     true)"
-proof(induction tsi' rrs ts arbitrary: r rule: list_induct3)
-  case Nil
-  then have "spl = [lptrs1 @ lptrs2]"
-    by (metis Suc_neq_Zero append_Nil append_butlast_last_id append_eq_append_conv length_Cons list.size(3))
-  then show ?case
-    by (sep_auto simp add: last.simps butlast.simps)
-next
-  case (Cons x xs y ys z zs r)
-  show ?case
-  apply(rule entails_preI)
-  proof(auto dest!: mod_starD, goal_cases)
-    case 1
-    from Cons have spl_split: "spl = butlast spl @ [lptrs1 @ lptrs2]"
-      by (metis Suc_neq_Zero append_butlast_last_id list.size(3))
-  moreover obtain fspl spl' where  fspl: "butlast spl = fspl # spl' \<and> length spl' = length ys"
-    by (metis Cons.prems(1) One_nat_def Suc_eq_plus1 Suc_length_conv Suc_to_right length_0_conv length_append spl_split)
-  show ?case
-    apply(subst spl_split)
-    using Cons.hyps Cons.prems
-    apply(sep_auto simp add: butlast_double_Cons last_double_Cons butlast.simps)
-      subgoal
-        using fspl
-        apply(sep_auto simp add: last.simps prod_assn_def split!: prod.splits)
-        find_theorems leaf_nodes_assn
-        apply(simp add: bplustree_leaf_nodes_sep)
-        apply(subst leaf_nodes_assn_split2)
-        subgoal sorry
-        apply simp
-        apply sep_auto
-        done
-      subgoal
-        using fspl
-        apply(sep_auto simp add: last.simps prod_assn_def split!: prod.splits)
-        using Cons.IH
-qed
 
 (* much shorter when expressed on the nodes themselves *)
 declare last.simps[simp del] butlast.simps[simp del]
@@ -363,7 +317,7 @@ next
       apply(cases tsi)
       subgoal for tsia tsin
     supply R = imp_split_leafs_rule[of ts tsi' rrs spl "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
-        (separators tsi'))" tsi' r z]
+        (separators tsi'))" r z]
       thm R
     apply (vcg heap add: R)
       subgoal using \<open>sorted_less (separators ts)\<close> by linarith
@@ -394,8 +348,19 @@ next
         by (metis Suc_neq_Zero append.assoc append_Nil append_butlast_last_id append_same_eq concat.simps(1) concat.simps(2) concat_append list.size(3))
       subgoal
         apply sep_auto
-      sorry
+        apply(subst blist_leafs_assn_split)
+        subgoal sorry
+        subgoal sorry
+        subgoal sorry
+        apply(subst leaf_nodes_assn_split2)
+        subgoal sorry
+        apply (sep_auto eintros del: exI)
+        apply(inst_existentials "(last (r # rrs))")
+        apply (sep_auto)
+        done
+      done
     done
+  done
   done
   done
   next
