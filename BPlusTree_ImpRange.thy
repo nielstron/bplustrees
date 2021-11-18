@@ -10,6 +10,65 @@ abbreviation "blist_leafs_assn k \<equiv> list_assn ((\<lambda> t (ti,r',z',lptr
 context imp_split_tree
 begin
 
+lemma list_induct5 [consumes 4, case_names Nil Cons]:
+  "length xs = length ys \<Longrightarrow> length ys = length zs \<Longrightarrow> length zs = length ws \<Longrightarrow> length ws = length vs \<Longrightarrow>
+   P [] [] [] [] [] \<Longrightarrow> (\<And>x xs y ys z zs w ws v vs. length xs = length ys \<Longrightarrow>
+   length ys = length zs \<Longrightarrow> length zs = length ws \<Longrightarrow> length ws = length vs \<Longrightarrow> P xs ys zs ws vs \<Longrightarrow>
+   P (x#xs) (y#ys) (z#zs) (w#ws) (v#vs)) \<Longrightarrow> P xs ys zs ws vs"
+proof (induct xs arbitrary: ys zs ws vs)
+  case Nil then show ?case by simp
+next
+  case (Cons x xs ys zs ws) then show ?case by ((cases ys, simp_all), (cases zs,simp_all), (cases ws, simp_all)) (cases vs, simp_all)
+qed
+
+declare butlast.simps[simp del] last.simps[simp del]
+lemma blist_assn_extract_leafs: "
+length ts = length tsi \<Longrightarrow>
+length tsi = length rs \<Longrightarrow>
+blist_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) rs)) (map snd tsi))
+=
+(\<exists>\<^sub>Aspl. blist_leafs_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip rs spl))) (map snd tsi)) * \<up>(length spl = length rs))"
+proof(induction arbitrary: r rule: list_induct3)
+  case Nil
+  then show ?case
+    apply(intro ent_iffI)
+    by sep_auto+
+next
+  case (Cons x xs y ys z zs r)
+  show ?case
+    using Cons.hyps
+    using Cons.hyps
+  apply (sep_auto simp add: butlast_double_Cons last_double_Cons)
+    supply R= Cons.IH[simplified, of z]
+    thm R
+    apply(subst R)
+  proof(intro ent_iffI, goal_cases)
+    case 1
+    then show ?case
+    apply(sep_auto eintros del: exI simp add: prod_assn_def bplustree_extract_leafs split!: prod.splits)
+      subgoal for _ _ spl lptrs
+      apply(inst_existentials "lptrs#spl")
+        apply auto
+        done
+      done
+  next
+    case 2
+    then show ?case
+    apply(sep_auto eintros del: exI)
+      subgoal for spl
+      apply(cases spl)
+        apply simp
+        subgoal for hdspl tlspl
+          apply(inst_existentials tlspl)
+          apply (auto simp add: prod_assn_def bplustree_extract_leafs split!: prod.splits)
+          done
+        done
+      done
+    qed
+  qed
+declare butlast.simps[simp add] last.simps[simp add]
+
+declare butlast.simps[simp del] last.simps[simp del]
 lemma imp_split_leafs_rule[sep_heap_rules]: "sorted_less (separators ts) \<Longrightarrow>
   length tsi = length rs \<Longrightarrow>
   length spl = length rs + 1 \<Longrightarrow>
@@ -21,6 +80,7 @@ lemma imp_split_leafs_rule[sep_heap_rules]: "sorted_less (separators ts) \<Longr
     is_pfa c tsi (a,n)
     * blist_leafs_assn k ts tsi''
     * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
+  apply simp
   sorry
 
 end
