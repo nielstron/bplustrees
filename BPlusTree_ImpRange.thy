@@ -240,8 +240,6 @@ proof(induction tsi' rrs ts spl arbitrary: r rule: list_induct4)
     by (sep_auto simp add: last.simps butlast.simps)
 next
   case (Cons x xs y ys z zs w ws r)
-  obtain y' where y'_simp: "y = Some y'"
-    sorry
   show ?case
     using Cons.hyps Cons.prems
     apply(clarsimp simp add: butlast_double_Cons last_double_Cons)
@@ -253,22 +251,47 @@ next
       subgoal
       apply(rule entails_preI)
     apply(subst leaf_nodes_assn_split2)
-        subgoal sorry
+        subgoal by (auto dest!: mod_starD leaf_nodes_assn_impl_length)
         apply (simp add: simp_map_temp)
         apply(inst_ex_assn y)
         apply(sep_auto)
         done
       subgoal
       apply(rule entails_preI)
-        thm leaf_nodes_assn_split[where yi="the y"]
-    apply(subst leaf_nodes_assn_split[where yi="the y"])
-        subgoal sorry
-        subgoal sorry
-        apply (simp add: simp_map_temp y'_simp)
+        apply(cases zs)
+      proof(goal_cases)
+        case 1
+        then show ?thesis
+          by (sep_auto simp add: last.simps)
+      next
+        case (2 _ a list)
+        then show ?thesis
+          apply(cases xs, simp)
+          apply(cases ys, simp)
+          apply(cases ws, simp)
+          subgoal for x' xs' y'' ys'' w' ws'
+          apply(clarsimp simp add: butlast_double_Cons last_double_Cons)
+          apply(clarsimp simp add: prod_assn_def split!: prod.splits)
+            subgoal for sub' sep'
+            apply(subgoal_tac "y = Some (hd w')")
+            prefer 2
+            subgoal by (auto dest!: mod_starD inner_nodes_assn_hd)
+          apply sep_auto
+    apply(subst leaf_nodes_assn_split[where yi="the y" and ysr="tl w'@concat ws'"])
+        find_theorems inner_nodes_assn length
+        subgoal by (auto dest!: mod_starD inner_nodes_assn_leafs_len_imp)
+        apply(subgoal_tac "w' \<noteq> []")
+        prefer 2
+          subgoal by (auto dest!: mod_starD inner_nodes_assn_leafs_len_imp simp add: leaf_nodes_not_empty)
+          subgoal by simp
+        apply (simp add: simp_map_temp)
         apply(sep_auto)
         done
       done
     done
+    qed
+  done
+  done
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 
@@ -349,7 +372,7 @@ next
       subgoal
         apply sep_auto
         apply(subst blist_leafs_assn_split)
-        subgoal sorry
+        subgoal by simp
         subgoal sorry
         subgoal sorry
         apply(subst leaf_nodes_assn_split2)
