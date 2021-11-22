@@ -287,11 +287,12 @@ lemma eq_preI: "(\<forall>h. h \<Turnstile> P \<longrightarrow> Q = Q') \<Longri
 lemma simp_map_temp: "(map (leaf_nodes \<circ> fst)) = map (\<lambda>a. (leaf_nodes (fst a)))"
   by (meson comp_apply)
 
+
 declare last.simps[simp del] butlast.simps[simp del]
-lemma blist_leafs_assn_split:
+lemma blist_leafs_assn_split_help:
 "   length tsi' = length rrs \<Longrightarrow>
-    length rrs = length ts \<Longrightarrow>
-    length ts = length spl \<Longrightarrow>
+    length rrs = length spl \<Longrightarrow>
+    length spl = length ts \<Longrightarrow>
     (blist_leafs_assn k ts
       (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi'))
       =
@@ -299,7 +300,7 @@ lemma blist_leafs_assn_split:
       (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi')) *
      leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts)) r (last (r#rrs)) (concat spl)
 ) "
-proof(induction tsi' rrs ts spl arbitrary: r rule: list_induct4)
+proof(induction tsi' rrs spl ts arbitrary: r rule: list_induct4)
   case Nil
   then show ?case
     by (sep_auto simp add: last.simps butlast.simps)
@@ -323,7 +324,7 @@ next
         done
       subgoal
       apply(rule entails_preI)
-        apply(cases zs)
+        apply(cases ws)
       proof(goal_cases)
         case 1
         then show ?thesis
@@ -333,19 +334,19 @@ next
         then show ?thesis
           apply(cases xs, simp)
           apply(cases ys, simp)
-          apply(cases ws, simp)
-          subgoal for x' xs' y'' ys'' w' ws'
+          apply(cases zs, simp)
+          subgoal for x' xs' y'' ys'' z' zs'
           apply(clarsimp simp add: butlast_double_Cons last_double_Cons)
           apply(clarsimp simp add: prod_assn_def split!: prod.splits)
             subgoal for sub' sep'
-            apply(subgoal_tac "y = Some (hd w')")
+            apply(subgoal_tac "y = Some (hd z')")
             prefer 2
             subgoal by (auto dest!: mod_starD inner_nodes_assn_hd)
           apply sep_auto
-    apply(subst leaf_nodes_assn_split[where yi="the y" and ysr="tl w'@concat ws'"])
+    apply(subst leaf_nodes_assn_split[where yi="the y" and ysr="tl z'@concat zs'"])
         find_theorems inner_nodes_assn length
         subgoal by (auto dest!: mod_starD inner_nodes_assn_leafs_len_imp)
-        apply(subgoal_tac "w' \<noteq> []")
+        apply(subgoal_tac "z' \<noteq> []")
         prefer 2
           subgoal by (auto dest!: mod_starD inner_nodes_assn_leafs_len_imp simp add: leaf_nodes_not_empty)
           subgoal by simp
@@ -360,6 +361,31 @@ next
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 
+lemma blist_leafs_assn_split:
+"   length tsi' = length rrs \<Longrightarrow>
+    length rrs = length spl \<Longrightarrow>
+    (blist_leafs_assn k ts
+      (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi'))
+      =
+     list_assn ((\<lambda>t (ti, r', x, y). inner_nodes_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) ts
+      (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi')) *
+     leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts)) r (last (r#rrs)) (concat spl)
+) "
+proof((intro ent_iffI; rule entails_preI), goal_cases)
+  case 1
+  then have "length spl = length ts" 
+    by (auto dest!: list_assn_len)
+  then show ?case 
+    using blist_leafs_assn_split_help[OF 1(1,2)]
+    by auto
+next
+  case 2
+  then have "length spl = length ts" 
+    by (auto dest!: mod_starD list_assn_len)
+  then show ?case
+    using blist_leafs_assn_split_help[OF 2(1,2)]
+    by auto
+qed
 
 
 (* much shorter when expressed on the nodes themselves *)
@@ -368,7 +394,7 @@ lemma leafs_range_rule:
   assumes "k > 0" "root_order k t" "Laligned t u"
   shows "<bplustree_assn_leafs k t ti r z lptrs >
 leafs_range ti x
-<\<lambda>p. (\<exists>\<^sub>A xs1 lptrs1 lptrs2.
+<\<lambda>p. (\<exists>\<^sub>A lptrs xs1 lptrs1 lptrs2.
   inner_nodes_assn k t ti r z lptrs *
   leaf_nodes_assn k xs1 r p lptrs1 *
   leaf_nodes_assn k (abs_split_range.leafs_range t x) p z lptrs2 *
@@ -382,7 +408,7 @@ proof(induction t x arbitrary: ti r z u lptrs rule: abs_split_range.leafs_range.
   then show ?case
     apply(subst leafs_range.simps)
     apply (sep_auto eintros del: exI)
-    apply(inst_existentials "[]::'a bplustree list" "[]::'a btnode ref list" "[ti]")
+    apply(inst_existentials "[ti]" "[]::'a bplustree list" "[]::'a btnode ref list" "[ti]")
     apply sep_auto+
     done
 next
@@ -400,7 +426,6 @@ next
     apply simp
     apply(vcg)
     apply simp
-    thm imp_split_rule
     subgoal for tsi tii tsi' rrs spl
       apply(cases tsi)
       subgoal for tsia tsin
@@ -412,12 +437,14 @@ next
       subgoal by simp
       subgoal by simp
       subgoal by (simp add: butlast.simps)
+      apply simp
+      apply(rule norm_pre_ex_rule)
       apply(rule hoare_triple_preI)
       apply(vcg)
 (* discard wrong path *)
       subgoal by (auto simp add: split_relation_alt is_pfa_def dest!:  mod_starD list_assn_len)[]
 (* correct path *)
-      subgoal for _ _ spl'
+      subgoal for _ spl
       supply R = "2.IH"(1)[OF split_pair[symmetric] Nil, of u]
       thm R
       apply(vcg heap add: R)
@@ -427,28 +454,32 @@ next
       subgoal 
       using "2.prems"(3) Lalign_Llast by blast
     apply (sep_auto eintros del: exI)
-    subgoal for y xs1 lptrs1 lptrs2
-      apply(inst_existentials "concat (map (leaf_nodes \<circ> fst) ts) @ xs1" "(concat (butlast spl)) @ lptrs1" lptrs2
+    subgoal for y lptrs xs1 lptrs1 lptrs2
+      apply(inst_existentials "concat (spl@[lptrs])" "concat (map (leaf_nodes \<circ> fst) ts) @ xs1" "(concat spl) @ lptrs1" lptrs2
+            tsia tsin tii tsi' "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl)))
+            (separators tsi'))" rrs "spl@[lptrs]")
+      (*apply(inst_existentials "concat (spl@[lptrs])" "concat (map (leaf_nodes \<circ> fst) ts) @ xs1" "(concat (butlast spl)) @ lptrs1" lptrs2
                               tsia tsin tii tsi' "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
-            (separators tsi'))" rrs spl)
+            (separators tsi'))" rrs spl)*)
       subgoal
-        apply(auto)
-        by (metis Suc_neq_Zero append.assoc append_Nil append_butlast_last_id append_same_eq concat.simps(1) concat.simps(2) concat_append list.size(3))
+        by (auto)
       subgoal
         apply sep_auto
         apply(subst blist_leafs_assn_split)
         subgoal by simp
-        subgoal sorry
-        subgoal sorry
+        subgoal 
+          by (auto dest!: mod_starD list_assn_len)
+        apply(rule entails_preI)
         apply(subst leaf_nodes_assn_split2)
-        subgoal sorry
+        subgoal 
+          by (auto dest!: mod_starD leaf_nodes_assn_impl_length)
         apply (sep_auto eintros del: exI)
         apply(inst_existentials "(last (r # rrs))")
         apply (sep_auto)
         done
       done
-    done
   done
+    done
   done
   done
   next
