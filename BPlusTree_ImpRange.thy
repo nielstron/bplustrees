@@ -68,33 +68,98 @@ next
   qed
 declare butlast.simps[simp add] last.simps[simp add]
 
+lemma blist_discard_leafs: 
+  assumes 
+"length ts = length tsi"
+"length tsi = length rs"
+"length spl = length rs"
+shows
+"blist_leafs_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip rs spl))) (map snd tsi)) \<Longrightarrow>\<^sub>A
+blist_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) rs)) (map snd tsi))"
+  apply (subst blist_assn_extract_leafs[OF assms(1,2)])
+  using assms
+  by sep_auto
+
 declare butlast.simps[simp del] last.simps[simp del]
-lemma imp_split_leafs_rule[sep_heap_rules]: "sorted_less (separators ts) \<Longrightarrow>
+lemma imp_split_leafs_rule_help: 
+"sorted_less (separators ts) \<Longrightarrow>
   length tsi = length rs \<Longrightarrow>
-  length spl = length rs + 1 \<Longrightarrow>
-  tsi'' = zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip (butlast (rs@[z])) (butlast spl)))) (map snd tsi) \<Longrightarrow>
+  tsi' = (zip (zip (map fst tsi) (zip (butlast (r#rs)) (butlast (rs@[z]))))) (map snd tsi) \<Longrightarrow>
  <is_pfa c tsi (a,n) 
-  * blist_leafs_assn k ts tsi'' > 
+  * blist_assn k ts tsi' > 
     imp_split (a,n) p 
-  <\<lambda>i. 
+  <\<lambda>i. \<exists>\<^sub>Aspl.
     is_pfa c tsi (a,n)
-    * blist_leafs_assn k ts tsi''
-    * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
+    * blist_leafs_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip (butlast (rs@[z])) spl))) (map snd tsi))
+    * \<up>(split_relation ts (split ts p) i)
+    * \<up>(length spl = length rs) >\<^sub>t" 
 proof(rule hoare_triple_preI, goal_cases) 
   case 1
-  have "length tsi'' = length rs"
+  have ***: "length tsi' = length rs"
     using 1 by auto
-  then have *: "length ts = length tsi''"
+  then have *: "length ts = length tsi'"
     using 1 by (auto dest!: mod_starD list_assn_len)
   then have **: "length ts = length tsi"
     using 1 by (auto dest!: mod_starD list_assn_len)
   note R = imp_split_rule[of ts tsi rs "zip (zip (subtrees tsi) (zip (butlast (r # rs)) rs)) (separators tsi)" r]
-  note blist_assn_extract_leafs[OF ** 1(2), of k r]
-  find_theorems "<_> _ <_>" "_ \<Longrightarrow>\<^sub>A _"
-  then show ?thesis
-    using R 1
-    apply simp
-  sorry
+  from 1 show ?thesis
+    apply(vcg)
+    using ** 1(2)
+    apply(simp add: blist_assn_extract_leafs)
+    find_theorems ex_assn entails
+    apply(rule ent_ex_preI)
+    subgoal for x spl
+      apply(inst_ex_assn spl)
+      apply sep_auto
+      done
+    done
+qed
+declare butlast.simps[simp add] last.simps[simp add]
+
+lemma fr_refl_rot: "P \<Longrightarrow>\<^sub>A R \<Longrightarrow> F * P \<Longrightarrow>\<^sub>A F * R"
+  using fr_refl[of P R F] by (simp add: mult.commute)
+
+declare butlast.simps[simp del] last.simps[simp del]
+lemma imp_split_leafs_rule[sep_heap_rules]: 
+  assumes "sorted_less (separators ts)"
+  and "length tsi = length rs"
+  and "length spl = length rs"
+  and "tsi' = zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip (butlast (rs@[z])) spl))) (map snd tsi)"
+  shows "
+ <is_pfa c tsi (a,n) 
+  * blist_leafs_assn k ts tsi' > 
+    imp_split (a,n) p 
+  <\<lambda>i. \<exists>\<^sub>Aspl.
+    is_pfa c tsi (a,n)
+    * blist_leafs_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip (butlast (rs@[z])) spl))) (map snd tsi))
+    * \<up>(split_relation ts (split ts p) i)
+    * \<up>(length spl = length rs) >\<^sub>t" 
+proof(rule hoare_triple_preI, goal_cases) 
+  case 1
+  have "length tsi' = length rs"
+    using assms by auto
+  then have *: "length ts = length tsi'"
+    using 1 by (auto dest!: mod_starD list_assn_len)
+  then have **: "length ts = length tsi"
+    using 1 assms by (auto dest!: mod_starD list_assn_len)
+  note R = imp_split_leafs_rule_help[
+    OF assms(1,2),
+    of "zip (zip (subtrees tsi) (zip (butlast (r # rs)) (butlast (rs @ [z])))) (separators tsi)" r
+        z c a n k
+  ]
+  thm R
+  note R' = fi_rule[OF R, of "is_pfa c tsi (a,n) * blist_leafs_assn k ts tsi'" "emp"]
+  thm R'
+  show ?case
+    apply(vcg heap add: R')
+    subgoal
+      apply (simp add: assms)
+      apply(rule fr_refl_rot)
+      using blist_discard_leafs[OF ** assms(2,3)]
+      apply auto
+      done
+    subgoal by sep_auto
+    done
 qed
 
 end
@@ -339,7 +404,7 @@ next
     subgoal for tsi tii tsi' rrs spl
       apply(cases tsi)
       subgoal for tsia tsin
-    supply R = imp_split_leafs_rule[of ts tsi' rrs spl "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
+    supply R = imp_split_leafs_rule[of ts tsi' rrs "butlast spl" "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
         (separators tsi'))" r z]
       thm R
     apply (vcg heap add: R)
@@ -352,7 +417,7 @@ next
 (* discard wrong path *)
       subgoal by (auto simp add: split_relation_alt is_pfa_def dest!:  mod_starD list_assn_len)[]
 (* correct path *)
-      subgoal
+      subgoal for _ _ spl'
       supply R = "2.IH"(1)[OF split_pair[symmetric] Nil, of u]
       thm R
       apply(vcg heap add: R)
