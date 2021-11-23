@@ -387,6 +387,11 @@ next
     by auto
 qed
 
+lemma split_list: "i < length ts \<Longrightarrow> ts ! i = x \<Longrightarrow> \<exists>ls rs. ts = ls@x#rs \<and> length ls = i"
+  by (metis id_take_nth_drop length_take min_simps(2))
+
+lemma take_butlast_Suc: "i < length xs \<Longrightarrow> take i (butlast xs) = butlast (take (Suc i) xs)"
+  by (metis Suc_leI Suc_to_right take_butlast take_minus_one_conv_butlast)
 
 (* much shorter when expressed on the nodes themselves *)
 declare last.simps[simp del] butlast.simps[simp del]
@@ -483,8 +488,134 @@ next
   done
   done
   next
-    case (Cons a list)
-    then show ?thesis sorry
+    case (Cons subsep rrs)
+    then obtain sub sep where subsep_split[simp]:"subsep = (sub,sep)"
+      by (cases subsep)
+    then show ?thesis
+    apply(subst leafs_range.simps)
+    using split_pair Cons apply (simp split!: list.splits prod.splits)
+    apply(vcg)
+    apply simp
+    subgoal for tsi tii tsi' rs' spl_first
+      apply(cases tsi)
+      subgoal for tsia tsin
+    supply R = imp_split_leafs_rule[of ts tsi' rs' "butlast spl_first" "(zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (butlast spl_first))))
+        (separators tsi'))" r z]
+      thm R
+    apply (vcg heap add: R)
+      subgoal using \<open>sorted_less (separators ts)\<close> by linarith
+      subgoal by simp
+      subgoal by simp
+      subgoal by (simp add: butlast.simps)
+      thm split_relation_alt
+      apply simp
+      apply(rule norm_pre_ex_rule)
+         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
+      apply(rule norm_pre_ex_rule)+
+      apply(rule hoare_triple_preI)
+      subgoal for spl lsi subsepi rsi
+        apply(cases subsepi)
+        subgoal for zz sepi
+          apply(cases zz)
+          subgoal for subi subp subfwd sublptrs
+      apply(vcg)
+(* correct path *)
+      subgoal for _ _ suba sepa 
+          apply(subgoal_tac "subsepi = ((suba, subp, subfwd, sublptrs), sepa)", simp)
+      supply R = "2.IH"(2)[OF split_pair[symmetric] Cons subsep_split[symmetric], of sep]
+      thm R
+      apply(vcg heap add: R)
+      subgoal using "2.prems" by simp
+      subgoal 
+        using "2.prems"(2) assms(1)  root_order.simps(2)
+        by (auto dest!: order_impl_root_order[of k sub, OF assms(1)])
+      subgoal 
+        find_theorems Laligned
+        using "2.prems"(3) assms(1)
+        sorry
+    apply (sep_auto eintros del: exI)
+    subgoal for y lptrs xs1 lptrs1 lptrs2
+      thm blist_leafs_assn_split
+      apply(subgoal_tac "lsi = take (length ls) (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+     (separators tsi'))")
+      apply(subgoal_tac "rsi = drop (length ls+1) (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+     (separators tsi'))")
+      apply simp
+        apply(inst_existentials "concat ((take (length ls) spl)@lptrs#(drop (Suc (length ls)) spl)@[last spl_first])" "concat (map (leaf_nodes \<circ> fst) ls) @ xs1"
+"concat (take (length ls) spl) @ lptrs1" "lptrs2 @ (concat (drop (Suc (length ls)) spl))@last spl_first"
+tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (butlast (spl@[last spl_first])))))
+         (separators tsi')" rs' "spl@[last spl_first]" "(take (length ls)
+            (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+              (separators tsi')))" subi subp subfwd sublptrs sepi "(drop (Suc (length ls))
+            (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+              (separators tsi')))")
+      (*apply(inst_existentials "concat (spl@[lptrs])" "concat (map (leaf_nodes \<circ> fst) ts) @ xs1" "(concat (butlast spl)) @ lptrs1" lptrs2
+                              tsia tsin tii tsi' "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
+            (separators tsi'))" rrs spl)*)
+      subgoal
+        apply (auto)
+        sorry
+      subgoal
+        find_theorems butlast take
+        apply(simp add: take_zip drop_zip)
+        apply(simp add: take_butlast_Suc)
+        apply(subgoal_tac "drop (Suc (length ls)) (butlast (r # rs')) = butlast (subfwd#(drop (Suc (length ls)) rs'))") 
+        apply (simp add: take_map drop_map)
+        thm blist_leafs_assn_split
+         supply R = blist_leafs_assn_split[of
+                  "take (length ls) tsi'"
+                  "take (length ls) rs'"
+                  "take (length ls) spl"
+                  k ls
+                  ]
+        thm R
+        find_theorems map take
+        apply(subst blist_leafs_assn_split)
+        subgoal by simp
+        subgoal 
+          by (auto dest!: mod_starD list_assn_len)
+        apply(subst blist_leafs_assn_split)
+        subgoal by simp
+        subgoal 
+          by (auto dest!: mod_starD list_assn_len)
+        apply(clarsimp)
+        apply(rule entails_preI)
+        apply(subst leaf_nodes_assn_split2)
+        subgoal 
+          by (auto dest!: mod_starD leaf_nodes_assn_impl_length)
+        apply(subst leaf_nodes_assn_split2)
+        subgoal 
+          by (auto dest!: mod_starD leaf_nodes_assn_impl_length)
+        apply(subst leaf_nodes_assn_split2)
+        subgoal 
+          by (auto dest!: mod_starD leaf_nodes_assn_impl_length)
+        apply(subst bplustree_leaf_nodes_sep)+
+        apply (sep_auto eintros del: exI)
+        apply(inst_existentials subfwd "(last (subfwd # drop (Suc (length ls)) rs'))" "(last (r # take (length ls) rs'))")
+        apply(subgoal_tac "last (subfwd # drop (Suc (length ls)) rs') = last (r#rs')")
+        apply(subgoal_tac "sublptrs = lptrs")
+        apply(subgoal_tac "(last (r # take (length ls) rs')) = subp")
+        apply (sep_auto)
+        subgoal sorry
+        subgoal sorry
+        subgoal sorry
+        subgoal sorry
+        done
+        subgoal sorry
+        subgoal sorry
+      done
+        subgoal sorry
+  done
+  subgoal
+    using Cons
+    apply (auto simp add: split_relation_alt is_pfa_def dest!:  mod_starD list_assn_len)[]
+    sorry
+    done
+  done
+  done
+  done
+  done
+  done
   qed
 qed
 declare last.simps[simp add] butlast.simps[simp add]
