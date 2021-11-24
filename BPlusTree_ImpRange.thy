@@ -543,10 +543,10 @@ next
       apply simp
         apply(inst_existentials "concat ((take (length ls) spl)@lptrs#(drop (Suc (length ls)) spl)@[last spl_first])" "concat (map (leaf_nodes \<circ> fst) ls) @ xs1"
 "concat (take (length ls) spl) @ lptrs1" "lptrs2 @ (concat (drop (Suc (length ls)) spl))@last spl_first"
-tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (butlast (spl@[last spl_first])))))
-         (separators tsi')" rs' "spl@[last spl_first]" "(take (length ls)
+tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (butlast ((take (length ls) spl)@lptrs#(drop (Suc (length ls)) spl)@[last spl_first])))))
+         (separators tsi')" rs' "(take (length ls) spl)@lptrs#(drop (Suc (length ls)) spl)@[last spl_first]" "(take (length ls)
             (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
-              (separators tsi')))" subi subp subfwd sublptrs sepi "(drop (Suc (length ls))
+              (separators tsi')))" subi subp subfwd lptrs sepi "(drop (Suc (length ls))
             (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
               (separators tsi')))")
       (*apply(inst_existentials "concat (spl@[lptrs])" "concat (map (leaf_nodes \<circ> fst) ts) @ xs1" "(concat (butlast spl)) @ lptrs1" lptrs2
@@ -593,10 +593,9 @@ tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (
         apply (sep_auto eintros del: exI)
         apply(inst_existentials subfwd "(last (subfwd # drop (Suc (length ls)) rs'))" "(last (r # take (length ls) rs'))")
         apply(subgoal_tac "last (subfwd # drop (Suc (length ls)) rs') = last (r#rs')")
-        apply(subgoal_tac "sublptrs = lptrs")
         apply(subgoal_tac "(last (r # take (length ls) rs')) = subp")
+        apply(simp add: last.simps)
         apply (sep_auto)
-        subgoal sorry
         subgoal sorry
         subgoal sorry
         subgoal sorry
@@ -607,10 +606,10 @@ tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (
         subgoal sorry
   done
   subgoal
-    using Cons
-    apply (auto simp add: split_relation_alt is_pfa_def dest!:  mod_starD list_assn_len)[]
-    sorry
-    done
+    apply(rule hoare_triple_preI)
+    subgoal by (auto simp add: split_relation_alt dest!:  mod_starD list_assn_len arg_cong[of _ _ length])[]
+  done
+  done
   done
   done
   done
