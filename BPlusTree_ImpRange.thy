@@ -527,24 +527,6 @@ next
       apply(vcg)
 (* correct path *)
       subgoal for _ _ suba sepa 
-          apply(subgoal_tac "subsepi = ((suba, subp, subfwd, sublptrs), sepa)", simp)
-      supply R = "2.IH"(2)[OF split_pair[symmetric] Cons subsep_split[symmetric], of sep]
-      thm R
-      apply(vcg heap add: R)
-      subgoal using "2.prems" by simp
-      subgoal 
-        using "2.prems"(2) assms(1)  root_order.simps(2)
-        by (auto dest!: order_impl_root_order[of k sub, OF assms(1)])
-      subgoal 
-        using "2.prems"(3) split_pair Cons subsep_split Laligned_sub[of ls sub sep rrs]
-        by simp
-    apply (sep_auto eintros del: exI)
-    subgoal for y lptrs xs1 lptrs1 lptrs2
-(* IDEA: show tsi = (take (length ls) tsi)@...@... , spl = take length ...*)
-      (*apply(subgoal_tac "length lsi = length ls")
-      prefer 2
-      subgoal
-        by (auto dest!: mod_starD list_assn_len)*)
       apply(subgoal_tac "lsi = take (length ls) (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
      (separators tsi'))")
       prefer 2
@@ -658,7 +640,41 @@ next
           using 1 by (auto simp add: take_map[symmetric] drop_map[symmetric])
         finally show ?case .
       qed
-      apply simp
+          apply(subgoal_tac "subsepi = ((suba, subp, subfwd, sublptrs), sepa)", simp)
+        prefer 2
+    subgoal proof (goal_cases)
+      case assms: 1
+      have "subi = suba" "sepi = sepa"
+      proof(goal_cases)
+        case 1
+        have "subtrees tsi' ! (length ls) = subi"
+          by (metis append_take_drop_id assms(20) nth_via_drop same_append_eq)
+        moreover have "subtrees tsi' ! (length ls) = suba"
+          using assms by simp
+        ultimately show ?case by simp
+      next
+        case 2
+        have "separators tsi' ! (length ls) = sepi"
+          by (metis append_take_drop_id assms(21) nth_via_drop same_append_eq)
+        moreover have "separators tsi' ! (length ls) = sepa"
+          using assms by simp
+        ultimately show ?case by simp
+      qed
+      then show ?case
+        using assms by auto
+    qed
+      supply R = "2.IH"(2)[OF split_pair[symmetric] Cons subsep_split[symmetric], of sep]
+      thm R
+      apply(vcg heap add: R)
+      subgoal using "2.prems" by simp
+      subgoal 
+        using "2.prems"(2) assms(1)  root_order.simps(2)
+        by (auto dest!: order_impl_root_order[of k sub, OF assms(1)])
+      subgoal 
+        using "2.prems"(3) split_pair Cons subsep_split Laligned_sub[of ls sub sep rrs]
+        by simp
+    apply (sep_auto eintros del: exI)
+    subgoal for y lptrs xs1 lptrs1 lptrs2
       thm blist_leafs_assn_split
         apply(inst_existentials "concat ((take (length ls) spl)@lptrs#(drop (Suc (length ls)) spl)@[last spl_first])" "concat (map (leaf_nodes \<circ> fst) ls) @ xs1"
 "concat (take (length ls) spl) @ lptrs1" "lptrs2 @ (concat (drop (Suc (length ls)) spl))@last spl_first"
@@ -779,15 +795,35 @@ tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (
         apply(subgoal_tac "(last (r # take (length ls) rs')) = subp")
         apply(simp add: last.simps)
         apply (solve_entails)
-        subgoal sorry
-        subgoal sorry
-        subgoal sorry
+      proof(goal_cases)
+        case (1 a b)
+        then have *: "length ls < length rs'"
+          by simp
+        have "butlast (r # rs') =
+    butlast (r # take (length ls) rs') @ subp # butlast (subfwd # drop (Suc (length ls)) rs')"
+          using 1 by simp
+        then have "take (length ls + 1) (butlast (r #rs')) = butlast (r # take (length ls) rs') @ [subp]"
+          using * by simp
+        then have "butlast (r # rs') ! (length ls) = subp"
+          using * take_Suc_conv_app_nth[of "length ls" "butlast (r#rs')"]
+          by simp
+        then have obt:"(r # rs') ! (length ls) = subp"
+          using nth_butlast[of "length ls" "r#rs'"] * by auto
+        have **: "r#(take (length ls) rs') = take (length ls +1) (r#rs')"
+          by simp
+        show ?case
+          apply (subst **)
+          apply(subst last_take_nth_conv)
+          using obt * by auto
+      next
+        case (2 a b)
+        then show ?case sorry
+      next
+        case 3
+        then show ?case sorry
+      qed
         done
       done
-    subgoal
-      apply clarsimp
-      sorry
-  done
   subgoal
     apply(rule hoare_triple_preI)
     subgoal by (auto simp add: split_relation_alt dest!:  mod_starD list_assn_len arg_cong[of _ _ length])[]
