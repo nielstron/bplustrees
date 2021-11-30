@@ -393,6 +393,12 @@ lemma split_list: "i < length ts \<Longrightarrow> ts ! i = x \<Longrightarrow> 
 lemma take_butlast_Suc: "i < length xs \<Longrightarrow> take i (butlast xs) = butlast (take (Suc i) xs)"
   by (metis Suc_leI Suc_to_right take_butlast take_minus_one_conv_butlast)
 
+lemma inbetween_aligned_imp_Laligned: "inbetween aligned l (ls@(sub,sep)#rs) t u \<Longrightarrow> Laligned sub sep"
+  by (induction ls arbitrary: l) (auto simp add: aligned_imp_Laligned)
+
+lemma Laligned_sub: "Laligned (Node (ls@(sub,sep)#rs) t) u \<Longrightarrow> Laligned sub sep"
+  by (cases ls) (auto simp add: inbetween_aligned_imp_Laligned split!: prod.splits) 
+
 (* much shorter when expressed on the nodes themselves *)
 declare last.simps[simp del] butlast.simps[simp del]
 lemma leafs_range_rule:
@@ -530,31 +536,208 @@ next
         using "2.prems"(2) assms(1)  root_order.simps(2)
         by (auto dest!: order_impl_root_order[of k sub, OF assms(1)])
       subgoal 
-        find_theorems Laligned
-        using "2.prems"(3) assms(1)
-        sorry
+        using "2.prems"(3) split_pair Cons subsep_split Laligned_sub[of ls sub sep rrs]
+        by simp
     apply (sep_auto eintros del: exI)
     subgoal for y lptrs xs1 lptrs1 lptrs2
-      thm blist_leafs_assn_split
+(* IDEA: show tsi = (take (length ls) tsi)@...@... , spl = take length ...*)
+      (*apply(subgoal_tac "length lsi = length ls")
+      prefer 2
+      subgoal
+        by (auto dest!: mod_starD list_assn_len)*)
       apply(subgoal_tac "lsi = take (length ls) (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
      (separators tsi'))")
+      prefer 2
+    subgoal proof (goal_cases)
+      case 1
+      have *: "length lsi = length ls"
+        using 1 by (auto dest!: mod_starD list_assn_len)
+      then have "take (length ls) (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl))) (separators tsi')) = 
+                  take (length ls) (lsi @ ((subi, subp, subfwd, sublptrs), sepi) # rsi)"
+        using 1 by auto
+      also have "\<dots> = lsi"
+        using * by auto
+      finally show ?case .. 
+    qed
       apply(subgoal_tac "rsi = drop (length ls+1) (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
      (separators tsi'))")
+      prefer 2
+    subgoal proof (goal_cases)
+      case 1
+      have *: "length lsi = length ls"
+        using 1 by (auto dest!: mod_starD list_assn_len)
+      then have "drop (length ls+1) (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl))) (separators tsi')) = 
+                  drop (length ls+1) (lsi @ ((subi, subp, subfwd, sublptrs), sepi) # rsi)"
+        using 1 by auto
+      also have "\<dots> = rsi"
+        using * by auto
+      finally show ?case .. 
+    qed
+      apply(subgoal_tac "subtrees tsi' = (take (length ls) (subtrees tsi'))@subi#(drop (length ls+1) (subtrees tsi'))")
+    prefer 2
+      subgoal proof (goal_cases)
+        case 1
+        have "length spl = length tsi'" "length tsi' = length rs'"
+          using 1 by auto
+        then have "subtrees tsi' = map fst (map fst ((zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+       (separators tsi'))))"
+          by simp
+        also have "\<dots> = map fst (map fst (lsi @ ((subi, subp, subfwd, sublptrs), sepi) # rsi))"
+          using 1 by simp
+        also have "\<dots> = map fst (map fst (lsi)) @ subi # map fst (map fst (rsi))"
+          by auto
+        also have "\<dots> = (take (length ls) (subtrees tsi')) @ subi # (drop (length ls +1) (subtrees tsi'))"
+          using 1 by (auto simp add: take_map[symmetric] drop_map[symmetric])
+        finally show ?case .
+      qed
+      apply(subgoal_tac "separators tsi' = (take (length ls) (separators tsi'))@sepi#(drop (length ls+1) (separators tsi'))")
+    prefer 2
+      subgoal proof (goal_cases)
+        case 1
+        have "length spl = length tsi'" "length tsi' = length rs'"
+          using 1 by auto
+        then have "separators tsi' = map snd ((zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+       (separators tsi')))"
+          by simp
+        also have "\<dots> = map snd (lsi @ ((subi, subp, subfwd, sublptrs), sepi) # rsi)"
+          using 1 by simp
+        also have "\<dots> = map snd (lsi) @ sepi # map snd (rsi)"
+          by auto
+        also have "\<dots> = (take (length ls) (separators tsi')) @ sepi # (drop (length ls +1) (separators tsi'))"
+          using 1 by (auto simp add: take_map[symmetric] drop_map[symmetric])
+        finally show ?case .
+      qed
+      apply(subgoal_tac "spl = (take (length ls) spl)@sublptrs#(drop (length ls+1) spl)")
+        prefer 2
+      subgoal proof (goal_cases)
+        case 1
+        have "length spl = length tsi'" "length tsi' = length rs'"
+          using 1 by auto
+        then have "spl = map snd (map snd (map snd (map fst ((zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+       (separators tsi'))))))"
+          by simp
+        also have "\<dots> = map snd (map snd (map snd (map fst (lsi @ ((subi, subp, subfwd, sublptrs), sepi) # rsi))))"
+          using 1 by simp
+        also have "\<dots> = map snd (map snd (map snd (map fst (lsi)))) @ sublptrs # map snd (map snd (map snd (map fst (rsi))))"
+          by auto
+        also have "\<dots> = (take (length ls) spl) @ sublptrs # (drop (length ls +1) spl)"
+          using 1 by (auto simp add: take_map[symmetric] drop_map[symmetric])
+        finally show ?case .
+      qed
+      apply(subgoal_tac "rs' = (take (length ls) rs')@subfwd#(drop (length ls+1) rs')")
+        prefer 2
+      subgoal proof (goal_cases)
+        case 1
+        have "length spl = length tsi'" "length tsi' = length rs'"
+          using 1 by auto
+        then have "rs' = map fst (map snd (map snd (map fst ((zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+       (separators tsi'))))))"
+          by simp
+        also have "\<dots> = map fst (map snd (map snd (map fst (lsi @ ((subi, subp, subfwd, sublptrs), sepi) # rsi))))"
+          using 1 by simp
+        also have "\<dots> = map fst (map snd (map snd (map fst (lsi)))) @ subfwd # map fst (map snd (map snd (map fst (rsi))))"
+          by auto
+        also have "\<dots> = (take (length ls) rs') @ subfwd # (drop (length ls +1) rs')"
+          using 1 by (auto simp add: take_map[symmetric] drop_map[symmetric])
+        finally show ?case .
+      qed
+      apply(subgoal_tac "butlast (r#rs') = (take (length ls) (butlast (r#rs')))@subp#(drop (length ls+1) (butlast (r#rs')))")
+        prefer 2
+      subgoal proof (goal_cases)
+        case 1
+        have "length spl = length tsi'" "length tsi' = length rs'"
+          using 1 by auto
+        then have "butlast (r#rs') = (map fst (map snd (map fst ((zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+       (separators tsi'))))))"
+          by simp
+        also have "\<dots> = map fst (map snd (map fst (lsi @ ((subi, subp, subfwd, sublptrs), sepi) # rsi)))"
+          using 1 by simp
+        also have "\<dots> = map fst (map snd (map fst (lsi))) @ subp # map fst (map snd (map fst (rsi)))"
+          by auto
+        also have "\<dots> = (take (length ls) (butlast (r#rs'))) @ subp # (drop (length ls +1) (butlast (r#rs')))"
+          using 1 by (auto simp add: take_map[symmetric] drop_map[symmetric])
+        finally show ?case .
+      qed
       apply simp
+      thm blist_leafs_assn_split
         apply(inst_existentials "concat ((take (length ls) spl)@lptrs#(drop (Suc (length ls)) spl)@[last spl_first])" "concat (map (leaf_nodes \<circ> fst) ls) @ xs1"
 "concat (take (length ls) spl) @ lptrs1" "lptrs2 @ (concat (drop (Suc (length ls)) spl))@last spl_first"
 tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (butlast ((take (length ls) spl)@lptrs#(drop (Suc (length ls)) spl)@[last spl_first])))))
          (separators tsi')" rs' "(take (length ls) spl)@lptrs#(drop (Suc (length ls)) spl)@[last spl_first]" "(take (length ls)
             (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
               (separators tsi')))" subi subp subfwd lptrs sepi "(drop (Suc (length ls))
-            (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' spl)))
+            (zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' ((take (length ls) spl)@lptrs#(drop (length ls+1) spl)))))
               (separators tsi')))")
       (*apply(inst_existentials "concat (spl@[lptrs])" "concat (map (leaf_nodes \<circ> fst) ts) @ xs1" "(concat (butlast spl)) @ lptrs1" lptrs2
                               tsia tsin tii tsi' "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
             (separators tsi'))" rrs spl)*)
       subgoal
+        find_theorems "butlast" "_@[_]"
         apply (auto)
-        sorry
+      proof (goal_cases)
+        case (1 a b)
+        have *: "(take (length ls) spl @ (lptrs1 @ lptrs2) # drop (Suc (length ls)) spl @ [last spl_first])
+ = ((take (length ls) spl @ (lptrs1 @ lptrs2) # drop (Suc (length ls)) spl) @ [last spl_first])"
+          by auto
+        have **: 
+           "subtrees tsi' = take (length ls) (subtrees tsi') @ subi # drop (Suc (length ls)) (subtrees tsi')"
+           "separators tsi' = take (length ls) (separators tsi') @ sepi # drop (Suc (length ls)) (separators tsi')"
+           "spl = take (length ls) spl @ sublptrs # drop (Suc (length ls)) spl"
+           "rs' = take (length ls) rs' @ subfwd # drop (Suc (length ls)) rs'"
+           "butlast (r # rs') =
+           take (length ls) (butlast (r # rs')) @
+           subp # drop (Suc (length ls)) (butlast (r # rs'))"
+          using 1 by simp_all
+        have drop_sep_tsi': "drop (length ls) (separators tsi') = sepi#(drop (length ls+1) (separators tsi'))" 
+        proof -
+          have "take (length ls) (separators tsi') @ drop (length ls) (separators tsi') = take (length ls) (separators tsi')@sepi#(drop (length ls+1) (separators tsi'))" 
+            using 1 by auto
+          then show ?thesis
+            by (meson same_append_eq)
+        qed
+        have drop_sub_tsi': "drop (length ls) (subtrees tsi') = subi#(drop (length ls+1) (subtrees tsi'))" 
+        proof -
+          have "take (length ls) (subtrees tsi') @ drop (length ls) (subtrees tsi') = take (length ls) (subtrees tsi')@subi#(drop (length ls+1) (subtrees tsi'))" 
+            using 1 by auto
+          then show ?thesis
+            by (meson same_append_eq)
+        qed
+        have drop_rs': "drop (length ls) rs' = subfwd#(drop (length ls+1) rs')" 
+        proof -
+          have "take (length ls) rs' @ drop (length ls) rs' = take (length ls) rs'@subfwd#(drop (length ls+1) rs')" 
+            using 1 by auto
+          then show ?thesis
+            by (meson same_append_eq)
+        qed
+        have drop_butlastrs': "drop (length ls) (butlast (r#rs')) = subp#(drop (length ls+1) (butlast (r#rs')))" 
+        proof -
+          have "take (length ls) (butlast (r#rs')) @ drop (length ls) (butlast (r#rs')) = take (length ls) (butlast (r#rs'))@subp#(drop (length ls+1) (butlast (r#rs')))" 
+            using 1 by auto
+          then show ?thesis
+            by (meson same_append_eq)
+        qed
+        have "length tsi' = length rs'" "length spl = length rs'" "length ls \<le> length rs'" 
+          using 1 by auto
+        then show ?case 
+          apply(subst *)
+          apply(subst butlast_snoc)
+          find_theorems "zip" "_@_"
+          apply(subst(2) zip_append2)
+          apply(subst(2) zip_append2)
+          apply(subst(2) zip_append2)
+          apply(subst zip_append1)
+          find_theorems min "_ \<le> _"
+          apply (simp add: min.absorb2)
+          find_theorems "zip" "_#_"
+          find_theorems zip take
+          apply(simp add: take_zip)
+          apply(subst drop_sep_tsi')
+          apply(subst drop_sub_tsi')
+          apply(subst drop_rs')
+          apply(subst drop_butlastrs')
+          apply(simp add: drop_zip min.absorb2)
+          done
+      qed
       subgoal
         find_theorems butlast take
         apply(simp add: take_zip drop_zip)
@@ -595,15 +778,15 @@ tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (
         apply(subgoal_tac "last (subfwd # drop (Suc (length ls)) rs') = last (r#rs')")
         apply(subgoal_tac "(last (r # take (length ls) rs')) = subp")
         apply(simp add: last.simps)
-        apply (sep_auto)
+        apply (solve_entails)
         subgoal sorry
         subgoal sorry
         subgoal sorry
         done
-        subgoal sorry
-        subgoal sorry
       done
-        subgoal sorry
+    subgoal
+      apply clarsimp
+      sorry
   done
   subgoal
     apply(rule hoare_triple_preI)
