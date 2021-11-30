@@ -817,10 +817,35 @@ tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (
           using obt * by auto
       next
         case (2 a b)
-        then show ?case sorry
+        then have "rs' = take (length ls) rs' @ subfwd # drop (Suc (length ls)) rs'"
+          by simp
+        then have "r#rs' = (r#take (length ls) rs') @ subfwd # drop (Suc (length ls)) rs'"
+          by simp
+        then have "last(r#rs') = last((r#take (length ls) rs') @ subfwd # drop (Suc (length ls)) rs')"
+          by simp
+        also have "\<dots> = last(subfwd # drop (Suc (length ls)) rs')"
+          thm last_append[of "r#take (length ls) rs'"]
+          using last_append[of "r#take (length ls) rs'"]
+          by simp
+        finally show ?case ..
       next
         case 3
-        then show ?case sorry
+        have "drop (Suc (length ls)) (butlast (r # rs')) = butlast (drop (Suc (length ls)) (r#rs'))"
+          by (auto simp add: butlast.simps butlast_drop)
+        also have "\<dots> = butlast (drop (length ls) rs')"
+          by simp
+        also have "\<dots> = butlast (subfwd # drop (Suc (length ls)) rs')"
+        proof -
+            have *:"rs' = take (length ls) rs' @ subfwd # drop (Suc (length ls)) rs'"
+              using 3 by simp
+            have "length ls < length rs'"
+              using 3 by simp
+            then have "drop (length ls) rs' = subfwd # drop (Suc (length ls)) rs'"
+              apply(subst *)
+              by (simp add: min.absorb1 min.absorb2)
+            then show ?thesis by simp
+          qed
+          finally show ?case .
       qed
         done
       done
