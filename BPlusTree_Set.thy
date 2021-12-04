@@ -3478,12 +3478,7 @@ lemma isin_sorted: "sorted_less (xs@a#ys) \<Longrightarrow>
   (x \<in> set (xs@a#ys)) = (if x < a then x \<in> set xs else x \<in> set (a#ys))"
   by (auto simp: isin_simps2)
 
-locale split_list =
-  fixes split_list ::  "('a::{linorder,order_top}) list \<Rightarrow> 'a \<Rightarrow> 'a list \<times> 'a list"
-  assumes split_list_req:
-    "\<lbrakk>split_list ks p = (kls,krs)\<rbrakk> \<Longrightarrow> ks = kls @ krs"
-    "\<lbrakk>split_list ks p = (kls@[sep],krs); sorted_less ks\<rbrakk> \<Longrightarrow> sep < p"
-    "\<lbrakk>split_list ks p = (kls,(sep)#krs); sorted_less ks\<rbrakk> \<Longrightarrow> p \<le> sep"
+context split_list
 begin
 
 fun isin_list :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
@@ -3666,13 +3661,7 @@ theorem delete_list_set:
 
 end
 
-locale split_full = split_tree: split_tree split + split_list split_list
-    for split::
-      "('a bplustree \<times> 'a::{linorder,order_top}) list \<Rightarrow> 'a
-         \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list"
-    and split_list::
-      "'a::{linorder,order_top} list \<Rightarrow> 'a
-         \<Rightarrow> 'a list \<times> 'a list"
+context split_full
 begin
 
 sublocale split_set split isin_list insert_list delete_list 

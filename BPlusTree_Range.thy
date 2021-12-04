@@ -680,4 +680,83 @@ qed
 
 end
 
+context split_list
+begin
+
+definition lrange_split where
+"lrange_split l xs = (case split_list xs l of (ls,rs) \<Rightarrow> rs)"
+
+lemma lrange_filter_split: 
+  assumes "sorted_less xs"
+    and "split_list xs l = (ls,rs)"
+  shows "lrange_list l xs = rs"
+  find_theorems split_list
+proof(cases rs)
+  case rs_Nil: Nil
+  then show ?thesis
+  proof(cases ls)
+    case Nil
+    then show ?thesis
+      using assms split_list_req(1)[of xs l ls rs] rs_Nil
+      by simp
+  next
+    case Cons
+    then obtain lss sep where snoc: "ls = lss@[sep]"
+      by (metis append_butlast_last_id list.simps(3))
+    then have "sep < l"
+      using assms(1) assms(2) split_list_req(2) by blast
+    then show ?thesis 
+      using lrange_list_sorted[of lss sep rs l]
+            snoc split_list_req(1)[OF assms(2)]
+            assms rs_Nil
+      by simp
+  qed
+next
+  case ls_Cons: (Cons sep rss)
+  then have *: "l \<le> sep"
+    using assms(1) assms(2) split_list_req(3) by auto
+  then show ?thesis 
+  proof(cases ls)
+    case Nil
+    then show ?thesis
+    using lrange_list_sorted[of ls sep rss l]
+          split_list_req(1)[OF assms(2)] assms
+          ls_Cons *
+    by simp
+  next
+    case Cons
+    then obtain lss sep2 where snoc: "ls = lss@[sep2]"
+      by (metis append_butlast_last_id list.simps(3))
+    then have "sep2 < l"
+      using assms(1) assms(2) split_list_req(2) by blast
+    moreover have "sorted_less (lss@[sep2])"
+      using assms(1) assms(2) ls_Cons snoc sorted_mid_iff sorted_snoc split_list_req(1) by blast
+    ultimately show ?thesis 
+      using lrange_list_sorted[of ls sep rss l]
+            lrange_list_sorted[of lss "sep2" "[]" l]
+            split_list_req(1)[OF assms(2)] assms
+            ls_Cons * snoc
+      by simp
+  qed
+qed
+
+lemma lrange_split_req: 
+  assumes "sorted_less xs"
+  shows "lrange_split l xs = lrange_filter l xs"
+  unfolding lrange_split_def
+  using lrange_filter_split[of xs l] assms
+  using sorted_less_lrange
+  by (simp split!: prod.splits)
+
+end
+
+context split_full
+begin
+
+sublocale split_range split lrange_split 
+  using lrange_split_req
+  by unfold_locales auto
+
+end
+
 end

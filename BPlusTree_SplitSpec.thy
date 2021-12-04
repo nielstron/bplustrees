@@ -46,4 +46,19 @@ begin
     using split_conc[of ts y ls "(sub,sep)#rs"] by auto
 end
 
+locale split_list =
+  fixes split_list ::  "('a::{linorder,order_top}) list \<Rightarrow> 'a \<Rightarrow> 'a list \<times> 'a list"
+  assumes split_list_req:
+    "\<lbrakk>split_list ks p = (kls,krs)\<rbrakk> \<Longrightarrow> ks = kls @ krs"
+    "\<lbrakk>split_list ks p = (kls@[sep],krs); sorted_less ks\<rbrakk> \<Longrightarrow> sep < p"
+    "\<lbrakk>split_list ks p = (kls,(sep)#krs); sorted_less ks\<rbrakk> \<Longrightarrow> p \<le> sep"
+
+locale split_full = split_tree: split_tree split + split_list split_list
+    for split::
+      "('a bplustree \<times> 'a::{linorder,order_top}) list \<Rightarrow> 'a
+         \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list"
+    and split_list::
+      "'a::{linorder,order_top} list \<Rightarrow> 'a
+         \<Rightarrow> 'a list \<times> 'a list"
+
 end
