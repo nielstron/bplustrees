@@ -2,7 +2,7 @@ theory BPlusTree_Range
 imports BPlusTree
     "HOL-Data_Structures.Set_Specs"
     "HOL-Library.Sublist"
-    BPlusTree_SplitSpec
+    BPlusTree_Split
 begin
 
 definition Lower_bound where

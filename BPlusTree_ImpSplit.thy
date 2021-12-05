@@ -1,9 +1,125 @@
 theory BPlusTree_ImpSplit
   imports
-    BPlusTree_ImpSet
+    BPlusTree_Imp
     BPlusTree_Split
     Imperative_Loops
 begin
+
+definition "split_relation xs \<equiv>
+   \<lambda>(as,bs) i. i \<le> length xs \<and> as = take i xs \<and> bs = drop i xs"
+
+lemma split_relation_alt: 
+  "split_relation as (ls,rs) i = (as = ls@rs \<and> i = length ls)"
+  by (auto simp add: split_relation_def)
+
+
+lemma split_relation_length: "split_relation xs (ls,rs) (length xs) = (ls = xs \<and> rs = [])"
+  by (simp add: split_relation_def)
+
+(* auxiliary lemmas on assns *)
+(* simp? not sure if it always makes things more easy *)
+lemma list_assn_prod_map: "list_assn (A \<times>\<^sub>a B) xs ys = list_assn B (map snd xs) (map snd ys) * list_assn A (map fst xs) (map fst ys)"
+  apply(induct "(A \<times>\<^sub>a B)" xs ys rule: list_assn.induct)
+     apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
+  done
+
+(* concrete *)
+lemma id_assn_list: "h \<Turnstile> list_assn id_assn (xs::'a list) ys \<Longrightarrow> xs = ys"
+  apply(induction "id_assn::('a \<Rightarrow> 'a \<Rightarrow> assn)" xs ys rule: list_assn.induct)
+     apply(auto simp add: less_Suc_eq_0_disj pure_def)
+  done
+
+lemma id_assn_list_alt: "list_assn id_assn (xs::'a list) ys = \<up>(xs = ys)"
+  apply(induction "id_assn::('a \<Rightarrow> 'a \<Rightarrow> assn)" xs ys rule: list_assn.induct)
+     apply(auto simp add: less_Suc_eq_0_disj pure_def)
+  done
+
+
+lemma snd_map_help:
+  "x \<le> length tsi \<Longrightarrow>
+       (\<forall>j<x. snd (tsi ! j) = ((map snd tsi)!j))"
+  "x < length tsi \<Longrightarrow> snd (tsi!x) = ((map snd tsi)!x)"
+  by auto
+
+
+lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b \<and> X))"
+  by auto
+
+lemma split_relation_map: "split_relation as (ls,rs) i \<Longrightarrow> split_relation (map f as) (map f ls, map f rs) i"
+  apply(induction as arbitrary: ls rs i)
+   apply(auto simp add: split_relation_def take_map drop_Cons')
+  apply(metis list.simps(9) take_map)
+  done
+
+lemma split_relation_access: "\<lbrakk>split_relation as (ls,rs) i; rs = r#rrs\<rbrakk> \<Longrightarrow> as!i = r"
+  by (simp add: split_relation_alt)
+
+
+
+lemma index_to_elem_all: "(\<forall>j<length xs. P (xs!j)) = (\<forall>x \<in> set xs. P x)"
+  by (simp add: all_set_conv_nth)
+
+lemma index_to_elem: "n < length xs \<Longrightarrow> (\<forall>j<n. P (xs!j)) = (\<forall>x \<in> set (take n xs). P x)"
+  by (simp add: all_set_conv_nth)
+    (* ----------------- *)
+
+definition split_half :: "'a::heap pfarray \<Rightarrow> nat Heap"
+  where
+    "split_half a \<equiv> do {
+  l \<leftarrow> pfa_length a;
+  return ((l + 1) div 2)
+}"
+
+lemma split_half_rule[sep_heap_rules]: "<
+    is_pfa c tsi a>
+    split_half a
+  <\<lambda>i. 
+      is_pfa c tsi a
+    * \<up>(i = (length tsi + 1) div 2 \<and>  split_relation tsi (BPlusTree_Split.split_half tsi) i)>"
+  unfolding split_half_def split_relation_def
+  apply(rule hoare_triple_preI)
+  apply(sep_auto dest!: list_assn_len mod_starD)
+  done
+
+
+subsection "The imperative split locale"
+
+locale imp_split_tree = abs_split_tree: BPlusTree_Split.split_tree split
+  for split::
+    "('a::{heap,default,linorder,order_top} bplustree \<times> 'a) list \<Rightarrow> 'a
+       \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
+  fixes imp_split:: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
+  assumes imp_split_rule [sep_heap_rules]:"sorted_less (separators ts) \<Longrightarrow>
+  length tsi = length rs \<Longrightarrow>
+  tsi'' = zip (zip (map fst tsi) (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi) \<Longrightarrow>
+ <is_pfa c tsi (a,n) 
+  * blist_assn k ts tsi'' > 
+    imp_split (a,n) p 
+  <\<lambda>i. 
+    is_pfa c tsi (a,n)
+    * blist_assn k ts tsi''
+    * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
+
+locale imp_split_list = abs_split_list: split_list split_list
+  for split_list::
+    "('a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
+       \<Rightarrow> 'a list \<times> 'a list" +
+  fixes imp_split_list:: "('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
+  assumes imp_split_list_rule [sep_heap_rules]: "sorted_less xs \<Longrightarrow>
+   <is_pfa c xs (a,n)> 
+    imp_split_list (a,n) p 
+  <\<lambda>i. 
+    is_pfa c xs (a,n)
+    * \<up>(split_relation xs (split_list xs p) i)>\<^sub>t"
+
+
+locale imp_split_full = imp_split_tree: imp_split_tree split + imp_split_list: imp_split_list split_list
+    for split::
+      "('a bplustree \<times> 'a::{linorder,heap,default,order_top}) list \<Rightarrow> 'a
+         \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list"
+    and split_list::
+      "'a::{default,linorder,order_top,heap} list \<Rightarrow> 'a
+         \<Rightarrow> 'a list \<times> 'a list"
 
 section "Imperative split operations"
 
@@ -441,6 +557,11 @@ text "In order to obtain fully defined functions,
 we need to plug our split function implementations
 into the locales we introduced previously."
 
+interpretation bplustree_imp_binary_split_list_lrange: imp_split_list_smeq lin'_split
+  apply unfold_locales
+  apply(sep_auto heap: bin'_split_rule)
+  done
+
 interpretation bplustree_imp_linear_split_tree: imp_split_tree_smeq lin_split
   apply unfold_locales
   apply(sep_auto heap: lin_split_rule)
@@ -456,48 +577,5 @@ interpretation bplustree_imp_bin_split_tree: imp_split_tree_smeq bin_split
   apply(sep_auto heap: bin_split_rule)
   done
 
-global_interpretation bplustree_imp_binary_split_list: imp_split_list_smeq bin'_split
-  defines bplustree_isin_list = bplustree_imp_binary_split_list.imp_isin_list
-    and bplustree_ins_list = bplustree_imp_binary_split_list.imp_ins_list
-    and bplustree_del_list = bplustree_imp_binary_split_list.imp_del_list
-  apply unfold_locales
-  apply(sep_auto heap: bin'_split_rule)
-  done
-
-print_theorems
-
-global_interpretation bplustree_imp_binary_split: 
-  imp_split_set bplustree_ls_isin_list bplustree_ls_insert_list bplustree_ls_delete_list
-  linear_split bin_split bplustree_isin_list bplustree_ins_list bplustree_del_list
-  defines bplustree_isin = bplustree_imp_binary_split.isin
-    and bplustree_ins = bplustree_imp_binary_split.ins
-    and bplustree_insert = bplustree_imp_binary_split.insert
-    (*and bplustree_del = bplustree_imp_binary_split.del
-    and bplustree_delete = bplustree_imp_binary_split.delete*)
-    and bplustree_empty = bplustree_imp_binary_split.empty
-  apply unfold_locales
-  subgoal
-    apply(vcg heap: bplustree_imp_binary_split_list.imp_isin_list_rule)
-    apply (simp add: bplustree_ls_isin_list_def)
-    done
-  subgoal
-    apply(vcg heap: bplustree_imp_binary_split_list.imp_ins_list_rule)
-    apply (simp add: bplustree_ls_insert_list_def)
-    done
-  subgoal
-    apply(vcg heap: bplustree_imp_binary_split_list.imp_del_list_rule)
-    apply (simp add: bplustree_ls_delete_list_def)
-    done
-  done
-
-thm bplustree_imp_binary_split.ins.simps
-declare bplustree_imp_binary_split.ins.simps[code]
-declare bplustree_imp_binary_split.isin.simps[code]
-
-export_code bplustree_empty bplustree_isin bplustree_insert checking OCaml SML Scala
-export_code bplustree_empty bplustree_isin bplustree_insert in OCaml module_name BPlusTree
-export_code bplustree_empty bplustree_isin bplustree_insert in SML module_name BPlusTree
-export_code bplustree_empty bplustree_isin bplustree_insert in Scala module_name BPlusTree
 
 end
-

@@ -1,7 +1,7 @@
 theory BPlusTree_ImpSet
   imports
     BPlusTree_Set
-    BPlusTree_ImpSplitSpec
+    BPlusTree_ImpSplit
     "HOL-Real_Asymp.Inst_Existentials"
 begin
 
@@ -16,7 +16,7 @@ that refines the abstract split function."
 
 
 (* TODO separate into split_tree and split + split_list  *)
-locale imp_split_set = abs_split_set: BPlusTree_Set.split_set split + imp_split_tree split imp_split
+locale imp_split_set = abs_split_set: split_set split + imp_split_tree split imp_split
   for split::
     "('a bplustree \<times> 'a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" 
@@ -652,11 +652,7 @@ lemma Lnode\<^sub>i_rule_tree:
   shows "<bplustree_assn k (LNode xs) a r z>
   Lnode\<^sub>i k a
   <\<lambda>a. btupi_assn k (abs_split_set.Lnode\<^sub>i k xs) a r z>\<^sub>t"
-proof -
-  note Lnode\<^sub>i_rule
-  then show ?thesis
-    using assms by (sep_auto)
-qed
+    using assms by (sep_auto heap add: Lnode\<^sub>i_rule)
 
 lemma node\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split_set.node\<^sub>i k ts t = abs_split_set.T\<^sub>i (Node ts t)"
   by (simp add: abs_split_set.node\<^sub>i.simps)
@@ -2178,17 +2174,7 @@ lemma delete_rule:
 
 end
 
-locale imp_split_list = abs_split_set_list: BPlusTree_Set.split_list split_list
-  for split_list::
-    "('a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
-       \<Rightarrow> 'a list \<times> 'a list" +
-  fixes imp_split_list:: "('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
-  assumes imp_split_list_rule [sep_heap_rules]: "sorted_less xs \<Longrightarrow>
-   <is_pfa c xs (a,n)> 
-    imp_split_list (a,n) p 
-  <\<lambda>i. 
-    is_pfa c xs (a,n)
-    * \<up>(split_relation xs (split_list xs p) i)>\<^sub>t"
+context imp_split_list
 begin
 
 definition imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
@@ -2209,7 +2195,7 @@ lemma imp_isin_list_rule [sep_heap_rules]:
     imp_isin_list x (a',n') 
   <\<lambda>b. 
     is_pfa c ks (a',n')
-    * \<up>(b = abs_split_set_list.isin_list x ks)>\<^sub>t"
+    * \<up>(b = abs_split_list.isin_list x ks)>\<^sub>t"
 proof -
   obtain ls rs where list_split: "split_list ks x = (ls, rs)"
     by (cases "split_list ks x")
@@ -2250,7 +2236,7 @@ lemma imp_ins_list_rule [sep_heap_rules]:
   shows
    "<is_pfa c ks (a',n')> 
     imp_ins_list x (a',n') 
-  <\<lambda>(a'',n''). is_pfa (max c (length (abs_split_set_list.insert_list x ks))) (abs_split_set_list.insert_list x ks) (a'',n'')
+  <\<lambda>(a'',n''). is_pfa (max c (length (abs_split_list.insert_list x ks))) (abs_split_list.insert_list x ks) (a'',n'')
     >\<^sub>t"
 proof -
   obtain ls rs where list_split: "split_list ks x = (ls, rs)"
@@ -2354,7 +2340,7 @@ lemma imp_del_list_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows "<is_pfa c ks (a',n')> 
     imp_del_list x (a',n') 
-  <\<lambda>(a'',n''). is_pfa c (abs_split_set_list.delete_list x ks) (a'',n'')>\<^sub>t"
+  <\<lambda>(a'',n''). is_pfa c (abs_split_list.delete_list x ks) (a'',n'')>\<^sub>t"
 proof -
   obtain ls rs where list_split: "split_list ks x = (ls, rs)"
     by (cases "split_list ks x")
@@ -2413,23 +2399,62 @@ qed
 
 end
 
-locale imp_split_full = imp_split_tree: imp_split_tree split + imp_split_list: imp_split_list split_list
-    for split::
-      "('a bplustree \<times> 'a::{linorder,heap,default,order_top}) list \<Rightarrow> 'a
-         \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list"
-    and split_list::
-      "'a::{default,linorder,order_top,heap} list \<Rightarrow> 'a
-         \<Rightarrow> 'a list \<times> 'a list"
+context imp_split_full
 begin
 
-sublocale imp_split_set imp_split_list.abs_split_set_list.isin_list imp_split_list.abs_split_set_list.insert_list 
-  imp_split_list.abs_split_set_list.delete_list split imp_split imp_split_list.imp_isin_list imp_split_list.imp_ins_list imp_split_list.imp_del_list
-  using imp_split_list.abs_split_set_list.isin_list_set imp_split_list.abs_split_set_list.insert_list_set imp_split_list.abs_split_set_list.delete_list_set
+sublocale imp_split_set imp_split_list.abs_split_list.isin_list imp_split_list.abs_split_list.insert_list 
+  imp_split_list.abs_split_list.delete_list split imp_split imp_split_list.imp_isin_list imp_split_list.imp_ins_list imp_split_list.imp_del_list
+  using imp_split_list.abs_split_list.isin_list_set imp_split_list.abs_split_list.insert_list_set imp_split_list.abs_split_list.delete_list_set
   apply unfold_locales 
   apply sep_auto +
   done
 
 end
+
+global_interpretation bplustree_imp_binary_split_list: imp_split_list_smeq bin'_split
+  defines bplustree_isin_list = bplustree_imp_binary_split_list.imp_isin_list
+    and bplustree_ins_list = bplustree_imp_binary_split_list.imp_ins_list
+    and bplustree_del_list = bplustree_imp_binary_split_list.imp_del_list
+  apply unfold_locales
+  apply(sep_auto heap: bin'_split_rule)
+  done
+
+print_theorems
+
+
+
+global_interpretation bplustree_imp_binary_split_set: 
+  imp_split_set bplustree_ls_isin_list bplustree_ls_insert_list bplustree_ls_delete_list
+  linear_split bin_split bplustree_isin_list bplustree_ins_list bplustree_del_list
+  defines bplustree_isin = bplustree_imp_binary_split_set.isin
+    and bplustree_ins = bplustree_imp_binary_split_set.ins
+    and bplustree_insert = bplustree_imp_binary_split_set.insert
+    (*and bplustree_del = bplustree_imp_binary_split.del
+    and bplustree_delete = bplustree_imp_binary_split.delete*)
+    and bplustree_empty = bplustree_imp_binary_split_set.empty
+  apply unfold_locales
+  subgoal
+    apply(vcg heap: bplustree_imp_binary_split_list.imp_isin_list_rule)
+    apply (simp add: bplustree_ls_isin_list_def)
+    done
+  subgoal
+    apply(vcg heap: bplustree_imp_binary_split_list.imp_ins_list_rule)
+    apply (simp add: bplustree_ls_insert_list_def)
+    done
+  subgoal
+    apply(vcg heap: bplustree_imp_binary_split_list.imp_del_list_rule)
+    apply (simp add: bplustree_ls_delete_list_def)
+    done
+  done
+
+declare bplustree_imp_binary_split_set.ins.simps[code]
+declare bplustree_imp_binary_split_set.isin.simps[code]
+
+export_code bplustree_empty bplustree_isin bplustree_insert checking OCaml SML Scala
+export_code bplustree_empty bplustree_isin bplustree_insert in OCaml module_name BPlusTree
+export_code bplustree_empty bplustree_isin bplustree_insert in SML module_name BPlusTree
+export_code bplustree_empty bplustree_isin bplustree_insert in Scala module_name BPlusTree
+
 
 end
 

@@ -1,8 +1,8 @@
 theory BPlusTree_ImpRange
 imports
-  BPlusTree_Range
   BPlusTree_Iter
-  BPlusTree_ImpSplitSpec
+  BPlusTree_Range
+  BPlusTree_ImpSplit
 begin
 
 abbreviation "blist_leafs_assn k \<equiv> list_assn ((\<lambda> t (ti,r',z',lptrs). bplustree_assn_leafs k t (the ti) r' z' lptrs) \<times>\<^sub>a id_assn)"
@@ -1012,5 +1012,72 @@ concat_leafs_range ti x
   done
 
 end
+
+context imp_split_list
+begin
+
+definition imp_lrange_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfa_it Heap"
+  where "imp_lrange_list x ks = do {
+    i \<leftarrow> imp_split_list ks x;
+    return (ks, i)
+}"
+
+lemma imp_lrange_list_rule [sep_heap_rules]:
+  assumes "sorted_less ks"
+  shows
+   "<is_pfa c ks (a',n')> 
+    imp_lrange_list x (a',n') 
+  <pfa_is_it c ks (a',n') (abs_split_list.lrange_split x ks)>\<^sub>t"
+proof -
+  obtain ls rs where list_split: "split_list ks x = (ls, rs)"
+    by (cases "split_list ks x")
+  then have "lrange_list x ks = rs"
+    by (simp add: abs_split_list.lrange_filter_split assms)
+  moreover have "ks = ls@rs"
+    using abs_split_list.split_list_req(1) list_split by blast
+  ultimately show ?thesis
+      apply(subst imp_lrange_list_def)
+      using assms list_split abs_split_list.lrange_split_req
+      apply(sep_auto simp add: sorted_less_lrange pfa_is_it_def split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)
+      done
+qed
+end
+
+context imp_split_full
+begin
+
+sublocale imp_split_range split  imp_split_list.abs_split_list.lrange_split imp_split imp_split_list.imp_lrange_list
+  using imp_split_list.abs_split_list.lrange_split_req imp_split_list.imp_lrange_list_rule
+  apply unfold_locales 
+  apply sep_auto +
+  done
+
+end
+
+
+global_interpretation bplustree_imp_binary_split_list_lrange: imp_split_list_smeq bin'_split
+  defines bplustree_lrange_list = bplustree_imp_binary_split_list.imp_lrange_list
+  by unfold_locales
+
+
+global_interpretation bplustree_imp_binary_split_range: 
+  imp_split_range linear_split bplustree_linear_search_list.lrange_split bin_split bplustree_lrange_list
+  defines bplustree_lrange = bplustree_imp_binary_split_range.concat_leafs_range
+    and bplustree_leafs_range = bplustree_imp_binary_split_range.leafs_range
+  apply unfold_locales
+  subgoal by (simp add: bplustree_linear_search_list.lrange_split_req)
+  subgoal 
+    apply(simp add: bplustree_lrange_list_def)
+    apply(vcg heap: bplustree_imp_binary_split_list.imp_lrange_list_rule)
+  done
+
+find_theorems bplustree_lrange
+find_theorems imp_split_range.concat_leafs_range
+find_theorems bplustree_leafs_range
+
+export_code bplustree_leafs_range bplustree_lrange checking OCaml SML Scala
+export_code bplustree_lrange in OCaml module_name BPlusTree
+export_code bplustree_lrange in SML module_name BPlusTree
+export_code bplustree_lrange in Scala module_name BPlusTree
 
 end
