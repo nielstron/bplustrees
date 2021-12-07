@@ -95,6 +95,31 @@
 
 This will be the introduction. There will be more text.
 
+\subsection{Related Work}
+\label{sec:related_work}
+
+Ernst verified a simplified version of \btrees that does
+not have links between leaf nodes.
+
+Malecha already built and verified \btrees \cite{}.
+In their approach, they chose an intermediate layer of a functional
+data structure that explicitely stores pointers to their heap embedded
+correspondence.
+
+\subsection{Contributions}
+\label{sec:contributions}
+
+We provide an alternative approach to verifying \btree implementations,
+by fully separating the functional and imperative layers.
+This allows for complex relationships to be validated on a purely
+functional level, while on the imperative level
+only refinement of the abstract operations needs to be shown.
+The approach allowed us to supplement the implementation
+with an efficient binary search on the node level
+and eventually provide an efficient range query iterator
+on top of a list element iterator.
+
+
 \section{\btrees\ and Approach}
 \label{sec:approach}
 
@@ -109,14 +134,11 @@ the specification that serves as basis in this work.
 A commonly implemented variation is the \btree, where the inner nodes
 only contain separators to guide the recursive navigation through the tree.
 In \btrees, all data is stored in the leaves \cite{DBLP:journals/csur/Comer79}.
-Further the leaves are often implemented so as to contain pointers
-to the next leaf in order, allowing for efficient range queries.
-
-Nodes are generally thought to be implemented by
-containing a number of indices, data corresponding to each index
-and a number of children.
+Further the leaves are usually implemented so as to contain pointers
+to the next leaf in order, allowing for efficient iterators and range queries.
 
 \begin{figure}
+    % TODO update figure 
     \centering
     \includegraphics[width=0.5\linewidth]{figures/btree-basic-nopair.pdf}
     \caption[A small example B-Tree]{A small balanced, sorted B-tree of order $2$ and
@@ -130,8 +152,8 @@ and a number of children.
 \subsection{Definitions}
 \label{sec:data_structure_defs}
 
-Every node contains a list of \textit{keys} (also \textit{separators}, \textit{index elements}), and \textit{subtrees} (\textit{children}),
-that represent further B-tree nodes.
+Every node contains a list of \textit{keys} (also \textit{separators}, and \textit{subtrees} (\textit{children}),
+that represent further \btree nodes.
 The separators and subtrees may be considered interleaved within a node,
 such that we can speak of a subtree to the left of a separator and
 a subtree to the right of a separator,
@@ -140,49 +162,34 @@ subtree list at index $i$ and $i+1$ respectively.
 Note that this already implies that the list of subtrees is one
 longer than the list of separators - we refer to the last subtree
 as the \textit{last} or \textit{dangling} subtree.
-In the original definition by Bayer \cite{DBLP:journals/acta/BayerM72},
-a B-tree with above structure must fulfill the three properties
+The leafs contain lists of \textit{values}.
+A \btree with above structure must fulfill the three properties
 \textit{balancedness}, \textit{order} and \textit{sortedness}.
 
-\paragraph{Balancedness} \textit{Balancedness} requires
+\textbf{Balancedness} requires
 that each path from the root to any leaf has the same length $h$.
 In other words, the height of all trees in one level of the tree must be equal,
 where the height is the maximum path length to any leaf.
-It is only possible to maintain this property
-due to the flexible amount of subtrees in each node.
 
-\paragraph{Sortedness} Further the indices must be \textit{sorted} within the tree which means that all indices stored
+Further the keys and values must be \textbf{sorted} within the tree which means that all keys stored
 in the subtree to the left of a separator are smaller than the value of the separator
 and all indices in the subtree to the right are greater.
-Further all indices within a node should maintain a sorted order,
-that is the list of separators in a node must be sorted.
+Moreover, all values in the subtree to the left of a key must be smaller or equal
+to the key and all values in the subtree to the right must be greater.\footnote{
+    The exact direction of the part that may contain equal element is a design choice.
+}
+Further all keys within a node should maintain a sorted order,
+as well as all the values within a leaf.
 
-\paragraph{Order} In general terms, the property of \textit{order} ensures a certain minimum and maximum
+In general terms, the property of \textbf{order} ensures a certain minimum and maximum
 number of subtrees for each node.
 However, as pointed out by Folk and Zoellick \cite{DBLP:books/daglib/0095349_mod},
 the property is defined differently in the literature.
 For the purpose of this work, the original definition by Bayer
 was chosen as most suitable.
-A B-tree is of order $k$, if each internal node has at least $k+1$
+A \btree is of order $k$, if each internal node has at least $k+1$
 subtrees and at most $2k+1$.
-The root is allowed to have a minimum of 2 subtreess and a maximum of $2k+1$.
-
-An alternative definition proposed by Knuth \cite{DBLP:books/lib/Knuth98a},
-is to allow between $\lceil \frac{k}{2} \rceil$ and $k$ children.
-However this involves cumbersome \textit{real} arithmetic that unnecessarily complicates
-mechanized proofs.
-Sticking to the original definition is further supported by the fact that nodes are supposed
-to fill memory pages which are usually of even size (usually some power of 2).
-An even number of separators and trees plus one dangling last tree maximizes
-the usage of such a page.
-
-The same ambiguity exists for the term \textit{Leaf} which we will define consistently with Knuth's definition \cite{DBLP:books/lib/Knuth98a}
-to be an empty node, carrying no information,
-rather than a node that contains data but no children.
-This is close to the usual approach in functional programming,
-and will yield more elegant recursive equations for our B-tree operations.
-The lowest level of nodes hence contains a list of separators and
-list of pointers to leaves as can be seen in \Cref{fig:btree-basic-nopair}.
+The root is allowed to have a minimum of 2 and a maximum of $2k+1$ subtrees.
 
 Note that the B-tree definition is only meaningful for positive $k$.
 For the case that $k$ is equal to 0,
@@ -195,13 +202,127 @@ this constraint can not be satisfied.
 Requiring positive $k$ is consistent with the definitions
 in the consulted literature \cite{DBLP:journals/acta/BayerM72,DBLP:journals/csur/Comer79,DBLP:books/daglib/0023376}.
 
-\section{Functional B$^+$-Trees}
+\section{Functional \btrees}
 \label{sec:functional}
 
-\section{Imperative B$^+$-Trees}
+The general goal of the verification is to express
+all operations on an abstract level first.
+We introduce a generic split function that does node-internal search
+for us and provide operations on the whole tree based on them.
+
+\subsection{Set operations}
+\label{sec:functional_set}
+
+The most important operations on \btrees are point querys and insertion.
+There is a canon on their implementation which we followed in our approach.
+Deletion is less commonly implemented and even less verified,
+however we provide an a functional definition of a correct deletion operation.
+
+In order to verify these operations it was useful to further
+abstract away structures of the tree.
+Following Nipkows approach, we could ignore the internal structure of the tree
+and provide proofs for the sortedness of the leaf elements purely
+based on their respective refinement of sorted lists.
+The internal structure of the trees, the navigation separators however,
+cannot be abstracted away and require explicit proofs.
+
+\subsection{Range operations}
+\label{sec:functional_range}
+
+On the functional level, the forwarding leaf pointers in each leaf
+are not present, as this would require aliasing.
+Therefore, iterators merely compute the concatenation
+of all leaf contents in the trivial manner.
+Range iterators then concatenate the correct parts of the
+abstract tree.
+Only when refining the operations, we will make use of the leaf pointers
+to obtain an efficient implementation.
+
+
+\section{Imperative \btrees}
 \label{sec:imperative}
+
+\subsection{Set operations}
+\label{sec:imperative_set}
+
+The refinement of set operations is relatively straightforward and
+follows in large parts the procedure in my BSCTHesis.
+One additional challenge here is to prove the correct initialization
+and modification of pointers in the leaves,
+as this cannot be proven on the abstract level, where these pointers
+have no correspondence.
+
+\subsection{Iterators}
+\label{sec:imperative_iter}
+
+In order to be able to iterate over the leafs
+a statement on the heap has to be made that relates
+a leaf and all leafs in the linked list from there
+to a tree rooted in some node.
+For this purpose we follow the approach of malecha
+to split the tree assertion into an equivalent assertion
+on the inner nodes as well as only the concatenated leaf nodes.
+In order to make use of the benefits of separation logic,
+it is important that these statements only regard separated parts of the heap.
+
+At this point a subtlety of the abstract refinement approach surfaces.
+If we only have a statement about some pointers refining some abstract inner nodes
+and a statement about some pointers refining some abstract leaf nodes - 
+how can we guarantee that these pointers can be glued back together to form the
+full abstract tree?
+
+The point is, that we have a situation of aliasing now,
+that is in general not well handled by separation logic.
+However, we only need the content of one of the aliases, which again is fine
+regarding separation logic.
+The other statement then simply expresses "the pointer is the same as in the other statement"
+which is not an overlapping statement regarding the heap.
+Therefore we need to make the sharing here explicit,
+obtaining the exact list of pointers in the imperative implementation
+and pull them into the refinement relationship.
+A nice fact is that we can always obtain this list even from the
+refinement relationship that does not have it explicit,
+and we can even ignore it again once we wrapped up the whole
+iterator assertion into one definition.
+To the user, this explicit sharing will hence never surface,
+the user only interacts with the tree root pointer and the abstract tree.
+
+\subsection{Range operations}
+\label{sec:imperative_range}
+
+One interesting note on the range iterators is, that a
+straightforward proof of the correctness of the exact range iterator
+failed at the attempt to recursively make a statement on
+the leaf element iterators on the subtree.
+A workaround is to just make a statement about the split tree first,
+and later obtain the iterator only from manipulating the obtained leaf node.
+This lead to the functional level being extended by two functions,
+one that obtained the correct leaf node for the range iteration
+and another one that manipulated the leaf node to obtain
+the correct element-level iterator on all values.
+On a second attempt, these two functions could then be imperatively
+refined and verified.
+Their concatenation then yields the intended result at no extra cost.
+
+\subsection{Binary internal search}
+\label{sec:imperative_split}
+
+Due to the high abstraction of the proofs,
+we can now provide different node internal search algorithms,
+as long as they guarantee the required properties of the split function.
+To this end we provide a linear search algorithm
+and a binary search, the latter being commonly used in real world applications.
 
 \section{Comparison and Conclusion}
 \label{sec:conclusion}
+
+We were able to define and verify a number of efficient operations
+on imperative \btrees.
+Namely we provide the basics with point and insertion querys.
+Further we provide an efficient iterator on the leafs
+and even give a range operation for a lower bound that
+can be trivially extended to support an upper bound.
+All operations are conducted on a \btree with linked leafs,
+and conduct binary search within each node.
 
 \end{document}
