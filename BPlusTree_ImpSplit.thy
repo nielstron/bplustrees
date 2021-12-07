@@ -557,10 +557,6 @@ text "In order to obtain fully defined functions,
 we need to plug our split function implementations
 into the locales we introduced previously."
 
-interpretation bplustree_imp_binary_split_list_lrange: imp_split_list_smeq lin'_split
-  apply unfold_locales
-  apply(sep_auto heap: bin'_split_rule)
-  done
 
 interpretation bplustree_imp_linear_split_tree: imp_split_tree_smeq lin_split
   apply unfold_locales
@@ -571,6 +567,11 @@ interpretation bplustree_imp_linear_split_tree: imp_split_tree_smeq lin_split
 text "Obtaining actual code turns out to be slightly more difficult
   due to the use of locales. However, we successfully obtain
 the B-tree insertion and membership query with binary search splitting."
+
+interpretation bplustree_imp_binary_split_list: imp_split_list_smeq bin'_split
+  apply unfold_locales
+  apply(sep_auto heap: bin'_split_rule)
+  done
 
 interpretation bplustree_imp_bin_split_tree: imp_split_tree_smeq bin_split
   apply unfold_locales
