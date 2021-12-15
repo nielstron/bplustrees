@@ -12,6 +12,80 @@
 %for enabling a two-column layout for the author/affilation part (only applicable for > 6 authors), use "authorcolumns"
 %for producing a PDF according the PDF/A standard, add "pdfa"
 
+% listing language definitions for several language of the following kinds:
+% * ontology languages
+% * markup languages
+% * other semantic web languages
+% * other languages occurring in the above contexts
+% 
+% for some related languages see also https://svn.kwarc.info/repos/stex/trunk/sty/etc/lstomdoc.sty
+% 
+% compiled by Christoph Lange (Universität Bremen, Jacobs University Bremen, University of Birmingham)
+% 2010–2013
+% math.semantic.web@gmail.com
+% 
+% https://github.com/clange/latex
+% 
+% For Mizar, see https://raw.github.com/JUrban/mizarmode/master/lstlangmizar.sty by Josef Urban
+
+% Isabelle
+% http://isabelle.in.tum.de
+% partial specification; poor man's alternative to Isabelle's own LaTeX export
+% but see also pmisabelle.sty
+%\newif\iflst@instring\lst@instringfalse
+%\newcommand*{\lst@eat}[1]{}%
+%\newcommand*{\togglelst@instring}{%
+%\upshape%
+%\global\lst@instringfalse''
+%}
+\RequirePackage{xcolor}
+\definecolor{IsabelleTypeColor}{HTML}{9f2ae5}
+% Strings usually have this background color
+% however listings has currently not support for selected background coloring
+\definecolor{IsabelleStringBackground}{HTML}{535353}
+\definecolor{IsabelleKeywordColor}{HTML}{2f769e}
+\lstdefinelanguage{Isabelle}[]{ML}%
+{morekeywords={%
+abbreviation,% added by NM
+assume,%
+assumes,%
+by,%
+def,%
+datatype,% added by NM
+definition,% added by NM
+fix,%
+fixes,%
+from,%
+have,%
+lemma,%
+obtain,%
+proof,%
+partial\_function,%
+qed,%
+return,%
+show,%
+shows,%
+theorem,%
+typedef,%
+try,%
+unfolding,%
+using,%
+where,%
+},
+% modyfied to display highlighting inside strings
+%morestring=**[d][\color{IsabelleStringBackground}]{"},
+% and highlight type prefixes (')
+%moredelim=[s][\color{IsabelleTypeColor}]{'}{\ },
+%added by NM
+moredelim=[s][\color{IsabelleStringBackground}]{(*}{*)},
+basicstyle=\itshape,%
+keywordstyle=\upshape\bfseries,%\color{IsabelleKeywordColor},%
+columns=fullflexible,%
+showstringspaces=false,%
+mathescape,%
+}[keywords,comments]
+
+
 %\pdfoutput=1 %uncomment to ensure pdflatex processing (mandatatory e.g. to submit to arXiv)
 %\hideLIPIcs  %uncomment to remove references to LIPIcs series (logo, DOI, ...), e.g. when preparing a pre-final version to be uploaded to arXiv or another public repository
 
@@ -110,7 +184,7 @@ correspondence.
 \label{sec:contributions}
 
 We provide an alternative approach to verifying \btree implementations,
-by fully separating the functional and imperative layers.
+by separating the functional specification and the imperative implementation.
 This allows for complex relationships to be validated on a purely
 functional level, while on the imperative level
 only refinement of the abstract operations needs to be shown.
@@ -123,34 +197,47 @@ on top of a list element iterator.
 \section{\btrees\ and Approach}
 \label{sec:approach}
 
-B-trees were first proposed by Bayer in \cite{DBLP:journals/acta/BayerM72},
-as a data-structure to efficiently retrieve and manipulate
-indexed data stored on storage devices with slow memory access.
-They are $n$-ary balanced search trees.
-They may be specified as implementing a set interface,
-where the indices form the actual content of the set,
-the specification that serves as basis in this work.
+The \btree is a ubiquitous data structure to efficiently retrieve and manipulate
+indexed data stored on storage devices with slow memory access \cite{DBLP:journals/csur/Comer79}.
+They are $n$-ary balanced search trees, where $n$ is a free parameter.
+We specify them as implementing a set interface,
+where all elements in the leaves are comprising the content of an abstract set.
+The inner nodes only contain separators to guide the recursive navigation through the tree.
 
-A commonly implemented variation is the \btree, where the inner nodes
-only contain separators to guide the recursive navigation through the tree.
-In \btrees, all data is stored in the leaves \cite{DBLP:journals/csur/Comer79}.
-Further the leaves are usually implemented so as to contain pointers
-to the next leaf in order, allowing for efficient iterators and range queries.
+Further the leaves usually contain pointers
+to the next leaf, allowing for efficient iterators and range queries.
 
-\begin{figure}
-    % TODO update figure 
-    \centering
-    \includegraphics[width=0.5\linewidth]{figures/btree-basic-nopair.pdf}
-    \caption[A small example B-Tree]{A small balanced, sorted B-tree of order $2$ and
-    height $2$ containing $3$ nodes and $6$ elements.
-    In subsequent depictions, leafs will be depicted
-    by empty circles.}
-    \label{fig:btree-basic-nopair}
-\end{figure}
+The goal of this work is to define this data structure
+and implement and verify efficient heap-based imperative operations on them.
+For this purpose, we introduce a functional, algebraic definition and
+specify all invariants on this level.
+It is important to note that this representation is not complete,
+as we can not express the aliased pointers to the next leaf in a meaningful
+way on the algebraic level.
+However important structural invariants, such as sortedness and balancedness
+can be verified.
+
+In a second step an imperative definition is introduced,
+that takes care of the refinement of linked lists to arrays in the heap
+and introduces (potentially shared) pointers instead of algebraic structures.
+Using a refinement relationship, we can prove that an imperative refinement
+of the functional specification preserves the structural invariants
+of the imperative tree on the heap.
+The only remaining proof obligation on this level is to ensure the correctness
+of the leaf pointers.
 
 
 \subsection{Definitions}
 \label{sec:data_structure_defs}
+
+% TODO shorten
+
+The algebraic \btree is defined as follows:
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-def]
+    datatype 'a bplustree = LNode ('a list) | Node (('a bplustree * 'a) list) ('a bplustree)
+\end{lstlisting}
+
 
 Every node contains a list of \textit{keys} (also \textit{separators}, and \textit{subtrees} (\textit{children}),
 that represent further \btree nodes.
@@ -162,7 +249,7 @@ subtree list at index $i$ and $i+1$ respectively.
 Note that this already implies that the list of subtrees is one
 longer than the list of separators - we refer to the last subtree
 as the \textit{last} or \textit{dangling} subtree.
-The leafs contain lists of \textit{values}.
+The leafs contain a list of \textit{values}.
 A \btree with above structure must fulfill the three properties
 \textit{balancedness}, \textit{order} and \textit{sortedness}.
 
@@ -173,9 +260,8 @@ where the height is the maximum path length to any leaf.
 
 Further the keys and values must be \textbf{sorted} within the tree which means that all keys stored
 in the subtree to the left of a separator are smaller than the value of the separator
-and all indices in the subtree to the right are greater.
-Moreover, all values in the subtree to the left of a key must be smaller or equal
-to the key and all values in the subtree to the right must be greater.\footnote{
+and all indices in the subtree to the right are greater or equal.
+\footnote{
     The exact direction of the part that may contain equal element is a design choice.
 }
 Further all keys within a node should maintain a sorted order,
@@ -183,40 +269,69 @@ as well as all the values within a leaf.
 
 In general terms, the property of \textbf{order} ensures a certain minimum and maximum
 number of subtrees for each node.
-However, as pointed out by Folk and Zoellick \cite{DBLP:books/daglib/0095349_mod},
-the property is defined differently in the literature.
-For the purpose of this work, the original definition by Bayer
-was chosen as most suitable.
 A \btree is of order $k$, if each internal node has at least $k+1$
 subtrees and at most $2k+1$.
-The root is allowed to have a minimum of 2 and a maximum of $2k+1$ subtrees.
+The root is required to have a minimum of 2 and a maximum of $2k+1$ subtrees.
+We require that $k$ be strictly positive.
+%TODO insert reason?
 
-Note that the B-tree definition is only meaningful for positive $k$.
-For the case that $k$ is equal to 0,
-all elements of the tree would have exactly one subtree
-and no internal elements.
-For the root node this even leads to a contradictory state:
-It is required to contain at least 1 element or 2 subtrees.
-However as it should not have more than $2k+1 = 1$ elements,
-this constraint can not be satisfied.
-Requiring positive $k$ is consistent with the definitions
-in the consulted literature \cite{DBLP:journals/acta/BayerM72,DBLP:journals/csur/Comer79,DBLP:books/daglib/0023376}.
+\section{Set operations}
+\label{sec:set}
 
-\section{Functional \btrees}
-\label{sec:functional}
+The most important operations on \btrees are point querys and insertion.
+There is a canon on their implementation which we followed in our approach.
+Deletion is less commonly implemented and even less verified,
+however we provide an a functional definition of a correct deletion operation.
+
+\subsection{Functional Point Query}
+\label{sec:functional_pq}
+
+The point query operation is straightforward and serves as an introduction
+to Isabelle/HOL notation.
+For an inner node, find the correct subtree which must contain
+the searched value if it is in the tree.
+Inside the leaf node, obtain the value directly from the list of values.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-def]
+fun isin:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> bool" where
+  "isin (LNode ks) x = (isin_list x ks)" |
+  "isin (Node ts t) x = (
+      case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
+             isin sub x
+      )
+   | (_,[]) \<Rightarrow> isin t x
+  )"
+\end{lstlisting}
+
+Note that we assume here that a "split" and "isin\_list" operation exist,
+that somehow obtain from a sorted list of key-value pairs or keys
+the correct subtree-separator pair or result of operation.
+These operations trivially exists, for example based on a linear search.
+We abstract the operations away here such that we can freely substitute them in a
+later stage, even with a binary search implementation.
+
+Since this operation does not modify the tree involved at all,
+we only need to show that it returns the correct value.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-set-inorder]
+theorem isin_set_inorder:
+  assumes "sorted_less (leaves t)"
+    and "aligned l t u"
+  shows "isin t x = (x \<in> set (leaves t))"
+\end{lstlisting}
+
+%TODO imperative definition
+
 
 The general goal of the verification is to express
 all operations on an abstract level first.
 We introduce a generic split function that does node-internal search
 for us and provide operations on the whole tree based on them.
 
-\subsection{Set operations}
-\label{sec:functional_set}
+On the abstract level, the abstract functional specification
+of the point query operation is straight forward.
 
-The most important operations on \btrees are point querys and insertion.
-There is a canon on their implementation which we followed in our approach.
-Deletion is less commonly implemented and even less verified,
-however we provide an a functional definition of a correct deletion operation.
+% TODO functional definition
 
 In order to verify these operations it was useful to further
 abstract away structures of the tree.
@@ -226,8 +341,33 @@ based on their respective refinement of sorted lists.
 The internal structure of the trees, the navigation separators however,
 cannot be abstracted away and require explicit proofs.
 
-\subsection{Range operations}
-\label{sec:functional_range}
+
+\subsection{Imperative Point Query}
+\label{sec:imperative_pq}
+
+The refinement of set operations is relatively straightforward and
+follows in large parts the procedure in my BSCTHesis.
+
+For point queries the refinement and its proof is easy
+to show since the structure of the tree does not change.
+
+\subsection{Functional Insert}
+\label{sec:functional_insert}
+
+The definition of insertion is largely lined up with the definition
+of point queries.
+
+\subsection{Imperative Insert}
+\label{sec:imperative_insert}
+
+One additional challenge here is to prove the correct initialization
+and modification of pointers in the leaves,
+as this cannot be proven on the abstract level, where these pointers
+have no correspondence.
+
+
+\section{Range operations}
+\label{sec:range}
 
 On the functional level, the forwarding leaf pointers in each leaf
 are not present, as this would require aliasing.
@@ -237,20 +377,6 @@ Range iterators then concatenate the correct parts of the
 abstract tree.
 Only when refining the operations, we will make use of the leaf pointers
 to obtain an efficient implementation.
-
-
-\section{Imperative \btrees}
-\label{sec:imperative}
-
-\subsection{Set operations}
-\label{sec:imperative_set}
-
-The refinement of set operations is relatively straightforward and
-follows in large parts the procedure in my BSCTHesis.
-One additional challenge here is to prove the correct initialization
-and modification of pointers in the leaves,
-as this cannot be proven on the abstract level, where these pointers
-have no correspondence.
 
 \subsection{Iterators}
 \label{sec:imperative_iter}
@@ -287,6 +413,11 @@ iterator assertion into one definition.
 To the user, this explicit sharing will hence never surface,
 the user only interacts with the tree root pointer and the abstract tree.
 
+
+Note here that while the abstract function copies the view on the leafs
+upon recursing, the obtained iterator does not.
+However this is not an issue, as they are only related abstractly.
+
 \subsection{Range operations}
 \label{sec:imperative_range}
 
@@ -304,6 +435,8 @@ On a second attempt, these two functions could then be imperatively
 refined and verified.
 Their concatenation then yields the intended result at no extra cost.
 
+\section{Code extraction}
+
 \subsection{Binary internal search}
 \label{sec:imperative_split}
 
@@ -312,6 +445,14 @@ we can now provide different node internal search algorithms,
 as long as they guarantee the required properties of the split function.
 To this end we provide a linear search algorithm
 and a binary search, the latter being commonly used in real world applications.
+
+\subsection{Code export}
+\label{sec:code_export}
+
+From the imperative code shown,
+Isabelle/HOL allows exports to a number of languages.
+
+% TODO some analysis of the code generated? even necessary?
 
 \section{Comparison and Conclusion}
 \label{sec:conclusion}
