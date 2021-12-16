@@ -445,42 +445,88 @@ to obtain an efficient implementation.
 \subsection{Iterators}
 \label{sec:imperative_iter}
 
-In order to be able to iterate over the leafs
-a statement on the heap has to be made that relates
-a leaf and all leafs in the linked list from there
-to a tree rooted in some node.
-For this purpose we follow the approach of malecha
-to split the tree assertion into an equivalent assertion
-on the inner nodes as well as only the concatenated leaf nodes.
-In order to make use of the benefits of separation logic,
-it is important that these statements only regard separated parts of the heap.
+From an implementation perspective, obtaining an iterator over the leafs
+of a \btree is trivial.
+We simply recurse down the tree to obtain the first leaf and from there follow leaf
+pointers along the skirt of the tree.
+However, from a refinement relation perspective the situation is a bit more intricate.
+It is important to find a recursive formulation of the linked list in the leaf pointers.
+At the same time, we want to maintain enough information about the remainder of the tree
+to be able to reconstruct the assertion about the whole tree,
+while separation logic forces us not to make statements about the contents of any memory location twice,
+in order to keep the parts of the heap disjunct.
 
-At this point a subtlety of the abstract refinement approach surfaces.
-If we only have a statement about some pointers refining some abstract inner nodes
-and a statement about some pointers refining some abstract leaf nodes - 
-how can we guarantee that these pointers can be glued back together to form the
-full abstract tree?
+We therefore follow the approach of \cite{DBLP:conf/popl/MalechaMSW10} and
+try to find an equivalent formulation that separates the whole tree in a
+view on its inner nodes and the linked leaf node list.
+The main idea to keep the heaps separate nontheless is to only
+assert correct content of the leafs within the linked list part
+and only assert equivalence of pointers in the inner nodes part.
 
-The point is, that we have a situation of aliasing now,
-that is in general not well handled by separation logic.
-However, we only need the content of one of the aliases, which again is fine
-regarding separation logic.
-The other statement then simply expresses "the pointer is the same as in the other statement"
-which is not an overlapping statement regarding the heap.
-Therefore we need to make the sharing here explicit,
-obtaining the exact list of pointers in the imperative implementation
-and pull them into the refinement relationship.
-A nice fact is that we can always obtain this list even from the
-refinement relationship that does not have it explicit,
-and we can even ignore it again once we wrapped up the whole
-iterator assertion into one definition.
-To the user, this explicit sharing will hence never surface,
-the user only interacts with the tree root pointer and the abstract tree.
+A first attempt to use \autoref{lst:btree-relation} for this fails.
+The reason is, that we can not express that the linked leaf nodes
+are precisely the leaf nodes that the lowest level of inner nodes point to.
+We can show that the whole tree can be separated into a linked list in the leafs
+and inner nodes, but we can not show that we can necessarily "glue" the two views
+back together and obtain a structurally consistent \btree.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split-oneway]
+lemma bplustree_leaf_nodes:
+  "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
+\end{lstlisting}
+
+% TODO graphic explaining the issue
+
+In a second attempt we succeed by making the sharing explicit.
+We extract from the whole tree the precise list of pointers to leaf nodes
+in the correct order.
+In the separated view, we now require that the pointers
+in the lowest level of the inner node view are precisely the pointers
+that are comprising the linked list view of the leafs.
+A convenient fact is that this view on the tree that makes the leaf pointers explict
+is equivalent to the view where we do not know precisely which pointers are in the leafs.
+However, the statement is strong enough to guarantee that such a list exists.
 
 
-Note here that while the abstract function copies the view on the leafs
-upon recursing, the obtained iterator does not.
-However this is not an issue, as they are only related abstractly.
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split]
+lemma bplustree_extract_leafs:
+    "bplustree_assn k t ti r z = (\<exists>\<^sub>Aleafptrs. bplustree_assn_leafs k t ti r z leafptrs)"
+
+lemma bplustree_leaf_nodes_sep:
+  "bplustree_assn_leafs k t ti r z lptrs = leaf_nodes_assn k (leaf_nodes t) r z lptrs * inner_nodes_assn k t ti r z lptrs"
+\end{lstlisting}
+
+In the work of Malecha \cite{DBLP:conf/popl/MalechaMSW10}, this
+difference never occured, as the structure used there was a functional tree
+that had each node directly annotated with the heap pointers.
+
+Now to obtain an iterator on the leaf nodes of the tree,
+we simply obtain the first leaf by a recursive function.
+On the result, we can apply the above assertion split to realize
+that we now have a pointer that provides a list-recursive
+view on the leaf elements.
+
+In a next step, we show that such a list view can be used
+to define an imperative iterator over the refined list,
+similar to how Lammich defines linked list iterators on abstract lists.
+
+To really obtain an iterator that returns every single element of the
+leaf nodes, rather than the leaf nodes or the contained arrays themselves,
+we introduce a flattening iterator.
+It takes an outer iterator over a data structure \textit{a} that returns elements of type \textit{b},
+and inner iterator over the data structure \textit{b}.
+The result is instantiated code that refines an iterator
+over the concatenated list of elements refined by the outer iterator.
+
+Using this structure, we obtain a function that creates an iterator
+over the leafs of the original tree.
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split]
+lemma leaf_elements_iter_init_rule:
+  assumes "k > 0" "root_order k t"
+  shows "<bplustree_assn k t ti r None>
+    leaf_elements_iter_init ti
+    <\<lambda>it. leaf_elements_iter k t ti r (leaves t) it>\<^sub>t"
+\end{lstlisting}
 
 \subsection{Range operations}
 \label{sec:imperative_range}
