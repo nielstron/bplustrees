@@ -238,7 +238,6 @@ The algebraic \btree is defined as follows:
     datatype 'a bplustree = LNode ('a list) | Node (('a bplustree * 'a) list) ('a bplustree)
 \end{lstlisting}
 
-
 Every node contains a list of \textit{keys} (also \textit{separators}, and \textit{subtrees} (\textit{children}),
 that represent further \btree nodes.
 The separators and subtrees may be considered interleaved within a node,
@@ -258,14 +257,16 @@ that each path from the root to any leaf has the same length $h$.
 In other words, the height of all trees in one level of the tree must be equal,
 where the height is the maximum path length to any leaf.
 
-Further the keys and values must be \textbf{sorted} within the tree which means that all keys stored
+Further the keys and values must be sorted within the tree.
+This actually comprises two properties: \textbf{Alignment}, which means that all keys stored
 in the subtree to the left of a separator are smaller than the value of the separator
 and all indices in the subtree to the right are greater or equal.
 \footnote{
     The exact direction of the part that may contain equal element is a design choice.
 }
 Further all keys within a node should maintain a sorted order,
-as well as all the values within a leaf.
+as well as all the values within a leaf, which we express directly
+as \textbf{sortedness} of the concatenated lists.
 
 In general terms, the property of \textbf{order} ensures a certain minimum and maximum
 number of subtrees for each node.
@@ -274,6 +275,50 @@ subtrees and at most $2k+1$.
 The root is required to have a minimum of 2 and a maximum of $2k+1$ subtrees.
 We require that $k$ be strictly positive.
 %TODO insert reason?
+
+The definition in \autoref{lst:btree-def} described an algebraic data structure.
+It is by construction finite but also forbids sharing of pointers or local updates.
+In the final imperative setting we are therefore looking at a node that stores not trees
+but pointers\footnote{\textbf{ref} or ref option if it is potentially null} to other trees and stores values in arrays.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-imp-def]
+datatype 'a btnode =
+  Btnode "('a btnode ref option *'a) pfarray" "'a btnode ref" |
+  Btleaf "'a pfarray" "'a btnode ref option"
+\end{lstlisting}
+
+All elements of this tree can and will be stored on a heap, where \textbf{ref} is a pointer
+to another element in the heap.
+With this setup, it is possible to modify elements on the heap or share pointers.
+However, it is troublesome to conduct direct proofs on this structure.
+We therefore introduce a refinement relation to the algebraic data structure.
+In later steps we can then show that this relation holds throughout operations on the imperative
+tree and can thus imply relevant information on the obtained result and modified tree.
+
+The relation is expressed as a separation logic formula that links an abstract tree to an
+imperative data structure.
+Since the shared leaf pointers are not part of the abstract tree,
+they are further introduced to ensure correct linking of leafs.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-relation]
+fun bplustree_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
+  "bplustree_assn k (LNode xs) a r z =
+ (\<exists>\<^sub>A xsi fwd.
+      a \<mapsto>\<^sub>r Btleaf xsi fwd
+    * is_pfa (2*k) xs xsi
+    * \<up>(fwd = z)
+    * \<up>(r = Some a)
+  )" |
+  "bplustree_assn k (Node ts t) a r z =
+ (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
+      a \<mapsto>\<^sub>r Btnode tsi ti
+    * bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
+    * is_pfa (2*k) tsi' tsi
+    * \<up>(length tsi' = length rs)
+    * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
+    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
+    )"
+\end{lstlisting}
 
 \section{Set operations}
 \label{sec:set}
@@ -321,49 +366,68 @@ theorem isin_set_inorder:
 \end{lstlisting}
 
 %TODO imperative definition
-
-
-The general goal of the verification is to express
-all operations on an abstract level first.
-We introduce a generic split function that does node-internal search
-for us and provide operations on the whole tree based on them.
-
-On the abstract level, the abstract functional specification
-of the point query operation is straight forward.
-
-% TODO functional definition
-
-In order to verify these operations it was useful to further
-abstract away structures of the tree.
-Following Nipkows approach, we could ignore the internal structure of the tree
-and provide proofs for the sortedness of the leaf elements purely
-based on their respective refinement of sorted lists.
-The internal structure of the trees, the navigation separators however,
-cannot be abstracted away and require explicit proofs.
-
-
 \subsection{Imperative Point Query}
 \label{sec:imperative_pq}
 
-The refinement of set operations is relatively straightforward and
-follows in large parts the procedure in my BSCTHesis.
+The imperative version of the point query is now a partial function
+as without non-cyclicity assumptions about the tree input
+we can not guarantee termination anymore.
 
-For point queries the refinement and its proof is easy
-to show since the structure of the tree does not change.
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-imp-def]
+partial_function (heap) isin :: "'a btnode ref \<Rightarrow> 'a \<Rightarrow>  bool Heap"
+  where
+    "isin p x = do {
+  node \<leftarrow> !p;
+  (case node of
+     Btleaf xs _ \<Rightarrow> imp_isin_list x xs |
+     Btnode ts t \<Rightarrow> do {
+       i \<leftarrow> imp_split ts x;
+       tsl \<leftarrow> pfa_length ts;
+       if i < tsl then do {
+         s \<leftarrow> pfa_get ts i;
+         let (sub,sep) = s in
+           isin (the sub) x
+       } else
+           isin t x
+    }
+)}"
+\end{lstlisting}
 
-\subsection{Functional Insert}
-\label{sec:functional_insert}
+Again, we assume that there are split functions that do node internal search operations for us
+and themselves refine their functional equivalent.
 
-The definition of insertion is largely lined up with the definition
-of point queries.
+In order to show that the function returns the correct result,
+we merely show that it does the same operation on the imperative tree
+as on the algebraic tree.
+This proof can be done inductively on the structure of the abstract tree.
 
-\subsection{Imperative Insert}
-\label{sec:imperative_insert}
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-refines]
+lemma  "k > 0 \<Longrightarrow> root_order k t \<Longrightarrow> sorted_less (inorder t) \<Longrightarrow> sorted_less (leaves t) \<Longrightarrow>
+   <bplustree_assn k t ti r z>
+     isin ti x
+   <\<lambda>y. bplustree_assn k t ti r z * \<up>(abs_split_set.isin t x = y)>\<^sub>t"
+\end{lstlisting}
 
-One additional challenge here is to prove the correct initialization
-and modification of pointers in the leaves,
-as this cannot be proven on the abstract level, where these pointers
-have no correspondence.
+The insertion operation and its proof largely line up with the approach to point queries.
+However, an important aspect here is that we need to show that the leaf pointers
+maintain correct linking after the operation.
+This can only be shown on the imperative level as there is no abstract equivalent
+to the shared pointers.
+
+
+%\subsection{Functional Insert}
+%\label{sec:functional_insert}
+%
+%The definition of insertion is largely lined up with the definition
+%of point queries.
+%
+%\subsection{Imperative Insert}
+%\label{sec:imperative_insert}
+%
+%One additional challenge here is to prove the correct initialization
+%and modification of pointers in the leaves,
+%as this cannot be proven on the abstract level, where these pointers
+%have no correspondence.
 
 
 \section{Range operations}
