@@ -406,16 +406,6 @@ fun Lnode\<^sub>i:: "nat \<Rightarrow> 'a list \<Rightarrow> 'a up\<^sub>i" wher
     )
   )"
 
-lemma nodei_ti_simp: "node\<^sub>i k ts t = T\<^sub>i x \<Longrightarrow> x = Node ts t"
-  apply (cases "length ts \<le> 2*k")
-  apply (auto split!: list.splits prod.splits)
-  done
-
-lemma Lnodei_ti_simp: "Lnode\<^sub>i k ts = T\<^sub>i x \<Longrightarrow> x = LNode ts"
-  apply (cases "length ts \<le> 2*k")
-  apply (auto split!: list.splits)
-  done
-
 fun ins:: "nat \<Rightarrow> 'a \<Rightarrow> 'a bplustree \<Rightarrow> 'a up\<^sub>i" where
   "ins k x (LNode ks) = Lnode\<^sub>i k (insert_list x ks)" |
   "ins k x (Node ts t) = (
@@ -446,6 +436,17 @@ fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a bplustree \<Rightarrow> 'a bp
 
 
 subsection "Proofs of functional correctness"
+
+lemma nodei_ti_simp: "node\<^sub>i k ts t = T\<^sub>i x \<Longrightarrow> x = Node ts t"
+  apply (cases "length ts \<le> 2*k")
+  apply (auto split!: list.splits prod.splits)
+  done
+
+lemma Lnodei_ti_simp: "Lnode\<^sub>i k ts = T\<^sub>i x \<Longrightarrow> x = LNode ts"
+  apply (cases "length ts \<le> 2*k")
+  apply (auto split!: list.splits)
+  done
+
 
 lemma split_set: 
   assumes "split ts z = (ls,(a,b)#rs)"
