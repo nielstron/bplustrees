@@ -167,10 +167,133 @@ mathescape,%
 \section{Introduction}
 \label{sec:introduction}
 
-This will be the introduction. There will be more text.
+
+An important topic in computer science is the study of the
+\textit{functional correctness} of an algorithm.
+It states whether an algorithm satisfies specified
+input/output behavior.
+Proving correctness of an algorithm
+becomes especially interesting when it is be applied
+to directly executable code and even more so if it is machine checked.
+Unfortunately, with both, the task becomes
+significantly more complex.
+Even in an abstract specification, where topics such as
+memory management may be abstracted away,
+machine checked proofs of non-trivial properties
+are hard.
+Furthermore for concrete implementations,
+low-level decisions about memory allocation or
+the eligibility of reusing variables need to be
+reasoned about.
+We provide a computer assisted proof in the interactive
+theorem prover Isabelle/HOL \cite{DBLP:books/sp/NipkowPW02} for the functional
+correctness of an imperative implementation of the \btree data-structure
+and present how we dealt with the above mentioned issues.
+
+
+In \autoref{sec:introduction}, we have a brief overview on related
+work and introduce the definition of \btree used in our approach.
+In order to verify an imperative version of the structure,
+we define a functional, abstract specification of a tree operations
+and prove functional correctness, by showing that structural invariants are preserved
+and the obtained results are correct.
+In a second step, we provide an imperative refinement
+of the functional operation.
+The correctness of the imperative version is shown by proving that it refines the functional specification.
+Thus the proof obligation for the imperative implementation
+is reduced to a proof of equivalence between the output of the
+functional and the imperative implementation.
+This process is repeated for each operation throughout
+\autoref{sec:set} and \autoref{sec:imperative_iter}
+
+Finally, we present learned lessons, compare the results with related work and suggest potential future
+research in \autoref{sec:conclusion}.
+
+
+\subsection{Motivation}
+\label{sec:motivation}
+
+\btrees form the basis of virtually all modern RDBMs.
+Especially when employed in financial applications
+or in safety critical software it is vital that
+no data is lost or corrupted.
+Meanwhile, even single-threaded databases
+are non-trivial to analyse and verify,
+especially machine-checked.
+The only work in the literature on that topic
+is the work by Malecha %todo cite
+However, it lacks a number of common features for \btree
+interaction, such as range searches and efficient binary search.
+Moreover, it is bound to the Coq interactive theorem prover.
+With this work, we intend to enrich the canon on verified
+\btrees with an efficient and modular implementation
+in Isabelle/HOL.
+
 
 \subsection{Related Work}
 \label{sec:related_work}
+
+There exist two pen and paper proofs via the rigorous approach
+by Fielding \cite{Fielding80} and Sexton \cite{DBLP:journals/entcs/SextonT08}.
+They pioneered in suggesting tools for analysing \btrees,
+showing how refinement and separation logic can be used to
+derive convincing proofs easily.
+
+Among imperative implementations, two machine checked proofs exist as well.
+In the work of Ernst \cite{DBLP:journals/sosym/ErnstSR15},
+an imperative implementation is directly verified
+by combining interactive theorem proving
+with shape analysis.
+The main recursive procedures are interactively verified in KIV.
+Data structure properties such as circle-freeness are then proven by shape-analysis.
+Another direct proof on an imperative implementation
+was conducted by Malecha \cite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
+extension to the interactive theorem prover Coq.
+Both works use recursively defined "shape predicates"
+that describe formally how the nodes and pointers
+represent an abstract tree of finite height.
+Similar to the work of Malecha, we define these predicates functionally
+and derive finiteness and acyclicity from the relation between imperative and functional specification.
+
+\section{Contributions}
+
+In this work, we derive our own definition of B-trees
+by combining the original definition
+with approaches that have resulted in verified implementations previously.
+Based on the definition, we specify the B-tree data structure in the
+functional modeling language HOL.
+The specification is complemented by a proof of its correctness
+with respect to refining a set of linearly ordered elements.
+All proofs are machine-checked in the Isabelle/HOL framework,
+an interactive automated theorem prover \cite{DBLP:books/sp/NipkowK14}.
+Within the framework,
+the functional specification already yields automatic extraction of executable,
+but inefficient code.
+
+Using manual refinement, we derive an imperative implementation of the functional specification
+in Imperative/HOL.
+For this purpose, we introduce static arrays with variable size
+and efficient copy and move operations on arrays.
+The implementation is defined with respect to some abstract imperative
+operation for node-internal navigation.
+We provide one such operation that employs linear search,
+and one that conducts binary search.
+All imperative programs are shown to refine the functional specifications
+using the separation logic utilities from the Isabelle Refinement Framework by
+Lammich \cite{DBLP:journals/jar/Lammich19}.
+
+This process results in a proof of the functional correctness
+of an imperative implementation of the B-tree data structure.
+The implementation supports set membership and insertion queries
+and uses efficient binary search for intra-node navigation.
+As with every specification in Imperative/HOL,
+automatic executable code extraction to
+several functional programming languages is supported.
+In addition, we provide a proof of the logarithmic relationship between height and number of nodes,
+reproducing results of Bayer \cite{DBLP:journals/acta/BayerM72}.
+This verifies claims on the efficiency of
+operations on the tree.
+
 
 Ernst verified a simplified version of \btrees that does
 not have links between leaf nodes.
@@ -369,6 +492,48 @@ during initialization and construction of the tree.
 Therefore the pointers are an integral part of the refinement relation
 and we need to proof that it is not violated when querying or inserting elements.
 
+\subsection{Node internal navigation}
+\label{sec:split}
+
+In order to define meaningful operations that navigate
+the node structure of the \btree,
+we need to find a method that handles search within a node.
+On binary trees, this question is simle, in each node we either choose
+the left or right subtree.
+For 3-4 trees as described by Nipkow in ... the process becomes more tricky %TODO cite
+but eventually a binary search like node internal traversal can be verified.
+For general k-ary \btrees there have not been sophisticated search strategies.
+Ernst and Malecha %TODO cite
+both simply use a linear search through the node lists.
+However, \btrees are supposed to have memory page sized nodes, 
+which makes a linear search unfeasible in practical contexts.
+
+Instead we propose a different approach.
+In general we introduce a locale, a context in which we assume that we
+have access to a function that correctly navigates through the node internal structure.
+We call this function a $split$ function, and define it by some required behavior.
+In general, given a list of separator-subtree pairs, the function should
+return the pair containing the subtree that, according to the structural invariant of the \btree,
+must contain the element that is being searched for or will hold the element after correct insertion.
+A similar function is defined on the key lists of the leaf nodes.
+
+Using this abstraction, all operations can be defined and verified
+in the following sections.
+In order to prove the context valid, we simply provide a linear search function
+that provides exactly the required functionality.
+
+Finally, when approaching imperative code extraction,
+we show that a binary search based function refines the
+functionality as well.
+This binary search is directly implemented and verified on the imperative
+level and is eventually plugged into the abstractly defined
+imperative operations on the \btree.
+Thus we obtain imperative code that makes use of an efficient
+binary search, without adding complexity to the proofs.
+More details on the definition and implementation
+can be found in Mündler % TODO cite BSc Thesis?
+
+
 \section{Set operations}
 \label{sec:set}
 
@@ -395,15 +560,8 @@ fun isin:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> bool" where
   )"
 \end{lstlisting}
 
-Note that we assume here that a "split" and "isin\_list" operation exist.
-They somehow obtain from a sorted list of key-value pairs 
-the correct subtree-separator pair for recursion.
-From a sorted list of keys we can directly obtain whether an element is contained or not.
-These operations trivially exists, for example based on a linear search that
-returns the first element in the list that has a greater-or-equal value than the element searched for.
-We abstract the operations away at this point such that we can freely substitute them in a
-later stage.
-
+Note that we assume here that a "split" and "isin\_list" operation exist,
+as described in \autoref{sec:split}.
 Since this function does not modify the tree involved at all,
 we only need to show that it returns the correct value.
 
@@ -746,27 +904,79 @@ lemma concat_leafs_range_rule:
 % TODO vis
 
 
-\section{Code extraction}
+\section{Conclusion}
+\label{sec:conclusion}
 
-\subsection{Binary internal search}
-\label{sec:imperative_split}
+\subsection{Lessons learnt}
 
-Due to the high abstraction of the proofs,
-we can now provide different node internal search algorithms,
-as long as they guarantee the required properties of the split function.
-To this end we provide a linear search algorithm
-and a binary search, the latter being commonly used in real world applications.
+It was interesting to notice that it is rather complicated
+to even express, not to speak of attempting to prove acyclicity
+ along the leaf nodes of the tree, as soon as the linked list was converted into an iterator.
+Fortunately, we found a way around this issue, by only considering
+the complete list of nodes whenever we turned them into
+iterators. In that case, they were terminated by \textit{None}
+which we could guarantee not to occur earlier in the list.
 
-\subsection{Code export}
-\label{sec:code_export}
+Moreover, handling statements on assertions has always been
+a bit tedious throughout the project.
+A major alleviation was the introduction of a specialized tool
+that would substitute multiplicative terms in the formular
+regardless of the disctribution in the original term.
+This way, we could exchange equivalent assertions that comprised
+multiple terms, like the combination of leaf view and trunk view,
+with ease.
+A future that is currently missing in the implementation of the entailment
+proof tool, is that terms that could already be derived
+would be removed in an intermediate proof state,
+much like the simplifier removes terms in equation that could
+already be shown to be equivalent and leaves only the remaining subterms.
 
-From the imperative code shown,
-Isabelle/HOL allows exports to a number of languages.
+\subsection{Evaluation}
+
+
+The \btree implemented by Ernst features point queries and insertion,
+however explicitely leaves out pointers within the leaves,
+which forbids the implementation of iterators.
+This work is also similar in nature to the part of the work of Malecha
+that provides a \btree implementation.
+In addition to the functionality provided in their work, we extend
+the implementation with the missing Range iterator
+and supply a binary search within nodes, as well as a modular approach
+to further substitutionss.
+
+With respect to the effort in lines of code and proof, we see
+that our approach is similar to the effort by Malecha.
+% TODO comparison LOC/LOP with Malecha, Ernst
+
+\subsection{Future Work}
+
+This work extends the canon on veryfied \btree
+implementations.
+Some additional features will be necessary for
+usage in real-life scenarios.
+
+A small addition to provide a true
+range query can be provided by wrapping the lower-bounded
+range iterator with an iterator
+that stops iteration when the next element
+would exceed the upper bound.
+
+This work is still lacking a verified imperative version
+of the deletion function.
+We are expecting this proof to roughly follow
+the approach used for point queries and insertion.
+
+One important step towards efficient
+\btree implementations that can be deployed
+in realistic scenarios, is the migration of this code
+to Isabelle-LLVM. %TODO cite
+At the beginning of this work, the code generator did
+not yet support recursive data structures, but since
+this functionality was added recently \btrees would be an interesting application.
+Expectedly, the main difference will be the usage of Bitwords
+instead of unbound natural numbers.
 
 % TODO some analysis of the code generated? even necessary?
-
-\section{Comparison and Conclusion}
-\label{sec:conclusion}
 
 We were able to define and verify a number of efficient operations
 on imperative \btrees.
