@@ -73,11 +73,11 @@ using,%
 where,%
 },
 % modyfied to display highlighting inside strings
-%morestring=**[d][\color{IsabelleStringBackground}]{"},
+morestring=**[d][\color{IsabelleStringBackground}]{"},
 % and highlight type prefixes (')
 %moredelim=[s][\color{IsabelleTypeColor}]{'}{\ },
 %added by NM
-moredelim=[s][\color{IsabelleStringBackground}]{(*}{*)},
+%moredelim=[s][\color{IsabelleStringBackground}]{(*}{*)},
 basicstyle=\itshape,%
 keywordstyle=\upshape\bfseries,%\color{IsabelleKeywordColor},%
 columns=fullflexible,%
@@ -93,7 +93,7 @@ mathescape,%
 
 \bibliographystyle{plainurl}% the mandatory bibstyle
 
-\title{A Verified Implementation of B$^+$-Trees in Isabelle/HOL} %TODO Please add
+\title{A Verified Implementation of B$^+$-Trees in Isabelle/HOL}
 
 %\titlerunning{Dummy short title} %TODO optional, please use if title is longer than one line
 
@@ -101,9 +101,9 @@ mathescape,%
 
 \author{Tobias Nipkow}{Department of Informatics, Technical University of Munich, Germany}{nipkow@in.tum.de}{https://orcid.org/0000-0003-0730-515X}{}
 
-\author{Peter Lammich}{Department of Computer Science, The University of Manchester, Great-Britain}{lammich@in.tum.de}{https://orcid.org/0000-0003-3576-0504}{}
+%\author{Peter Lammich}{Department of Computer Science, The University of Manchester, Great-Britain}{lammich@in.tum.de}{https://orcid.org/0000-0003-3576-0504}{}
 
-\authorrunning{N. Mündler, T. Nipkow and P. Lammich} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
+\authorrunning{N. Mündler and T. Nipkow} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
 
 \Copyright{Niels Mündler} %TODO mandatory, please use full first names. LIPIcs license is "CC-BY";  http://creativecommons.org/licenses/by/3.0/
 
@@ -132,7 +132,7 @@ mathescape,%
 
 %\funding{(Optional) general funding statement \dots}%optional, to capture a funding statement, which applies to all authors. Please enter author specific funding statements as fifth argument of the \author macro.
 
-\acknowledgements{I want to thank \dots}%optional
+\acknowledgements{I want to thank Prof. Dr. Tobias Nipkow and Dr. Peter Lammich for their input and support when writing this thesis.}%optional
 
 %\nolinenumbers %uncomment to disable line numbering
 
@@ -161,7 +161,17 @@ mathescape,%
 
 %TODO mandatory: add short abstract of the document
 \begin{abstract}
-    The abstract will surely become longer at some point.
+    In this thesis, we use the interactive theorem prover Isabelle/HOL \cite{DBLP:books/sp/NipkowPW02} to verify
+    an imperative implementation of the ubiquitous \btree data structure \cite{DBLP:journals/acta/BayerM72}.
+    The implementation supports point, insertion and range queries with efficient binary
+    search for intra-node navigation. This is accomplished by first specifying the structure
+    abstractly in the functional modeling language HOL and proving functional correctness.
+    Using manual refinement, we derive an imperative implementation in Imperative/HOL
+    \cite{DBLP:conf/tphol/BulwahnKHEM08}. We show the validity of this refinement using the separation logic utilities
+    from the Isabelle Refinement Framework \cite{DBLP:conf/itp/Lammich19}. The code can be exported to the
+    programming languages SML and Scala. Considering development time and lines of code, our approach
+    compares well to other approaches at mechanized verifications of the \btree\ data
+    structure, while being unique in supporting range queries and binary node internal search.
 \end{abstract}
 
 \section{Introduction}
@@ -358,7 +368,9 @@ of the leaf pointers.
 The algebraic \btree is defined as follows:
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-def]
-    datatype 'a bplustree = LNode ('a list) | Node (('a bplustree * 'a) list) ('a bplustree)
+datatype 'a bplustree =
+    LNode ('a list) |
+    Node (('a bplustree * 'a ) list) ('a bplustree)
 \end{lstlisting}
 
 
@@ -407,7 +419,17 @@ and all indices in the subtree to the right are greater or equal.
 \footnote{
     The exact direction of the part that may contain equal element is a design choice.
 }
-% TODO insert definition of alignment, maybe figure with all properties
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-alignment-def]
+fun inbetween where
+  inbetween f l Nil t u = f l t u |
+  inbetween f l ((sub,sep)#xs) t u = (f l sub sep $\wedge$ inbetween f sep xs t u)
+
+fun aligned :: "'a ::linorder \<Rightarrow> _" where
+  aligned l (LNode ks) u = (l < u \<and> (\<forall>x \<in> set ks. l < x \<and> x \<le> u)) |
+  aligned l (Node ts t) u = (inbetween aligned l ts t u)
+\end{lstlisting}
+
+
 Note that this property can not be reduced to the sortedness of an inorder traversal,
 because whether or not an element is allowed to be equal to a separator or not
 depends on the precise structure of the tree, not only on its position in the inorder traversal.
@@ -417,7 +439,6 @@ Equivalently, all key lists within the leafs should be \textbf{sorted}.
 We show the even stronger fact that the concatenation of all leaf lists
 % TODO why actually?
 is sorted in order to have a handy statement when reasoning about iterators.
-
 
 The definition in \autoref{lst:btree-def} described an algebraic data structure.
 It is by construction finite which lets us proof termination for recursive functions almost for free.
@@ -429,8 +450,8 @@ stores all values in arrays rather than linked lists.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-imp-def]
 datatype 'a btnode =
-  Btnode "('a btnode ref option *'a) pfarray" "'a btnode ref" |
-  Btleaf "'a pfarray" "'a btnode ref option"
+  Btnode (('a btnode ref option * 'a )) pfarray ('a btnode ref) |
+  Btleaf ('a pfarray) ('a btnode ref option)
 \end{lstlisting}
 
 All elements of this tree can and will be stored on a heap, where \textbf{ref} is a pointer
@@ -500,12 +521,12 @@ the node structure of the \btree,
 we need to find a method that handles search within a node.
 On binary trees, this question is simle, in each node we either choose
 the left or right subtree.
-For 3-4 trees as described by Nipkow in ... the process becomes more tricky %TODO cite
+For 2-3-4 trees as described by Nipkow \cite{DBLP:conf/itp/Nipkow16} the process becomes more tricky
 but eventually a binary search like node internal traversal can be verified.
 For general k-ary \btrees there have not been sophisticated search strategies.
-Ernst and Malecha %TODO cite
+Ernst \cite{DBLP:journals/sosym/ErnstSR15} and Malecha \cite{DBLP:conf/popl/MalechaMSW10}
 both simply use a linear search through the node lists.
-However, \btrees are supposed to have memory page sized nodes, 
+However, \btrees are supposed to have memory page sized nodes \cite{DBLP:journals/csur/Comer79}, 
 which makes a linear search unfeasible in practical contexts.
 
 Instead we propose a different approach.
@@ -530,8 +551,9 @@ level and is eventually plugged into the abstractly defined
 imperative operations on the \btree.
 Thus we obtain imperative code that makes use of an efficient
 binary search, without adding complexity to the proofs.
-More details on the definition and implementation
-can be found in Mündler % TODO cite BSc Thesis?
+The definition and implementation closely follows
+the approach described in detail in the
+verification of B-Trees \cite{DBLP:journals/afp/Mundler21}.
 
 
 \section{Set operations}
@@ -573,20 +595,19 @@ theorem isin_set_inorder:
 \end{lstlisting}
 
 In general these proofs on the abstract level are made
-based on another refinement relation suggested by Nipkow %TODO citation.
+based on another refinement relation suggested by Nipkow. \cite{DBLP:conf/itp/Nipkow16}
 In this relation, we say that the \btree refines a sorted list of its leaf elements.
 This way, we argue that recursing into a specific subtree
 is equivalent to splitting the list of leaves at the correct position
 and searching in the correct sublist.
 The same approach was applicable for proving the correctnes of functional
-operations on B-Trees in %citation BSc thesis?.
+operations on B-Trees. \cite{DBLP:journals/afp/Mundler21}
 
 The proofs on the functional level therefore turn out to be very succinct.
 With the correctness of this operation,
 we go on and define an imperative version of the operation that
 refines each step of the abstract tree to an operation on the imperative tree.
 
-%TODO imperative definition
 \subsection{Imperative Point Query}
 \label{sec:imperative_pq}
 
@@ -806,8 +827,7 @@ to realize that we now have a pointer that provides a list-recursive
 view on the leaf elements and the inner nodes on the remaining heap.
 In a next step, we show that such a list view can be used
 to define an imperative iterator over the refined list,
-similar to how Lammich defines linked list iterators on abstract lists.
-% TODO cite
+fulfilling the list iterator interface from Lammich. \cite{DBLP:conf/itp/Lammich19}
 
 To really obtain an iterator that returns every single element of the
 leaf nodes, rather than the leaf nodes or the contained arrays themselves,
@@ -834,9 +854,9 @@ of the leaf elements iterator.
 \subsection{Range operations}
 \label{sec:imperative_range}
 
-A common use case of \btrees %TODO cite
+A common use case of \btrees
 is the obtaining of a lower bound on some key
-or to obtain  all elements within a certain range.
+or to obtain  all elements within a certain range. \cite{DBLP:journals/ftdb/Graefe11}
 A lower bound and the beginning of a range iterator
 can be both obtained in logarithmic time, making use of the tree structure.
 The operation is similar to the point query operation,
@@ -948,6 +968,33 @@ With respect to the effort in lines of code and proof, we see
 that our approach is similar to the effort by Malecha.
 % TODO comparison LOC/LOP with Malecha, Ernst
 
+\begin{figure}
+    \centering
+    \begin{tabular}{l|c|c|c}
+        \                & \cite{DBLP:conf/popl/MalechaMSW10}$^{+}$ & \cite{DBLP:journals/sosym/ErnstSR15}$^{d}$ & Our approach$^{+}$ \\
+        \hline
+        Functional code &   360      & -                    & 324  \\ %TODO update
+        Imperative code &   510      & 1862                  & 170  \\
+        Proofs          &  5190      & 350 + 510 + 2940\footnotemark[7] & 2753 \\
+        Timeframe (months) &  -     & 6+                      & 12   \\
+    \end{tabular}
+    \caption[Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree verifications.]
+    {Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree verifications.
+    The marker $^d$ denotes that the implementation verifies deletion operations, whereas $^+$ denotes the implementation of iterators.
+    }
+    \label{fig:proof-comparison}
+\end{figure}
+\footnotetext[7]{
+    The proof integrates TVLA and KIV, and hence comprises
+    explicitely added rules for TVLA (the first number),
+    user-invented theorems in KIV (the second number)
+    and "interactions" with KIV (the second number).
+    Interactions are i.e. choices of an induction variable, quantifier instantiation
+    or application of correct lemmas.
+    We hence interpret them as each one apply-Style command and hence
+    one line of proof.
+}
+
 \subsection{Future Work}
 
 This work extends the canon on veryfied \btree
@@ -969,22 +1016,22 @@ the approach used for point queries and insertion.
 One important step towards efficient
 \btree implementations that can be deployed
 in realistic scenarios, is the migration of this code
-to Isabelle-LLVM. %TODO cite
+to Isabelle-LLVM. \cite{DBLP:conf/itp/Lammich19}
 At the beginning of this work, the code generator did
 not yet support recursive data structures, but since
 this functionality was added recently \btrees would be an interesting application.
 Expectedly, the main difference will be the usage of Bitwords
 instead of unbound natural numbers.
 
+Finally, \btrees are supposed to write the contained
+memory out to disk in order to maintain the durability constraint
+usually required for databases.
+This implementation lacks any interaction with IO systems.
+We expect the formalization of correct interaction 
+to be a particulary tricky task.
+
 % TODO some analysis of the code generated? even necessary?
 
-We were able to define and verify a number of efficient operations
-on imperative \btrees.
-Namely we provide the basics with point and insertion querys.
-Further we provide an efficient iterator on the leafs
-and even give a range operation for a lower bound that
-can be trivially extended to support an upper bound.
-All operations are conducted on a \btree with linked leafs,
-and conduct binary search within each node.
+\bibliography{lipics-v2021-bplustrees}
 
 \end{document}
