@@ -493,6 +493,13 @@ qed
 
 sublocale imp_split_tree linear_split split_fun
   apply(unfold_locales)
+  unfolding linear_split.simps
+  subgoal by (auto split: list.splits)
+  subgoal
+    apply (auto split: list.splits)
+    by (metis (no_types, lifting) case_prodD in_set_conv_decomp takeWhile_eq_all_conv takeWhile_idem)
+  subgoal
+    by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
   subgoal for ts tsi rs tsi'' r z c a n k p
     supply R= split_rule_linear_split[of ts "zip (subtrees tsi) (zip (butlast (r # rs)) (butlast (rs @ [z])))" tsi
 tsi''
@@ -536,6 +543,13 @@ lemma split_list_rule_linear_split:
 
 sublocale imp_split_list linear_split_list split_list_fun
   apply(unfold_locales)
+  subgoal by (auto split: list.splits)
+  subgoal
+    apply (auto split: list.splits)
+    by (metis (no_types, lifting) case_prodD in_set_conv_decomp takeWhile_eq_all_conv takeWhile_idem)
+  subgoal
+    apply (auto split: list.splits)
+    by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
   apply(sep_auto heap: split_list_rule_linear_split)
   done
 
@@ -551,32 +565,8 @@ sublocale imp_split_full split_fun split_list_fun linear_split linear_split_list
 
 end
 
-subsection "Obtaining executable code"
-
-text "In order to obtain fully defined functions,
-we need to plug our split function implementations
-into the locales we introduced previously."
-
-
-interpretation bplustree_imp_linear_split_tree: imp_split_tree_smeq lin_split
-  apply unfold_locales
-  apply(sep_auto heap: lin_split_rule)
-  done
-
-
-text "Obtaining actual code turns out to be slightly more difficult
-  due to the use of locales. However, we successfully obtain
-the B-tree insertion and membership query with binary search splitting."
-
-interpretation bplustree_imp_binary_split_list: imp_split_list_smeq bin'_split
-  apply unfold_locales
-  apply(sep_auto heap: bin'_split_rule)
-  done
-
-interpretation bplustree_imp_bin_split_tree: imp_split_tree_smeq bin_split
-  apply unfold_locales
-  apply(sep_auto heap: bin_split_rule)
-  done
-
+text "The fact that these functions fulfill the locale specifications will only be shown
+when we try to extract the executable code, because
+the correct definitions have to be derived directly at the first instance of interpretation."
 
 end

@@ -30,6 +30,11 @@ subsection "The split function locale"
 text "Here, we abstract away the inner workings of the split function
       for B-tree operations."
 
+lemma leaves_conc: "leaves (Node (ls@rs) t) = leaves_list ls @ leaves_list rs @ leaves t"
+  apply(induction ls)
+  apply auto
+  done
+
 locale split_tree =
   fixes split ::  "('a bplustree\<times>'a::{linorder,order_top}) list \<Rightarrow> 'a \<Rightarrow> (('a bplustree\<times>'a) list \<times> ('a bplustree\<times>'a) list)"
   assumes split_req:
@@ -44,6 +49,12 @@ begin
   lemma [termination_simp]:"(ls, (sub, sep) # rs) = split ts y \<Longrightarrow>
         size sub < Suc (size_list (\<lambda>x. Suc (size (fst x))) ts  + size l)"
     using split_conc[of ts y ls "(sub,sep)#rs"] by auto
+
+  
+  lemma leaves_split: "split ts x = (ls,rs) \<Longrightarrow> leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
+    using leaves_conc split_conc by blast
+
+
 end
 
 locale split_list =
@@ -72,7 +83,9 @@ text "Linear split is similar to well known functions, therefore a quick proof c
 fun linear_split where "linear_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 fun linear_split_list where "linear_split_list xs x = (takeWhile (\<lambda>s. s<x) xs, dropWhile (\<lambda>s. s<x) xs)"
 
-interpretation bplustree_linear_search_list: split_list linear_split_list
+(* works but inhibits code extraction *)
+
+(*interpretation bplustree_linear_search_list: split_list linear_split_list
   apply unfold_locales
   unfolding linear_split.simps
     apply (auto split: list.splits)
@@ -80,9 +93,9 @@ interpretation bplustree_linear_search_list: split_list linear_split_list
     by (metis (no_types, lifting) case_prodD in_set_conv_decomp takeWhile_eq_all_conv takeWhile_idem)
   subgoal
     by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
-  done
+  done *)
 
-interpretation bplustree_linear_search: split_tree linear_split
+(* interpretation bplustree_linear_search: split_tree linear_split
   apply unfold_locales
   unfolding linear_split.simps
     apply (auto split: list.splits)
@@ -90,6 +103,5 @@ interpretation bplustree_linear_search: split_tree linear_split
     by (metis (no_types, lifting) case_prodD in_set_conv_decomp takeWhile_eq_all_conv takeWhile_idem)
   subgoal
     by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
-  done
-
+  done *)
 end

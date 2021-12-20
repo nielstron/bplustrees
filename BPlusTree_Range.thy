@@ -394,15 +394,6 @@ text "lrange proof"
 
 (* lift to split *)
 
-lemma leaves_conc: "leaves (Node (ls@rs) t) = leaves_list ls @ leaves_list rs @ leaves t"
-  apply(induction ls)
-  apply auto
-  done
-
-lemma leaves_split: "split ts x = (ls,rs) \<Longrightarrow> leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
-  using leaves_conc split_conc by blast
-
-
 
 lemma lrange_sorted_split:
   assumes "Laligned (Node ts t) u"
@@ -481,7 +472,7 @@ proof -
   proof (cases "leaves_list rs @ leaves t")
     case Nil
     then show ?thesis 
-      by (metis assms(1) leaves_split same_append_eq self_append_conv split_range.leaves_split split_range_axioms)
+      by (metis assms(1) leaves_split same_append_eq self_append_conv split_tree.leaves_split split_tree_axioms)
   next
     case (Cons r' rs')
     then have "sep < r'"
@@ -522,7 +513,7 @@ next
     also have "\<dots> = lrange_filter x (leaves t)"
       by (metis "2.IH"(1) "2.prems"(1) "2.prems"(2) align_last' list_split local.Nil sorted_leaves_induct_last)
     also have "\<dots> = lrange_filter x (leaves (Node ts t))"
-      by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) aligned_imp_Laligned leaves.simps(2) list_conc list_split local.Nil lrange_sorted_split same_append_eq self_append_conv split_range.leaves_split split_range_axioms)
+      by (metis "2.prems"(1) "2.prems"(2) aligned_imp_Laligned leaves.simps(2) list_conc list_split local.Nil lrange_sorted_split same_append_eq self_append_conv split_tree.leaves_split split_tree_axioms)
     finally show ?thesis .
   next
     case (Cons a list)
@@ -586,7 +577,7 @@ next
     moreover have "suffix (lrange_filter x (leaves t)) (concat (map leaves (leafs_range t x)))"
       by (metis "2.IH"(1) "2.prems"(1) "2.prems"(2) align_last' list_split local.Nil sorted_leaves_induct_last)
     then have "suffix (lrange_filter x (leaves (Node ts t))) (concat (map leaves (leafs_range t x)))"
-      by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) aligned_imp_Laligned leaves.simps(2) list_conc list_split local.Nil lrange_sorted_split same_append_eq self_append_conv split_range.leaves_split split_range_axioms)
+      by (metis "2.prems"(1) "2.prems"(2) aligned_imp_Laligned leaves.simps(2) list_conc list_split local.Nil lrange_sorted_split same_append_eq self_append_conv split_tree.leaves_split split_tree_axioms)
     ultimately show ?thesis by simp
   next
     case (Cons a list)

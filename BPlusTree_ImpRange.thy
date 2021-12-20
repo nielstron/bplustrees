@@ -1055,30 +1055,5 @@ sublocale imp_split_range split  imp_split_list.abs_split_list.lrange_split imp_
 end
 
 
-global_interpretation bplustree_imp_binary_split_list_lrange: imp_split_list_smeq bin'_split
-  defines bplustree_lrange_list = bplustree_imp_binary_split_list.imp_lrange_list
-  by unfold_locales
-
-
-global_interpretation bplustree_imp_binary_split_range: 
-  imp_split_range linear_split bplustree_linear_search_list.lrange_split bin_split bplustree_lrange_list
-  defines bplustree_leafs_range = bplustree_imp_binary_split_range.leafs_range
-    and bplustree_lrange = bplustree_imp_binary_split_range.concat_leafs_range
-  apply unfold_locales
-  subgoal by (simp add: bplustree_linear_search_list.lrange_split_req)
-  subgoal 
-    apply(simp add: bplustree_lrange_list_def)
-    apply(vcg heap: bplustree_imp_binary_split_list.imp_lrange_list_rule)
-  done
-
-find_theorems bplustree_lrange
-find_theorems bplustree_lrange_list
-find_theorems imp_split_range.concat_leafs_range
-find_theorems bplustree_leafs_range
-
-export_code bplustree_leafs_range bplustree_lrange checking OCaml SML Scala
-export_code bplustree_lrange in OCaml module_name BPlusTree
-export_code bplustree_lrange in SML module_name BPlusTree
-export_code bplustree_lrange in Scala module_name BPlusTree
 
 end
