@@ -424,8 +424,8 @@ fun inbetween where
   inbetween f l Nil t u = f l t u |
   inbetween f l ((sub,sep)#xs) t u = (f l sub sep $\wedge$ inbetween f sep xs t u)
 
-fun aligned :: "'a ::linorder \<Rightarrow> _" where
-  aligned l (LNode ks) u = (l < u \<and> (\<forall>x \<in> set ks. l < x \<and> x \<le> u)) |
+fun aligned :: "'a ::linorder $\Rightarrow$ _" where
+  aligned l (LNode ks) u = (l < u $\wedge$ ($\forall$x $\in$ set ks. l < x $\wedge$ x $\le$ u)) |
   aligned l (Node ts t) u = (inbetween aligned l ts t u)
 \end{lstlisting}
 
@@ -472,23 +472,23 @@ The abstract linked list is itself refined by an array,
 and the pointers on subtrees refine again the subtrees of the algebraic tree.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-relation]
-fun bplustree_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
-  "bplustree_assn k (LNode xs) a r z =
- (\<exists>\<^sub>A xsi fwd.
-      a \<mapsto>\<^sub>r Btleaf xsi fwd
+fun bplustree_assn where
+  bplustree_assn k (LNode xs) a r z =
+ ($\exists_A$ xsi fwd.
+      a $\mapsto_r$ Btleaf xsi fwd
     * is_pfa (2*k) xs xsi
-    * \<up>(fwd = z)
-    * \<up>(r = Some a)
-  )" |
-  "bplustree_assn k (Node ts t) a r z =
- (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
-      a \<mapsto>\<^sub>r Btnode tsi ti
+    * $\uparrow$(fwd = z)
+    * $\uparrow$(r = Some a)
+  ) |
+  bplustree_assn k (Node ts t) a r z =
+ ($\exists_A$ tsi ti tsi' tsi'' rs.
+      a $\mapsto_r$ Btnode tsi ti
     * is_pfa (2*k) tsi' tsi
-    * \<up>(length tsi' = length rs)
-    * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z'). bplustree_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) ts tsi''
-    * bplustree_assn k t ti (last (r#rs)) (last (rs@[z]))
-    )"
+    * $\uparrow$(length tsi' = length rs)
+    * $\uparrow$(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) rs))) (map snd tsi'))
+    * list_assn (($\lambda$ t (ti,r',z'). bplustree_assn k t (the ti) r' z') $\times_a$ id_assn) ts tsi''
+    * bplustree_assn k t ti (last (r#rs)) z)
+    )
 \end{lstlisting}
 
 The first and last leaf are part of the refinement relation because
@@ -572,14 +572,14 @@ Then recursively search for the value in that subtree.
 Inside the leaf node, search directly in the list of values.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-def]
-fun isin:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> bool" where
-  "isin (LNode ks) x = (isin_list x ks)" |
-  "isin (Node ts t) x = (
-      case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
+fun isin:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ bool" where
+  isin (LNode ks) x = (isin_list x ks) |
+  isin (Node ts t) x = (
+      case split ts x of (_,(sub,sep)#rs) $\Rightarrow$ (
              isin sub x
       )
-   | (_,[]) \<Rightarrow> isin t x
-  )"
+   | (_,[]) $\Rightarrow$ isin t x
+  )
 \end{lstlisting}
 
 Note that we assume here that a "split" and "isin\_list" operation exist,
@@ -591,7 +591,7 @@ we only need to show that it returns the correct value.
 theorem isin_set_inorder:
   assumes "sorted_less (leaves t)"
     and "aligned l t u"
-  shows "isin t x = (x \<in> set (leaves t))"
+  shows "isin t x = (x $\in$ set (leaves t))"
 \end{lstlisting}
 
 In general these proofs on the abstract level are made
@@ -619,13 +619,13 @@ However, we will later show that, if the input refines an abstract tree,
 the function terminates and is correct.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-imp-def]
-partial_function (heap) isin :: "'a btnode ref \<Rightarrow> 'a \<Rightarrow>  bool Heap"
+partial_function (heap) isin :: "'a btnode ref $\Rightarrow$ 'a $\Rightarrow$  bool Heap"
   where
     "isin p x = do {
   node \<leftarrow> !p;
   (case node of
-     Btleaf xs _ \<Rightarrow> imp_isin_list x xs |
-     Btnode ts t \<Rightarrow> do {
+     Btleaf xs _ $\Rightarrow$ imp_isin_list x xs |
+     Btnode ts t $\Rightarrow$ do {
        i \<leftarrow> imp_split ts x;
        tsl \<leftarrow> pfa_length ts;
        if i < tsl then do {
@@ -655,7 +655,7 @@ This proof can be done inductively on the structure of the abstract tree.
 lemma  "k > 0 \<Longrightarrow> root_order k t \<Longrightarrow> sorted_less (inorder t) \<Longrightarrow> sorted_less (leaves t) \<Longrightarrow>
    <bplustree_assn k t ti r z>
      isin ti x
-   <\<lambda>y. bplustree_assn k t ti r z * \<up>(abs_split_set.isin t x = y)>\<^sub>t"
+   <$\lambda$y. bplustree_assn k t ti r z * $\uparrow$(abs_split_set.isin t x = y)>\<^sub>t"
 \end{lstlisting}
 
 Assuming structural soundness of the abstract tree that is refined by the pointer passed to the function,
@@ -756,10 +756,20 @@ lemma bplustree_leaf_nodes:
 \end{lstlisting}
 
 % TODO graphic explaining the issue
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{btree-view-split.pdf}
+    \caption[Split view of the \btree]
+    {In order to obtain separate assertions about the concatenated leaf list
+    and the internal nodes of the tree, the structure is abstractly split along the
+    pointers marked in red. In order to be able to combine the views together later,
+    the marked pointers have to be extracted to show explicitly that they are shared.}
+    \label{fig:btree-view-split}
+\end{figure}
 
 In a second attempt we succeed by making the sharing explicit.
 We extract from the whole tree the precise list of pointers to leaf nodes
-in the correct order.
+in the correct order as visualized in \autoref{lst:btree-view-split}.
 We express this new view by extending the existential quantifier in \autoref{lst:btree-lst:btree-relation}
 to assume that there is a partition of all leaf pointers,
 such that each subtree has exactly its part of the partition as leaf pointers.
@@ -772,30 +782,30 @@ The statement from \autoref{lst:btree-relation} is strong enough to guarantee th
 
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split]
-fun bplustree_assn_leafs :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref list \<Rightarrow> assn" where
+fun bplustree_assn_leafs :: "nat $\Rightarrow$ ('a::heap) bplustree $\Rightarrow$ 'a btnode ref $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btnode ref list $\Rightarrow$ assn" where
     "bplustree_assn_leafs k (LNode xs) a r z leafptrs =
-   (\<exists>\<^sub>A xsi fwd.
-        a \<mapsto>\<^sub>r Btleaf xsi fwd
+   ($\exists_A$ xsi fwd.
+        a $\mapsto_r$ Btleaf xsi fwd
       * is_pfa (2*k) xs xsi
-      * \<up>(fwd = z)
-      * \<up>(r = Some a)
-      * \<up>(leafptrs = [a])
+      * $\uparrow$(fwd = z)
+      * $\uparrow$(r = Some a)
+      * $\uparrow$(leafptrs = [a])
     )" |
     "bplustree_assn_leafs k (Node ts t) a r z leafptrs =
-   (\<exists>\<^sub>A tsi ti tsi' tsi'' rs split.
-        a \<mapsto>\<^sub>r Btnode tsi ti
+   ($\exists_A$ tsi ti tsi' tsi'' rs split.
+        a $\mapsto_r$ Btnode tsi ti
       * bplustree_assn_leafs k t ti (last (r#rs)) (last (rs@[z])) (last split)
       * is_pfa (2*k) tsi' tsi
-      * \<up>(concat split = leafptrs)
-      * \<up>(length tsi' = length rs)
-      * \<up>(length split = length rs + 1)
-      * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (zip (butlast (rs@[z])) (butlast split)))) (map snd tsi'))
-      * list_assn ((\<lambda> t (ti,r',z',lptrs). bplustree_assn_leafs k t (the ti) r' z' lptrs) \<times>\<^sub>a id_assn) ts tsi''
+      * $\uparrow$(concat split = leafptrs)
+      * $\uparrow$(length tsi' = length rs)
+      * $\uparrow$(length split = length rs + 1)
+      * $\uparrow$(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (zip (butlast (rs@[z])) (butlast split)))) (map snd tsi'))
+      * list_assn (($\lambda$ t (ti,r',z',lptrs). bplustree_assn_leafs k t (the ti) r' z' lptrs) $\times_a$ id_assn) ts tsi''
       )"
 
 
 lemma bplustree_extract_leafs:
-    "bplustree_assn k t ti r z = (\<exists>\<^sub>Aleafptrs. bplustree_assn_leafs k t ti r z leafptrs)"
+    "bplustree_assn k t ti r z = ($\exists_A$leafptrs. bplustree_assn_leafs k t ti r z leafptrs)"
 
 lemma bplustree_leaf_nodes_sep:
   "bplustree_assn_leafs k t ti r z lptrs = leaf_nodes_assn k (leaf_nodes t) r z lptrs * inner_nodes_assn k t ti r z lptrs"
@@ -818,7 +828,7 @@ lemma first_leaf_rule[sep_heap_rules]:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
   first_leaf ti
-  <\<lambda>u. bplustree_assn k t ti r z * \<up>(u = r)>\<^sub>t"
+  <$\lambda$u. bplustree_assn k t ti r z * $\uparrow$(u = r)>\<^sub>t"
 \end{lstlisting}
 
 
@@ -844,7 +854,7 @@ lemma leaf_elements_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r None>
     leaf_elements_iter_init ti
-    <\<lambda>it. leaf_elements_iter k t ti r (leaves t) it>\<^sub>t"
+    <$\lambda$it. leaf_elements_iter k t ti r (leaves t) it>\<^sub>t"
 \end{lstlisting}
 
 Note how all notion of the explicitely shared leaf pointers
@@ -866,13 +876,13 @@ The range bounded from below is all elements returned by the iterator,
 the first element being the lower bound.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-lrange]
-fun lrange:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a list" where
+fun lrange:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a list" where
     "lrange (LNode ks) x = (lrange_list x ks)" |
     "lrange (Node ts t) x = (
-        case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
+        case split ts x of (_,(sub,sep)#rs) $\Rightarrow$ (
                lrange sub x @ leaves_list rs @ leaves t
         )
-     | (_,[]) \<Rightarrow> lrange t x
+     | (_,[]) $\Rightarrow$ lrange t x
     )"
 \end{lstlisting}
   
