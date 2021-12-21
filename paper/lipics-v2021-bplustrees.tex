@@ -778,6 +778,8 @@ This is usually useful as it reduces the size of the specification
 and the proof burden.
 In this case it gets in our way though.
 
+% vis?
+
 We can not express that the lowest pointers
 in the internal node hierachy refine the leafs
 that we refine in the leaf list
@@ -1020,18 +1022,37 @@ the implementation with the missing Range iterator
 and supply a binary search within nodes, as well as a modular approach
 to further substitutionss.
 
-With respect to the effort in lines of code and proof, we see
-that our approach is similar to the effort by Malecha.
-% TODO comparison LOC/LOP with Malecha, Ernst
+With respect to the effort in lines of code and proof
+as depicted in \autoref{fig:proof-comparison}, we see
+that our approach is similar in effort to the approach by Malecha.
+It should be also noted that this includes the statistics
+for the additional binary search and range iterator
+that make up around 1000 lines of proof each.
+The comparison with Ernst is difficult, as it completely
+avoids the usage of leaf pointers and the iterator
+that makes up a signifant amount of the proof
+with around 1095 lines of proof.
+We conclude that the Isabelle/HOL framework
+provides a feature set
+such that verification of \btrees is both feasible
+and comparable in effort to using Ynot or KIV/TVLA.
+The strict separation of a functional and imperative
+implementation yields the challenge
+of potentially having to make sharing explicit.
+On the other hand, it permits great freedom
+regarding the actual refinement on the imperative level,
+that eventually enabled
+implementing functionality that is closer
+to real world implementations in this work
 
 \begin{figure}
     \centering
     \begin{tabular}{l|c|c|c}
         \                & \cite{DBLP:conf/popl/MalechaMSW10}$^{+}$ & \cite{DBLP:journals/sosym/ErnstSR15}$^{d}$ & Our approach$^{+}$ \\
         \hline
-        Functional code &   360      & -                    & 324  \\ %TODO update
-        Imperative code &   510      & 1862                  & 170  \\
-        Proofs          &  5190      & 350 + 510 + 2940\footnotemark[7] & 2753 \\
+        Functional code &   360      & -                    & 413  \\ %TODO update
+        Imperative code &   510      & 1862                  & 1093  \\
+        Proofs          &  5190      & 350 + 510 + 2940\footnotemark[7] & 8663 \\
         Timeframe (months) &  -     & 6+                      & 12   \\
     \end{tabular}
     \caption[Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree verifications.]

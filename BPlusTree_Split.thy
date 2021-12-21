@@ -42,6 +42,7 @@ locale split_tree =
     "\<lbrakk>split xs p = (ls@[(sub,sep)],rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> sep < p"
     "\<lbrakk>split xs p = (ls,(sub,sep)#rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> p \<le> sep"
 begin
+
   lemmas split_conc = split_req(1)
   lemmas split_sorted = split_req(2,3)
   
@@ -53,7 +54,6 @@ begin
   
   lemma leaves_split: "split ts x = (ls,rs) \<Longrightarrow> leaves (Node ts t) = leaves_list ls @ leaves_list rs @ leaves t"
     using leaves_conc split_conc by blast
-
 
 end
 
