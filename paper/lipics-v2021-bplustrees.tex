@@ -618,23 +618,22 @@ However, we will later show that, if the input refines an abstract tree,
 the function terminates and is correct.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-imp-def]
-partial_function (heap) isin :: "'a btnode ref $\Rightarrow$ 'a $\Rightarrow$  bool Heap"
-  where
-    "isin p x = do {
-  node \<leftarrow> !p;
+partial_function (heap) isin :: "'a btnode ref $\Rightarrow$ 'a $\Rightarrow$  bool Heap" where
+  isin p x = do {
+  node $\leftarrow$ !p;
   (case node of
      Btleaf xs _ $\Rightarrow$ imp_isin_list x xs |
      Btnode ts t $\Rightarrow$ do {
-       i \<leftarrow> imp_split ts x;
-       tsl \<leftarrow> pfa_length ts;
+       i $\leftarrow$ imp_split ts x;
+       tsl $\leftarrow$ pfa_length ts;
        if i < tsl then do {
-         s \<leftarrow> pfa_get ts i;
+         s $\leftarrow$ pfa_get ts i;
          let (sub,sep) = s in
            isin (the sub) x
        } else
            isin t x
     }
-)}"
+)}
 \end{lstlisting}
 
 Again, we assume that there are split functions that do node internal search operations for us
@@ -769,6 +768,27 @@ lemma bplustree_leaf_nodes:
     \label{fig:btree-view-split}
 \end{figure}
 
+The root of this problem is actually a feature of the refinement approach.
+Generally, when stating that a part of the heap
+refines some abstract data structure,
+we really only state this fact.
+No statement is made about the concrete pointers
+or location of memory.
+This is usually useful as it reduces the size of the specification
+and the proof burden.
+In this case it gets in our way though.
+
+We can not express that the lowest pointers
+in the internal node hierachy refine the leafs
+that we refine in the leaf list
+as this would violate the disjunctness of heaps.
+But not stating specifically which pointers
+are on the lowest level results in a statement that 
+is too weak.
+We need to specifically denote that these pointers,
+and not the structure they refine,
+are shared between the two statements.
+
 In a second attempt we succeed by making the sharing explicit.
 We extract from the whole tree the precise list of pointers to leaf nodes
 in the correct order as visualized in \autoref{lst:btree-view-split}.
@@ -781,9 +801,13 @@ that are comprising the linked list view of the leafs.
 A convenient fact is that the view on the tree that makes the leaf pointers explict
 is equivalent to the view where we do not know precisely which pointers are in the leafs.
 The statement from \autoref{lst:btree-relation} is strong enough to guarantee that such a list exists.
+Using the additional list, we can precisely state an equivalent
+separated assertion.
 
 
-\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split]
+\begin{figure}
+    \centering
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-assn-leafs]
 fun bplustree_assn_leafs where
     bplustree_assn_leafs k (LNode xs) a r z leafptrs =
    ($\exists_A$ xsi fwd.
@@ -810,8 +834,18 @@ fun bplustree_assn_leafs where
            $\times_a$ id_assn
         ) ts tsi''
       )
+\end{lstlisting}
+    \caption[Definition of extracted leafs assertion]{
+        In order to be able to correctly relate leaf view and internal nodes,
+        the shared pointers have to be made explicit without accessing them.
+        For this reason, a refined version of the tree assertion is derived
+        that guarantees to include the pointers passed as $leafptrs$.
+    }
+    \label{fig:btree-assn-leafs}
+\end{figure}
 
 
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split]
 lemma bplustree_extract_leafs:
     "bplustree_assn k t ti r z = ($\exists_A$leafptrs. bplustree_assn_leafs k t ti r z leafptrs)"
 
@@ -820,6 +854,7 @@ lemma bplustree_leaf_nodes_sep:
    leaf_nodes_assn k (leaf_nodes t) r z lptrs * inner_nodes_assn k t ti r z lptrs"
 \end{lstlisting}
 
+The exact definition of the refined tree assertion is given in \autoref{fig:btree-assn-leafs}.
 In the work of Malecha \cite{DBLP:conf/popl/MalechaMSW10}, 
 this list of precise leaf pointers is exactly the list of abstract leafs,
 as the abstract leafs each contain the precise heap pointer they are refining.
@@ -886,13 +921,13 @@ the first element being the lower bound.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-lrange]
 fun lrange:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a list" where
-    "lrange (LNode ks) x = (lrange_list x ks)" |
-    "lrange (Node ts t) x = (
+    lrange (LNode ks) x = (lrange_list x ks) |
+    lrange (Node ts t) x = (
         case split ts x of (_,(sub,sep)#rs) $\Rightarrow$ (
                lrange sub x @ leaves_list rs @ leaves t
         )
      | (_,[]) $\Rightarrow$ lrange t x
-    )"
+    )
 \end{lstlisting}
   
 Again, we assume that there exists a function \textit{lrange} that
