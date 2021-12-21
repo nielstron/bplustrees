@@ -1341,9 +1341,5 @@ lemma leaf_elements_iter_quit:
 declare first_leaf.simps[code]
 declare last_leaf.simps[code]
 (* declare leaf_elements_iter.flatten_it_adjust.simps[code] *)
-
-export_code leaf_elements_iter_init leaf_elements_next leaf_elements_has_next checking OCaml SML Scala
-export_code leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in OCaml module_name BPlusTree
-export_code leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in SML module_name BPlusTree
-export_code leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in Scala module_name BPlusTree
+(* Code exports can be found with in ImpSplitCE *)
 end
