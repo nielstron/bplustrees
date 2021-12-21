@@ -132,7 +132,10 @@ mathescape,%
 
 %\funding{(Optional) general funding statement \dots}%optional, to capture a funding statement, which applies to all authors. Please enter author specific funding statements as fifth argument of the \author macro.
 
-\acknowledgements{I want to thank Prof. Dr. Tobias Nipkow and Dr. Peter Lammich for their input and support when writing this thesis.}%optional
+\acknowledgements{I want to thank Peter Lammich for giving me a very comprehensive introduction
+and taking the time to discuss approaches to the assertion fiddling when splitting the \btree.
+I further want to thank Manuel Eberl for his immediate and impressive support 
+with Isabelle proof tactics.}%optional
 
 %\nolinenumbers %uncomment to disable line numbering
 
@@ -985,17 +988,28 @@ lemma concat_leafs_range_rule:
 \section{Conclusion}
 \label{sec:conclusion}
 
+During writing, this project mainly comprised two parts.
+The first part was rather theoretical,
+trying to figure out the best, if any, appraoch
+to express statements about the abstract tree
+and concrete implementation.
+The second part was their verification,
+which went rather smooth for good approaches
+on the abstract level but induced much headache
+on the imperative reasoning level.
+Since all functional concerns are covered by
+the refinement relation, all that remains
+is to show the refinement relation holds,
+and this process is very technical
+and mainly requires proof of thousands of small
+implementation details.
+However, we can imagine that this is no comparison
+to the headache induced by having to show
+functional correctness on the imperative level as well.
+
 \subsection{Lessons learnt}
 
-It was interesting to notice that it is rather complicated
-to even express, not to speak of attempting to prove acyclicity
- along the leaf nodes of the tree, as soon as the linked list was converted into an iterator.
-Fortunately, we found a way around this issue, by only considering
-the complete list of nodes whenever we turned them into
-iterators. In that case, they were terminated by \textit{None}
-which we could guarantee not to occur earlier in the list.
-
-Moreover, handling statements on assertions has always been
+Handling assertions has always been
 a bit tedious throughout the project.
 A major alleviation was the introduction of a specialized tool
 that would substitute multiplicative terms in the formular
@@ -1003,20 +1017,32 @@ regardless of the disctribution in the original term.
 This way, we could exchange equivalent assertions that comprised
 multiple terms, like the combination of leaf view and trunk view,
 with ease.
-A future that is currently missing in the implementation of the entailment
-proof tool, is that terms that could already be derived
-would be removed in an intermediate proof state,
-much like the simplifier removes terms in equation that could
+
+What is currently missing in the implementation of the entailment
+solving tool, is that terms that could already be derived
+would be removed in an intermediate proof state.
+This could be much like the simplifier in Isabelle removes terms in equation that could
 already be shown to be equivalent and leaves only the remaining subterms.
+This way, if the tool could verify an entailment relation holds,
+all subterms remained and it was up to the proof reader
+to find non-matching terms in the (potentially huge)
+assertions that should match up.
+
+On a side note, it was interesting to notice that it is rather complicated
+to even express, not to speak of attempting to prove acyclicity
+ along the leaf nodes of the tree, as soon as the linked list was converted into an iterator.
+Fortunately, we found a way around this issue, by only considering
+the complete list of nodes whenever we turned them into
+iterators. In that case, they were terminated by \textit{None}
+which we could guarantee not to occur earlier in the list.
 
 \subsection{Evaluation}
 
 
-The \btree\ implemented by Ernst features point queries and insertion,
+The \btree\ implemented by Ernst \cite{DBLP:journals/sosym/ErnstSR15} features point queries and insertion,
 however explicitely leaves out pointers within the leaves,
 which forbids the implementation of iterators.
-This work is also similar in nature to the part of the work of Malecha
-that provides a \btree\ implementation.
+This work is closer in nature to the \btree\ implementation by Malecha \cite{DBLP:conf/popl/MalechaMSW10}.
 In addition to the functionality provided in their work, we extend
 the implementation with the missing Range iterator
 and supply a binary search within nodes, as well as a modular approach
@@ -1025,6 +1051,7 @@ to further substitutionss.
 With respect to the effort in lines of code and proof
 as depicted in \autoref{fig:proof-comparison}, we see
 that our approach is similar in effort to the approach by Malecha.
+The numbers do not include introduced pure ML proof tactics.
 It should be also noted that this includes the statistics
 for the additional binary search and range iterator
 that make up around 1000 lines of proof each.
@@ -1055,8 +1082,9 @@ to real world implementations in this work
         Proofs          &  5190      & 350 + 510 + 2940\footnotemark[7] & 8663 \\
         Timeframe (months) &  -     & 6+                      & 12   \\
     \end{tabular}
-    \caption[Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree\ verifications.]
-    {Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree\ verifications.
+    \caption[Comparison of (unoptimized) Lines of Code and Proof and time investment in related mechanized \btree\ verifications.]
+    {Comparison of (unoptimized) Lines of Code and Proof and time investment in related mechanized \btree\ verifications.
+    All approaches are comparable in effort, taking into account implementation specifics.
     The marker $^d$ denotes that the implementation verifies deletion operations, whereas $^+$ denotes the implementation of iterators.
     }
     \label{fig:proof-comparison}
@@ -1085,10 +1113,13 @@ range iterator with an iterator
 that stops iteration when the next element
 would exceed the upper bound.
 
-This work is still lacking a verified imperative version
+Further, this work is still lacking a verified imperative version
 of the deletion function.
-We are expecting this proof to roughly follow
-the approach used for point queries and insertion.
+We already provided an abstract specification
+and an imperative refinement and have seen
+that all araising issues are along the lines
+of the proof obligations in the refinement
+proofs of point queries and insertion.
 
 One important step towards efficient
 \btree\ implementations that can be deployed
