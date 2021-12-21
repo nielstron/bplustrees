@@ -162,7 +162,7 @@ mathescape,%
 %TODO mandatory: add short abstract of the document
 \begin{abstract}
     In this thesis, we use the interactive theorem prover Isabelle/HOL \cite{DBLP:books/sp/NipkowPW02} to verify
-    an imperative implementation of the ubiquitous \btree data structure \cite{DBLP:journals/acta/BayerM72}.
+    an imperative implementation of the ubiquitous \btree\ data structure \cite{DBLP:journals/acta/BayerM72}.
     The implementation supports point, insertion and range queries with efficient binary
     search for intra-node navigation. This is accomplished by first specifying the structure
     abstractly in the functional modeling language HOL and proving functional correctness.
@@ -197,12 +197,12 @@ the eligibility of reusing variables need to be
 reasoned about.
 We provide a computer assisted proof in the interactive
 theorem prover Isabelle/HOL \cite{DBLP:books/sp/NipkowPW02} for the functional
-correctness of an imperative implementation of the \btree data-structure
+correctness of an imperative implementation of the \btree\ data-structure
 and present how we dealt with the above mentioned issues.
 
 
 In \autoref{sec:introduction}, we have a brief overview on related
-work and introduce the definition of \btree used in our approach.
+work and introduce the definition of \btree\ used in our approach.
 In order to verify an imperative version of the structure,
 we define a functional, abstract specification of a tree operations
 and prove functional correctness, by showing that structural invariants are preserved
@@ -223,7 +223,7 @@ research in \autoref{sec:conclusion}.
 \subsection{Motivation}
 \label{sec:motivation}
 
-\btrees form the basis of virtually all modern RDBMs.
+\btrees\ form the basis of virtually all modern RDBMs.
 Especially when employed in financial applications
 or in safety critical software it is vital that
 no data is lost or corrupted.
@@ -236,7 +236,7 @@ However, it lacks a number of common features for \btree
 interaction, such as range searches and efficient binary search.
 Moreover, it is bound to the Coq interactive theorem prover.
 With this work, we intend to enrich the canon on verified
-\btrees with an efficient and modular implementation
+\btrees\ with an efficient and modular implementation
 in Isabelle/HOL.
 
 
@@ -305,10 +305,10 @@ This verifies claims on the efficiency of
 operations on the tree.
 
 
-Ernst verified a simplified version of \btrees that does
+Ernst verified a simplified version of \btrees\ that does
 not have links between leaf nodes.
 
-Malecha already built and verified \btrees \cite{}.
+Malecha already built and verified \btrees\ \cite{}.
 In their approach, they chose an intermediate layer of a functional
 data structure that explicitely stores pointers to their heap embedded
 correspondence.
@@ -316,7 +316,7 @@ correspondence.
 \subsection{Contributions}
 \label{sec:contributions}
 
-We provide an alternative approach to verifying \btree implementations,
+We provide an alternative approach to verifying \btree\ implementations,
 by separating the functional specification and the imperative implementation.
 This allows for complex relationships to be validated on a purely
 functional level, while on the imperative level
@@ -330,7 +330,7 @@ on top of a list element iterator.
 \section{\btrees\ and Approach}
 \label{sec:approach}
 
-The \btree is a ubiquitous data structure to efficiently retrieve and manipulate
+The \btree\ is a ubiquitous data structure to efficiently retrieve and manipulate
 indexed data stored on storage devices with slow memory access \cite{DBLP:journals/csur/Comer79}.
 They are $n$-ary balanced search trees, where $n$ is a free parameter.
 We specify them as implementing a set interface,
@@ -365,7 +365,7 @@ of the leaf pointers.
 
 % TODO shorten
 
-The algebraic \btree is defined as follows:
+The algebraic \btree\ is defined as follows:
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-def]
 datatype 'a bplustree =
@@ -385,7 +385,7 @@ datatype 'a bplustree =
 
 
 Every node contains a list of \textit{keys} (also \textit{separators}, and \textit{subtrees} (\textit{children}),
-that represent further \btree nodes.
+that represent further \btree\ nodes.
 The separators and subtrees may be considered interleaved within a node,
 such that we can speak of a subtree to the left of a separator and
 a subtree to the right of a separator,
@@ -395,7 +395,7 @@ Note that this already implies that the list of subtrees is one
 longer than the list of separators - we refer to the last subtree
 as the \textit{last} or \textit{dangling} subtree.
 The leafs contain a list of \textit{values}.
-A \btree with above structure must fulfill the properties
+A \btree\ with above structure must fulfill the properties
 \textit{balancedness}, \textit{order} and \textit{alignment}.
 
 \textbf{Balancedness} requires
@@ -405,7 +405,7 @@ where the height is the maximum path length to any leaf.
 
 In general terms, the property of \textbf{order} ensures a certain minimum and maximum
 number of subtrees for each node.
-A \btree is of order $k$, if each internal node has at least $k+1$
+A \btree\ is of order $k$, if each internal node has at least $k+1$
 subtrees and at most $2k+1$.
 The root is required to have a minimum of 2 and a maximum of $2k+1$ subtrees.
 We require that $k$ be strictly positive, as for $k = 0$ the requirements on the tree
@@ -523,10 +523,10 @@ On binary trees, this question is simle, in each node we either choose
 the left or right subtree.
 For 2-3-4 trees as described by Nipkow \cite{DBLP:conf/itp/Nipkow16} the process becomes more tricky
 but eventually a binary search like node internal traversal can be verified.
-For general k-ary \btrees there have not been sophisticated search strategies.
+For general k-ary \btrees\ there have not been sophisticated search strategies.
 Ernst \cite{DBLP:journals/sosym/ErnstSR15} and Malecha \cite{DBLP:conf/popl/MalechaMSW10}
 both simply use a linear search through the node lists.
-However, \btrees are supposed to have memory page sized nodes \cite{DBLP:journals/csur/Comer79}, 
+However, \btrees\ are supposed to have memory page sized nodes \cite{DBLP:journals/csur/Comer79}, 
 which makes a linear search unfeasible in practical contexts.
 
 Instead we propose a different approach.
@@ -559,7 +559,7 @@ verification of B-Trees \cite{DBLP:journals/afp/Mundler21}.
 \section{Set operations}
 \label{sec:set}
 
-The most important operations on \btrees are point querys and insertion.
+The most important operations on \btrees\ are point querys and insertion.
 There is a canon on their implementation which we followed in our approach.
 
 \subsection{Functional Point Query}
@@ -595,7 +595,7 @@ theorem isin_set_inorder:
 
 In general these proofs on the abstract level are made
 based on another refinement relation suggested by Nipkow. \cite{DBLP:conf/itp/Nipkow16}
-In this relation, we say that the \btree refines a sorted list of its leaf elements.
+In this relation, we say that the \btree\ refines a sorted list of its leaf elements.
 This way, we argue that recursing into a specific subtree
 is equivalent to splitting the list of leaves at the correct position
 and searching in the correct sublist.
@@ -720,7 +720,7 @@ to obtain an efficient implementation.
 \label{sec:imperative_iter}
 
 From an implementation perspective, obtaining an iterator over the leafs
-of a \btree is trivial.
+of a \btree\ is trivial.
 We simply recurse down the tree to obtain the first leaf and from there follow leaf
 pointers along the skirt of the tree until we reach the final leaf marked by a null next pointer.
 However, from a refinement relation perspective the situation is a bit more intricate.
@@ -1012,11 +1012,11 @@ already be shown to be equivalent and leaves only the remaining subterms.
 \subsection{Evaluation}
 
 
-The \btree implemented by Ernst features point queries and insertion,
+The \btree\ implemented by Ernst features point queries and insertion,
 however explicitely leaves out pointers within the leaves,
 which forbids the implementation of iterators.
 This work is also similar in nature to the part of the work of Malecha
-that provides a \btree implementation.
+that provides a \btree\ implementation.
 In addition to the functionality provided in their work, we extend
 the implementation with the missing Range iterator
 and supply a binary search within nodes, as well as a modular approach
@@ -1034,7 +1034,7 @@ that makes up a signifant amount of the proof
 with around 1095 lines of proof.
 We conclude that the Isabelle/HOL framework
 provides a feature set
-such that verification of \btrees is both feasible
+such that verification of \btrees\ is both feasible
 and comparable in effort to using Ynot or KIV/TVLA.
 The strict separation of a functional and imperative
 implementation yields the challenge
@@ -1055,8 +1055,8 @@ to real world implementations in this work
         Proofs          &  5190      & 350 + 510 + 2940\footnotemark[7] & 8663 \\
         Timeframe (months) &  -     & 6+                      & 12   \\
     \end{tabular}
-    \caption[Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree verifications.]
-    {Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree verifications.
+    \caption[Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree\ verifications.]
+    {Comparison of (unoptimized) Lines of Code and time investment in related mechanized \btree\ verifications.
     The marker $^d$ denotes that the implementation verifies deletion operations, whereas $^+$ denotes the implementation of iterators.
     }
     \label{fig:proof-comparison}
@@ -1091,16 +1091,16 @@ We are expecting this proof to roughly follow
 the approach used for point queries and insertion.
 
 One important step towards efficient
-\btree implementations that can be deployed
+\btree\ implementations that can be deployed
 in realistic scenarios, is the migration of this code
 to Isabelle-LLVM. \cite{DBLP:conf/itp/Lammich19}
 At the beginning of this work, the code generator did
 not yet support recursive data structures, but since
-this functionality was added recently \btrees would be an interesting application.
+this functionality was added recently \btrees\ would be an interesting application.
 Expectedly, the main difference will be the usage of Bitwords
 instead of unbound natural numbers.
 
-Finally, \btrees are supposed to write the contained
+Finally, \btrees\ are supposed to write the contained
 memory out to disk in order to maintain the durability constraint
 usually required for databases.
 This implementation lacks any interaction with IO systems.
