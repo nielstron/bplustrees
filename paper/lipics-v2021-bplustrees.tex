@@ -133,7 +133,7 @@ mathescape,%
 %\funding{(Optional) general funding statement \dots}%optional, to capture a funding statement, which applies to all authors. Please enter author specific funding statements as fifth argument of the \author macro.
 
 \acknowledgements{I want to thank Peter Lammich for giving me a very comprehensive introduction
-and taking the time to discuss approaches to the assertion fiddling when splitting the \btree.
+separation logic and discussing the many ways to express assertions.
 I further want to thank Manuel Eberl for his immediate and impressive support 
 with Isabelle proof tactics.}%optional
 
@@ -172,9 +172,9 @@ with Isabelle proof tactics.}%optional
     Using manual refinement, we derive an imperative implementation in Imperative/HOL
     \cite{DBLP:conf/tphol/BulwahnKHEM08}. We show the validity of this refinement using the separation logic utilities
     from the Isabelle Refinement Framework \cite{DBLP:conf/itp/Lammich19}. The code can be exported to the
-    programming languages SML and Scala. Considering development time and lines of code, our approach
+    programming languages OCaml, SML and Scala. Considering development time and lines of code, our approach
     compares well to other approaches at mechanized verifications of the \btree\ data
-    structure, while being unique in supporting range queries and binary node internal search.
+    structure, while being unique in supporting range queries and node internal binary search.
 \end{abstract}
 
 \section{Introduction}
@@ -207,17 +207,17 @@ and present how we dealt with the above mentioned issues.
 In \autoref{sec:introduction}, we have a brief overview on related
 work and introduce the definition of \btree\ used in our approach.
 In order to verify an imperative version of the structure,
-we define a functional, abstract specification of a tree operations
-and prove functional correctness, by showing that structural invariants are preserved
+we define a functional, abstract specification of each operation
+and prove functional correctness by showing that structural invariants are preserved
 and the obtained results are correct.
 In a second step, we provide an imperative refinement
 of the functional operation.
 The correctness of the imperative version is shown by proving that it refines the functional specification.
 Thus the proof obligation for the imperative implementation
-is reduced to a proof of equivalence between the output of the
+is reduced to a proof of the refinement relation between the output of the
 functional and the imperative implementation.
 This process is repeated for each operation throughout
-\autoref{sec:set} and \autoref{sec:imperative_iter}
+\autoref{sec:set} and \autoref{sec:range}
 
 Finally, we present learned lessons, compare the results with related work and suggest potential future
 research in \autoref{sec:conclusion}.
@@ -233,10 +233,10 @@ no data is lost or corrupted.
 Meanwhile, even single-threaded databases
 are non-trivial to analyse and verify,
 especially machine-checked.
-The only work in the literature on that topic
-is the work by Malecha %todo cite
-However, it lacks a number of common features for \btree
-interaction, such as range searches and efficient binary search.
+The only work in the literature on that topic that we are aware of
+is the work by Malecha. \cite{DBLP:conf/popl/MalechaMSW10} 
+However, it lacks a number of common features for \btree\ 
+interaction, such as range queries and efficient binary search.
 Moreover, it is bound to the Coq interactive theorem prover.
 With this work, we intend to enrich the canon on verified
 \btrees\ with an efficient and modular implementation
@@ -258,7 +258,7 @@ an imperative implementation is directly verified
 by combining interactive theorem proving
 with shape analysis.
 The main recursive procedures are interactively verified in KIV.
-Data structure properties such as circle-freeness are then proven by shape-analysis.
+Data structure properties such as circle-freeness are then proven by shape analysis in TVLA.
 Another direct proof on an imperative implementation
 was conducted by Malecha \cite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
 extension to the interactive theorem prover Coq.
@@ -270,10 +270,10 @@ and derive finiteness and acyclicity from the relation between imperative and fu
 
 \section{Contributions}
 
-In this work, we derive our own definition of B-trees
+In this work, we derive our own definition of \btrees\ 
 by combining the original definition
 with approaches that have resulted in verified implementations previously.
-Based on the definition, we specify the B-tree data structure in the
+Based on the definition, we specify the \btree\ data structure in the
 functional modeling language HOL.
 The specification is complemented by a proof of its correctness
 with respect to refining a set of linearly ordered elements.
@@ -285,8 +285,10 @@ but inefficient code.
 
 Using manual refinement, we derive an imperative implementation of the functional specification
 in Imperative/HOL.
-For this purpose, we introduce static arrays with variable size
-and efficient copy and move operations on arrays.
+We build on the library of verified imperative utilities
+provided by the Separation Logic Framework \cite{DBLP:journals/afp/LammichM12}
+and the verification of B-Trees \cite{DBLP:journals/afp/Mundler21},
+namely list interfaces and dynamic arrays.
 The implementation is defined with respect to some abstract imperative
 operation for node-internal navigation.
 We provide one such operation that employs linear search,
@@ -296,46 +298,24 @@ using the separation logic utilities from the Isabelle Refinement Framework by
 Lammich \cite{DBLP:journals/jar/Lammich19}.
 
 This process results in a proof of the functional correctness
-of an imperative implementation of the B-tree data structure.
+of an imperative implementation of the \btree\ data structure.
 The implementation supports set membership and insertion queries
 and uses efficient binary search for intra-node navigation.
+We also provide the conversion into an iterator over the
+leafs based on a flattening iterator we introduced for
+iterating over the elements in a list of arrays.
+On top, range queries with a lower bound are defined and verified.
 As with every specification in Imperative/HOL,
 automatic executable code extraction to
-several functional programming languages is supported.
-In addition, we provide a proof of the logarithmic relationship between height and number of nodes,
-reproducing results of Bayer \cite{DBLP:journals/acta/BayerM72}.
-This verifies claims on the efficiency of
-operations on the tree.
-
-
-Ernst verified a simplified version of \btrees\ that does
-not have links between leaf nodes.
-
-Malecha already built and verified \btrees\ \cite{}.
-In their approach, they chose an intermediate layer of a functional
-data structure that explicitely stores pointers to their heap embedded
-correspondence.
-
-\subsection{Contributions}
-\label{sec:contributions}
-
-We provide an alternative approach to verifying \btree\ implementations,
-by separating the functional specification and the imperative implementation.
-This allows for complex relationships to be validated on a purely
-functional level, while on the imperative level
-only refinement of the abstract operations needs to be shown.
-The approach allowed us to supplement the implementation
-with an efficient binary search on the node level
-and eventually provide an efficient range query iterator
-on top of a list element iterator.
-
+several functional programming languages is supported,
+we concretely export to OCaml, SML and Scala.
 
 \section{\btrees\ and Approach}
 \label{sec:approach}
 
 The \btree\ is a ubiquitous data structure to efficiently retrieve and manipulate
 indexed data stored on storage devices with slow memory access \cite{DBLP:journals/csur/Comer79}.
-They are $n$-ary balanced search trees, where $n$ is a free parameter.
+They are $k$-ary balanced search trees, where $k$ is a free parameter.
 We specify them as implementing a set interface,
 where all elements in the leaves are comprising the content of an abstract set.
 The inner nodes only contain separators to guide the recursive navigation through the tree.
@@ -458,7 +438,7 @@ datatype 'a btnode =
 \end{lstlisting}
 
 All elements of this tree can and will be stored on a heap, where \textbf{ref} is a pointer
-to another element in the heap, \textbf{ref option} being a pointer that is potentially null.
+to another element in the heap, \textbf{ref option} is a pointer that is potentially null.
 With this setup, it is possible to modify elements on the heap or share pointers.
 However, it is troublesome to conduct direct proofs on this structure.
 We therefore introduce a refinement relation to the algebraic data structure.
@@ -467,8 +447,20 @@ tree refine abstract functions and can thus imply relevant information on the ob
 
 The relation is expressed as a separation logic formula that links an abstract tree to an
 imperative data structure.
-It takes an algebraic tree (\textbf{bplustree}) and an imperative tree
-(\textbf{btnode ref}) as well as a first and last leaf.
+In general, we call these functions \textit{assertions}.
+They are functions that take a heap and returns
+a statement about the state of the heap.
+For this purpose they usually combine other assertions,
+the most important here being the star operator
+that expresses disjunctness of the parts of the heap
+that a statement is being made about.
+Later, they are used in the context of Hoare Triples
+and express pre- and postconditions of operations.
+More details can be found in the work of Lammich. \cite{DBLP:journals/afp/LammichM12}
+
+In this case, the function additionally takes an algebraic tree (\textbf{bplustree})
+and an imperative tree in the form of a pointer (\textbf{btnode ref}),
+as well as a first and last leaf.
 In general, the relation states that all parts of the abstract tree
 are refined by the content of the heap that represents the imperative tree.
 The abstract linked list is itself refined by an array,
@@ -514,7 +506,7 @@ Even though the linking among the nodes is not used until we obtain
 an iterator, we need to make sure that this property is maintained
 during initialization and construction of the tree.
 Therefore the pointers are an integral part of the refinement relation
-and we need to proof that it is not violated when querying or inserting elements.
+and we need to prove that correct linking is not violated when querying or inserting elements.
 
 \subsection{Node internal navigation}
 \label{sec:split}
@@ -522,11 +514,11 @@ and we need to proof that it is not violated when querying or inserting elements
 In order to define meaningful operations that navigate
 the node structure of the \btree,
 we need to find a method that handles search within a node.
-On binary trees, this question is simle, in each node we either choose
+On binary trees, this question is simple, in each node we either choose
 the left or right subtree.
 For 2-3-4 trees as described by Nipkow \cite{DBLP:conf/itp/Nipkow16} the process becomes more tricky
-but eventually a binary search like node internal traversal can be verified.
-For general k-ary \btrees\ there have not been sophisticated search strategies.
+but eventually a binary search like node internal decision process can be verified.
+For general $k$-ary \btrees\ there have not been sophisticated search strategies.
 Ernst \cite{DBLP:journals/sosym/ErnstSR15} and Malecha \cite{DBLP:conf/popl/MalechaMSW10}
 both simply use a linear search through the node lists.
 However, \btrees\ are supposed to have memory page sized nodes \cite{DBLP:journals/csur/Comer79}, 
@@ -548,7 +540,7 @@ that provides exactly the required functionality.
 
 Finally, when approaching imperative code extraction,
 we show that a binary search based function refines the
-functionality as well.
+specification of the split functionality as well.
 This binary search is directly implemented and verified on the imperative
 level and is eventually plugged into the abstractly defined
 imperative operations on the \btree.
@@ -583,7 +575,7 @@ fun isin:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ bool" where
   )
 \end{lstlisting}
 
-Note that we assume here that a "split" and "isin\_list" operation exist,
+Note that we assume here that a \textit{split} and \textit{isin\_list} operation exist,
 as described in \autoref{sec:split}.
 Since this function does not modify the tree involved at all,
 we only need to show that it returns the correct value.
@@ -650,7 +642,7 @@ is replaced by comparing the index to the length of the list.
 In order to show that the function returns the correct result,
 we merely show that it does the same operation on the imperative tree
 as on the algebraic tree.
-This proof can be done inductively on the structure of the abstract tree.
+This is expressed in Hoare Triple notation.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-refines]
 lemma  
@@ -659,52 +651,66 @@ lemma
    shows
    "<bplustree_assn k t ti r z>
      isin ti x
-   <$\lambda$y. bplustree_assn k t ti r z * $\uparrow$(abs_split_set.isin t x = y)>$_t$"
+   <$\lambda$y. bplustree_assn k t ti r z * $\uparrow$(isin t x = y)>$_t$"
 \end{lstlisting}
 
+This proof follows inductively on the structure of the abstract tree.
 Assuming structural soundness of the abstract tree that is refined by the pointer passed to the function,
-we obtain that the returned result is equivalent to the result returned by the abstracted function.
+we obtain that the returned result is equivalent to the result returned by the abstract function.
 Further we must explicitely show that the tree on the heap
 still refines the same abstract tree after the operation,
 which was implicit on the abstract level.
+It is not hard to show, since no operation in the imperative
+function modifies part of the tree,
+but is nontheless required as part of the Hoare Triple.
+
+\subsection{Insertion and Deletion}
+\label{sec:insert_delete}
 
 The insertion operation and its proof largely line up with the approach to point queries.
 But since insertion modifies the tree,
 we need to additionally show on the abstract level that the modified tree
-maintains the invariants required for the \btree.
-By showing that the obtained tree after the imperative insert operation
-refines the modified abstract tree, it follows that the imperative tree
-also maintains these invariants.
+maintains the invariants of \btrees.
+The invariants as specified in \autoref{sec:approach}
+are passed into a general Set interface on
+linearly ordered elements.
+Technically, at that point we establish that the functional
+implementation refines a very abstract specification
+for set implementations itself. 
+By showing that this abstract interface is correctly
+refined, we validate that all necessary
+properties are preserved and the results are correct.
 
+
+In a next step, we show that the obtained tree
+after the imperative insert operation
+refines the modified abstract tree, it follows that the imperative tree
+also maintains all required invariants.
 Moreover, we need to show that the leaf pointers
 maintain correct linking after the operation.
 This can only be shown on the imperative level as there is no abstract equivalent
 to the shared pointers.
-As the correct linking of leaf pointers is part of the refinement relation,
-this proof obligation is part of the proof of refinement of the abstract insertion.
+Even more, we need to show it in the proof
+of the refinement relation as correct linking
+is expressed within this relationship.
 
 
-% TODO details on the choice of implementation for the operation?
-
-%\subsection{Functional Insert}
-%\label{sec:functional_insert}
-%
-%The definition of insertion is largely lined up with the definition
-%of point queries.
-%
-%\subsection{Imperative Insert}
-%\label{sec:imperative_insert}
-%
-%One additional challenge here is to prove the correct initialization
-%and modification of pointers in the leaves,
-%as this cannot be proven on the abstract level, where these pointers
-%have no correspondence.
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:insert-refines]
+lemma insert_rule:
+    assumes "k > 0" "sorted_less (inorder t)" "sorted_less (leaves t)" "root_order k t"
+    shows
+    "<bplustree_assn k t ti r z>
+    insert k x ti
+    <\<lambda>u. bplustree_assn k (abs_split_set.insert k x t) u r z>\<^sub>t"
+\end{lstlisting}
+  
 
 Deletion is less commonly implemented and even less verified,
 however we provide a verified functional definition of deletion and a definition of an imperative refinement.
 Showing the correctness of the imperative version would largely follow
 the same pattern as the proof of the correctness of insertion.
-
+The focus of this work is not on basic tree operations
+however, but on obtaining an iterator view on the tree.
 
 
 \section{Range operations}
@@ -727,8 +733,8 @@ of a \btree\ is trivial.
 We simply recurse down the tree to obtain the first leaf and from there follow leaf
 pointers along the skirt of the tree until we reach the final leaf marked by a null next pointer.
 However, from a refinement relation perspective the situation is a bit more intricate.
-It is important to find a recursive formulation of the linked list in the leaf pointers.
-At the same time, we want to maintain enough information about the remainder of the tree
+It is important to find an explicit formulation of the linked list view on the leaf pointers.
+Meanwhile, we want to maintain enough information about the remainder of the tree
 to be able to reconstruct the assertion about the whole tree.
 However, we can not simply express the linked list view and the view on the
 whole tree at the same time,
@@ -736,7 +742,7 @@ as separation logic forces us not to make statements about the contents of
 any memory location twice.
 This is an important feature of separation logic,
 in order to keep the parts of the heap disjunct and
-thus be able to independently modify parts of the heap assertion.
+thus be able to locally reason about the heap state.
 
 We therefore follow the approach of \cite{DBLP:conf/popl/MalechaMSW10} and
 try to find an equivalent formulation that separates the whole tree in a
@@ -745,10 +751,10 @@ The main idea to keep the heaps separate is to
 assert correct content of the leafs within the linked list part
 and only assert that the pointers on leafs in the inner nodes part
 are equal to the leaf pointers in the linked list, but not accessing
-their content at all (which would be a second memory access).
+their content at all (to avoid a second memory access).
 
 A first attempt to use \autoref{lst:btree-relation} for this fails.
-The reason is, that we can not express that the linked leaf nodes
+The reason is that we can not express that the linked leaf nodes
 are precisely the leaf nodes that the lowest level of inner nodes point to.
 We can show that the whole tree can be separated into a linked list in the leafs
 and some remainder of the heap, but we can not show that we can necessarily transform
@@ -785,29 +791,32 @@ In this case it gets in our way though.
 
 We can not express that the lowest pointers
 in the internal node hierachy refine the leafs
-that we refine in the leaf list
+that we refine in the leaf list,
 as this would violate the disjunctness of heaps.
-But not stating specifically which pointers
-are on the lowest level results in a statement that 
-is too weak.
+Even if we did, this statement would not be strong enough
+to guarantee that the actual memory locations
+are the same.
 We need to specifically denote that these pointers,
 and not the structure they refine,
 are shared between the two statements.
 
 In a second attempt we succeed by making the sharing explicit.
 We extract from the whole tree the precise list of pointers to leaf nodes
-in the correct order as visualized in \autoref{lst:btree-view-split}.
-We express this new view by extending the existential quantifier in \autoref{lst:btree-lst:btree-relation}
+in the correct order as visualized in \autoref{fig:btree-view-split}.
+We express this new view by extending the existential quantifier in \autoref{lst:btree-relation}
 to assume that there is a partition of all leaf pointers,
 such that each subtree has exactly its part of the partition as leaf pointers.
-In the separated view, we now require that the pointers
-in the lowest level of the inner node view are precisely the pointers
-that are comprising the linked list view of the leafs.
+The resulting assertion can be seen in \autoref{fig:btree-assn-leafs}.
 A convenient fact is that the view on the tree that makes the leaf pointers explict
 is equivalent to the view where we do not know precisely which pointers are in the leafs.
 The statement from \autoref{lst:btree-relation} is strong enough to guarantee that such a list exists.
 Using the additional list, we can precisely state an equivalent
 separated assertion.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-extract-leafs]
+lemma bplustree_extract_leafs:
+    "bplustree_assn k t ti r z = ($\exists_A$leafptrs. bplustree_assn_leafs k t ti r z leafptrs)"
+\end{lstlisting}
 
 
 \begin{figure}
@@ -850,16 +859,17 @@ fun bplustree_assn_leafs where
 \end{figure}
 
 
-\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split]
-lemma bplustree_extract_leafs:
-    "bplustree_assn k t ti r z = ($\exists_A$leafptrs. bplustree_assn_leafs k t ti r z leafptrs)"
+In the separated view, we now require that the pointers
+in the lowest level of the inner node view are precisely the pointers
+that are comprising the linked list view of the leafs.
 
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split]
 lemma bplustree_leaf_nodes_sep:
   "bplustree_assn_leafs k t ti r z lptrs =
    leaf_nodes_assn k (leaf_nodes t) r z lptrs * inner_nodes_assn k t ti r z lptrs"
 \end{lstlisting}
 
-The exact definition of the refined tree assertion is given in \autoref{fig:btree-assn-leafs}.
+
 In the work of Malecha \cite{DBLP:conf/popl/MalechaMSW10}, 
 this list of precise leaf pointers is exactly the list of abstract leafs,
 as the abstract leafs each contain the precise heap pointer they are refining.
@@ -881,12 +891,21 @@ lemma first_leaf_rule:
 \end{lstlisting}
 
 
-On the result, we can apply the view split from \autoref{lst:btree-lst:btree-view-split}
+On the result, we can apply the view split from \autoref{lst:btree-view-split}
 to realize that we now have a pointer that provides a list-recursive
 view on the leaf elements and the inner nodes on the remaining heap.
 In a next step, we show that such a list view can be used
-to define an imperative iterator over the refined list,
-fulfilling the list iterator interface from Lammich. \cite{DBLP:conf/itp/Lammich19}
+to define an imperative iterator fulfilling the list iterator interface from Lammich. \cite{DBLP:conf/itp/Lammich19}
+Starting from the root of the tree and an assertion on the integrity
+of the whole tree,
+we have now obtained an iterator on the leaf nodes.
+This iterator assertion must already contain
+the remaining assertion on the internal nodes of the tree.
+The reason is that this way, the iterator
+can be used to obtain knowledge about the whole
+original tree again at the end of the iteration.
+Also, this conveniently hides the complexity
+of more assertions away from the client.
 
 To really obtain an iterator that returns every single element of the
 leaf nodes, rather than the leaf nodes or the contained arrays themselves,
@@ -897,7 +916,7 @@ The result is instantiated code that refines an iterator
 over the concatenated list of elements refined by the outer iterator.
 
 Using this structure, we obtain a function that creates an iterator
-over the leafs of the original tree.
+over the leaf elements of the original tree.
 Note how all notion of the explicitely shared leaf pointers
 has disappeared on this level, as their existence was hidden within the definition
 of the leaf elements iterator.
@@ -910,17 +929,17 @@ lemma leaf_elements_iter_init_rule:
     <$\lambda$it. leaf_elements_iter k t ti r (leaves t) it>$_t$"
 \end{lstlisting}
 
-\subsection{Range operations}
+\subsection{Range queries}
 \label{sec:imperative_range}
 
-A common use case of \btrees
+A common use case of \btrees\ 
 is the obtaining of a lower bound on some key
 or to obtain  all elements within a certain range. \cite{DBLP:journals/ftdb/Graefe11}
-A lower bound and the beginning of a range iterator
+A lower bound and the beginning of such a range iterator
 can be both obtained in logarithmic time, making use of the tree structure.
 The operation is similar to the point query operation,
-only that it does not return whether or not the
-found element is equal but an iterator starting at this element.
+only that it does not return the
+found element but an iterator pointing to this element.
 The range bounded from below is all elements returned by the iterator,
 the first element being the lower bound.
 
@@ -935,7 +954,7 @@ fun lrange:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a list" where
     )
 \end{lstlisting}
   
-Again, we assume that there exists a function \textit{lrange} that
+Again, we assume that there exists a function \textit{lrange\_list} that
 obtains the lower bounded range from a list of sorted elements.
 Note how the abstract function explicitely recurses into
 remaining parts of the tree and constructs lists on the leaves by concatenating them.
@@ -954,20 +973,19 @@ where the last leaf is explicitely a null pointer.\footnote{
     that can be omitted in the linked list view.
     % TODO more precise?
 }
-This contrasts the linked list view of the tree that can be expressed
+This contrasts the linked list view on the leafs that can be expressed
 recursively on subtrees.
 
 Therefore we introduce an alternative formulation of the
 abstract function, similar in thought to how we obtained the iterator
 on the list from the first leaf of the tree.
 In a first step, we obtain the correct list of leaf nodes
-based on the binary search through the tree.
+based on the recursive search through the tree.
 In a second step, we obtain the head of the list and apply
-the function that returns the lower bounded range of elements within
-and concatenate it with the other lists in the returned list of leaf nodes.
-This way, the refinement of the tree internal search
-can be conducted by only splitting the tree assertion into the linked-list view of the leafs
-and the internal nodes.
+the function that returns the lower bounded range of elements within,
+and concatenate it with the tail of the returned list of leaf nodes.
+This way, during refinement of the tree internal search
+we only use the linked list view and the internal node view.
 Only when we have obtained the correct list for the whole tree,
 where the last element is a null pointer,
 we transform the result into the leaf element iterator.
@@ -979,7 +997,7 @@ lemma concat_leafs_range_rule:
     shows 
  "<bplustree_assn k t ti r None>
   concat_leafs_range ti x
-  <leaf_elements_iter k t ti r (abs_split_range.lrange t x)>$_t$"
+  <leaf_elements_iter k t ti r (lrange t x)>$_t$"
 \end{lstlisting}
 
 % TODO vis
@@ -991,17 +1009,17 @@ lemma concat_leafs_range_rule:
 During writing, this project mainly comprised two parts.
 The first part was rather theoretical,
 trying to figure out the best, if any, appraoch
-to express statements about the abstract tree
-and concrete implementation.
+to express statements about the abstract tree and operation,
+their imperative equivalent and
+the refinement relationship between them.
 The second part was their verification,
-which went rather smooth for good approaches
-on the abstract level but induced much headache
+which went rather smooth on the abstract level but induced much headache
 on the imperative reasoning level.
-Since all functional concerns are covered by
+Since all functional correctness concerns are covered by
 the refinement relation, all that remains
-is to show the refinement relation holds,
+to show is that the refinement relation holds,
 and this process is very technical
-and mainly requires proof of thousands of small
+and mainly requires justification of thousands of small
 implementation details.
 However, we can imagine that this is no comparison
 to the headache induced by having to show
@@ -1014,7 +1032,7 @@ a bit tedious throughout the project.
 A major alleviation was the introduction of a specialized tool
 that would substitute multiplicative terms in the formular
 regardless of the disctribution in the original term.
-This way, we could exchange equivalent assertions that comprised
+This way, we could substitute equivalent assertions comprising
 multiple terms, like the combination of leaf view and trunk view,
 with ease.
 
@@ -1053,12 +1071,14 @@ as depicted in \autoref{fig:proof-comparison}, we see
 that our approach is similar in effort to the approach by Malecha.
 The numbers do not include introduced pure ML proof tactics.
 It should be also noted that this includes the statistics
-for the additional binary search and range iterator
+for the additional binary search and range iterator,
 that make up around 1000 lines of proof each.
 The comparison with Ernst is difficult, as it completely
 avoids the usage of leaf pointers and the iterator
 that makes up a signifant amount of the proof
-with around 1095 lines of proof.
+with at least 1000 lines of proof on its own, and also
+strongly affecting the verification of point and insertion queries
+due to the additional invariant on the imperative level.
 We conclude that the Isabelle/HOL framework
 provides a feature set
 such that verification of \btrees\ is both feasible
@@ -1079,8 +1099,8 @@ to real world implementations in this work
         \hline
         Functional code &   360      & -                    & 413  \\ %TODO update
         Imperative code &   510      & 1862                  & 1093  \\
-        Proofs          &  5190      & 350 + 510 + 2940\footnotemark[7] & 8663 \\
-        Timeframe (months) &  -     & 6+                      & 12   \\
+        Proofs          &  5190      & 350 + 510 + 2940\footnotemark[3] & 8663 \\
+        Timeframe (months) &  -     & 6+                      & 6\footnotemark[4] + 6   \\
     \end{tabular}
     \caption[Comparison of (unoptimized) Lines of Code and Proof and time investment in related mechanized \btree\ verifications.]
     {Comparison of (unoptimized) Lines of Code and Proof and time investment in related mechanized \btree\ verifications.
@@ -1089,7 +1109,7 @@ to real world implementations in this work
     }
     \label{fig:proof-comparison}
 \end{figure}
-\footnotetext[7]{
+\footnotetext[3]{
     The proof integrates TVLA and KIV, and hence comprises
     explicitely added rules for TVLA (the first number),
     user-invented theorems in KIV (the second number)
@@ -1099,10 +1119,17 @@ to real world implementations in this work
     We hence interpret them as each one apply-Style command and hence
     one line of proof.
 }
+\footnotetext[4]{
+    6 months include the preceding work on the verification
+    of simple B-Trees.
+    As they share much of the functionality with \btrees\ 
+    but required their own specifics,
+    the time spent on them can not be accounted for 1:1.
+}
 
 \subsection{Future Work}
 
-This work extends the canon on veryfied \btree
+This work extends the canon on verified \btree
 implementations.
 Some additional features will be necessary for
 usage in real-life scenarios.
