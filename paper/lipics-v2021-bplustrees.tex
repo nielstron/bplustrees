@@ -39,52 +39,148 @@
 %\global\lst@instringfalse''
 %}
 \RequirePackage{xcolor}
-\definecolor{IsabelleTypeColor}{HTML}{9f2ae5}
-% Strings usually have this background color
-% however listings has currently not support for selected background coloring
-\definecolor{IsabelleStringBackground}{HTML}{535353}
-\definecolor{IsabelleKeywordColor}{HTML}{2f769e}
-\lstdefinelanguage{Isabelle}[]{ML}%
-{morekeywords={%
-abbreviation,% added by NM
-assume,%
-assumes,%
-by,%
-def,%
-datatype,% added by NM
-definition,% added by NM
-fix,%
-fixes,%
-from,%
-have,%
-lemma,%
-obtain,%
-proof,%
-partial\_function,%
-qed,%
-return,%
-show,%
-shows,%
-theorem,%
-typedef,%
-try,%
-unfolding,%
-using,%
-where,%
-},
-% modyfied to display highlighting inside strings
-morestring=**[d][\color{IsabelleStringBackground}]{"},
-% and highlight type prefixes (')
-%moredelim=[s][\color{IsabelleTypeColor}]{'}{\ },
-%added by NM
-%moredelim=[s][\color{IsabelleStringBackground}]{(*}{*)},
-basicstyle=\itshape,%
-keywordstyle=\upshape\bfseries,%\color{IsabelleKeywordColor},%
-columns=fullflexible,%
-showstringspaces=false,%
-mathescape,%
-}[keywords,comments]
+\lstdefinelanguage{isabelle}{
+  morekeywords={theorem,theorems,corollary,lemma,lemmas,locale,begin,end,fixes,assumes,shows,
+    constrains , definition, where, apply, done,unfolding, primrec, using, by, for, uses,
+    schematic_lemma, concrete_definition, prepare_code_thms, export_code, datatype,
+    proof, next, qed, show, have, hence, thus, interpretation, fix, context, fun, partial_function
+ } ,
+  morekeywords=[2]{rec, return, bind, foreach, if, then, else, and, do, let, in, res, spec, fail, assert, while, case, of},
+%  morekeywords=[3]{length,mod,insert},
+%   morekeywords=[4]{simp,auto,intro,elim,rprems,refine_mono,refine_rcg},
+  sensitive=True,
+  morecomment=[s]{(\*}{\*)},
+}
 
+\lstset{
+    language=isabelle,
+    mathescape=true,
+    escapeinside={--"}{"},
+    basicstyle={\itshape},
+    keywordstyle=\rm\bfseries,
+    keywordstyle=[2]\rm\bfseries,
+    keywordstyle=[3]\rm,
+    keywordstyle=[4]\rm,
+    showstringspaces=false,
+    keepspaces=true,
+    columns=[c]fullflexible}
+\lstset{literate=
+  {"}{}0
+  {'}{{${}^\prime$}}1
+  {\%}{{$\lambda$}}1
+  {\\\%}{{$\lambda$}}1
+  {\\\$}{{$\mathbin{\,\$\,}$}}1
+  {->}{{$\rightarrow$}}1
+  {<-}{{$\leftarrow$}}1
+  {<.}{{$\langle$}}1
+  {.>}{{$\rangle$}}1
+  {<=}{{$\le$}}1
+  {<->}{{$\leftrightarrow$}}1
+  {-->}{{$\longrightarrow$}}2
+  {<-->}{{$\longleftrightarrow$}}1
+  {=>}{{$\Rightarrow$}}1
+  {==}{{$\equiv$}}2
+  {==>}{{$\implies$}}2
+  {<=>}{{$\Leftrightarrow$}}1
+  {~=}{{$\ne$}}1
+  {!!}{{$\bigwedge$}}1
+  {(}{{$($}}1
+  {)}{{$)$}}1
+  {\{}{{$\{$}}1
+  {\}}{{$\}$}}1
+  {[}{{$[$}}1
+  {]}{{$]$}}1
+  {(|}{{$\lrec$}}1
+  {|)}{{$\rrec$}}1
+  {[|}{{$\lsem$}}1
+  {|]}{{$\rsem$}}1
+  {|}{{$|$}}1
+  {\\<lbrakk>}{{$\lsem$}}1
+  {\\<rbrakk>}{{$\rsem$}}1
+  {|-}{{$\vdash$}}1
+  {|->}{{$\mapsto$}}1
+  {|_|}{{$\bigsqcup$}}1
+  {...}{{$\dots$}}1
+  {\\x}{{$\times$}}1
+  {_0}{{${}_0$}}1
+  {_1}{{${}_1$}}1
+  {_2}{{${}_2$}}1
+  {_3}{{${}_3$}}1
+  {_4}{{${}_4$}}1
+  {_5}{{${}_5$}}1
+  {_6}{{${}_6$}}1
+  {_7}{{${}_7$}}1
+  {_8}{{${}_8$}}1
+  {_9}{{${}_9$}}1
+  {^*}{{$^*$}}1
+  {\\<^sup>*}{{$^*$}}1
+  {\\<^sub>*}{{$_*$}}1
+  {\\<^sub>A}{{$_A$}}1
+  {\\<^sub>r}{{$_r$}}1
+  {\\<^sub>a}{{$_a$}}1
+  {:_i}{{$:_i$}}1
+  {\\<A>}{{$\mathcal{A}$}}1
+  {\\<O>}{{\sf o}}1
+  {\\<Phi>}{{$\Phi$}}1
+  {\\<Psi>}{{$\Psi$}}1
+  {\\<sigma>}{{$\sigma$}}1
+  {\\<in>}{{$\in$}}1
+  {\\<le>}{{$\le$}}1
+  {\\<noteq>}{{$\ne$}}1
+  {\\<lambda>}{{$\lambda$}}1
+  {\\<longrightarrow>}{{$\longrightarrow$}}1
+  {\\<longleftrightarrow>}{{$\longleftrightarrow$}}1
+  {\\<Rightarrow>}{{$\Rightarrow$}}1
+  {\\<Longrightarrow>}{{$\Longrightarrow$}}1
+  {\\<rightarrow>}{{$\rightarrow$}}1
+  {\\<leftarrow>}{{$\leftarrow$}}1
+  {\\<mapsto>}{{$\mapsto$}}1
+  {\\<equiv>}{{$\equiv$}}1
+  {\\<and>}{{$\and$}}1
+  {\\<or>}{{$\vee$}}1
+  {\\<And>}{{$\bigwedge$}}1
+  {\\<Up>}{{$\Uparrow$}}1
+  {\\<Down>}{{$\Downarrow$}}1
+  {\\<up>}{{$\uparrow$}}1
+  {\\<down>}{{$\downarrow$}}1
+  {\\<times>}{{$\times$}}1
+  {\\<forall>}{{$\forall$}}1
+  {\\<exists>}{{$\exists$}}1
+  {\\<union>}{{$\cup$}}1
+  {\\<Union>}{{$\bigcup$}}1
+  {\\<inter>}{{$\cap$}}1
+  {\\<subset>}{{$\subset$}}1
+  {\\<subseteq>}{{$\subseteq$}}1
+  {\\<supset>}{{$\supset$}}1
+  {\\<supseteq>}{{$\supseteq$}}1
+  {\\<alpha>}{{$\alpha$}}1
+  {\\<beta>}{{$\beta$}}1
+  {\\<gamma>}{{$\gamma$}}1
+  {\\alpha}{{$\alpha$}}1
+  {\\beta}{{$\beta$}}1
+  {\\gamma}{{$\gamma$}}1
+  {\\<Gamma>}{{$\Gamma$}}1
+  {\\<langle>}{{$\langle$}}1
+  {\\<rangle>}{{$\rangle$}}1
+  {\\<not>}{{$\neg$}}1
+  {\\<notin>}{{$\notin$}}1
+  {\\<guillemotright>}{{$\gg$}}1
+  {\\in}{$\in$}1
+  {\\and}{$\wedge$}1
+  {\\or}{$\vee$}1
+  {\\Phi}{{$\Phi$}}1
+  {\\Psi}{{$\Psi$}}1
+  {\\le}{{$\le$}}1
+  {\\Up}{{$\Uparrow$}}1
+  {\\Down}{{$\Down$}}1
+  {>>}{{$\gg$}}1
+  {>>=}{{${\gg}{=}$}}1
+  {<*lex*>}{{$\times_{\sf lex}$}}1
+}
+
+\newcommand{\isai}{\lstinline[language=isabelle]}
+
+\DeclareMathOperator{\bplustreeassn}{bplustree_A}
 
 %\pdfoutput=1 %uncomment to ensure pdflatex processing (mandatatory e.g. to submit to arXiv)
 %\hideLIPIcs  %uncomment to remove references to LIPIcs series (logo, DOI, ...), e.g. when preparing a pre-final version to be uploaded to arXiv or another public repository
@@ -801,36 +897,35 @@ lemma bplustree_extract_leafs:
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-assn-leafs]
 fun bplustree_assn_leafs where
     bplustree_assn_leafs k (LNode xs) a r z fringe =
-   ($\exists_A$ xsi fwd.
+    $\exists_A$ xsi fwd.
         a $\mapsto_r$ Btleaf xsi fwd
       * is_pfa (2*k) xs xsi
       * $\uparrow$(fwd = z)
       * $\uparrow$(r = Some a)
       * $\uparrow$(fringe = [a])
-    ) |
+    |
     bplustree_assn_leafs k (Node ts t) a r z fringe =
-   ($\exists_A$ tsi ti tsi' tsi'' rs split.
+    $\exists_A$ tsi ti tsi' tsi'' rs split.
         a $\mapsto_r$ Btnode tsi ti
       * bplustree_assn_leafs k t ti (last (r#rs)) (last (rs@[z])) (last split)
       * is_pfa (2*k) tsi' tsi
       * $\uparrow$(concat split = fringe)
       * $\uparrow$(length tsi' = length rs)
       * $\uparrow$(length split = length rs + 1)
-      * $\uparrow$(
-          tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs))
-          (zip rs (butlast split)))) (map snd tsi')
-        )
       * list_assn (
           ($\lambda$ t (ti,r',z',fring). bplustree_assn_leafs k t (the ti) r' z' fring)
            $\times_a$ id_assn
-        ) ts tsi''
-      )
+        ) ts (zip 
+            (zip (map fst tsi') (zip (butlast (r#rs)) (zip rs (butlast split))))
+            (map snd tsi')
+        )
+       
 \end{lstlisting}
     \caption[Definition of extracted leafs assertion]{
         In order to be able to correctly relate leaf view and internal nodes,
         the shared pointers have to be made explicit without accessing them.
         For this reason, a refined version of the tree assertion is derived
-        that guarantees to include the pointers passed as $leafptrs$.
+        that guarantees to include the pointers passed as \emph{fringe}.
     }
     \label{fig:btree-assn-leafs}
 \end{figure}
@@ -848,7 +943,7 @@ lemma bplustree_leaf_nodes_sep:
 
 In the work of Malecha \cite{DBLP:conf/popl/MalechaMSW10}, 
 this list of precise leaf pointers is exactly the list of abstract leafs,
-as the abstract leafs each contain the precise heap pointer they are refining.
+as the abstract leafs are defined such that they store the precise heap pointer to the refining node.
 Keeping the two layers separate leads to the need of specifying
 exactly where the actual pointers are relevant
 and where it is enough to know that the allocated memory refines
@@ -866,20 +961,16 @@ lemma first_leaf_rule:
   <$\lambda$u. bplustree_assn k t ti r z * $\uparrow$(u = r)>$_t$"
 \end{lstlisting}
 
-
 On the result, we can apply the view split from \autoref{lst:btree-view-split}
-to realize that we now have a pointer that provides a list-recursive
-view on the leaf elements and the inner nodes on the remaining heap.
-In a next step, we show that such a list view can be used
+to realize that the result is a pointer to a linked-list
+view on the \emph{leaf\_nodes}.
+The original tree root remains to refine the \emph{trunk}.
+In a next step, we show that the linked list can be used
 to define an imperative iterator fulfilling the list iterator interface from Lammich. \cite{DBLP:conf/itp/Lammich19}
-Starting from the root of the tree and an assertion on the integrity
-of the whole tree,
-we have now obtained an iterator on the leaf nodes.
-This iterator assertion must already contain
-the remaining assertion on the internal nodes of the tree.
-The reason is that this way, the iterator
-can be used to obtain knowledge about the whole
-original tree again at the end of the iteration.
+In order not to loose information about the complete tree,
+such that the tree assertion can be re-obtained at the end of the iteration,
+the iterator assertion is constructed such that it contains
+the assertion on the \emph{trunk}.
 Also, this conveniently hides the complexity
 of more assertions away from the client.
 
@@ -890,9 +981,10 @@ It takes an outer iterator over a data structure \textit{a} that returns element
 and inner iterator over the data structure \textit{b}.
 The result is instantiated code that refines an iterator
 over the concatenated list of elements refined by the outer iterator.
+The outer iterator is the linked list of leaf nodes,
+the inner iterator an iterator on the partially filled arrays contained within.
+The resulting flattening iterator iterates exactly over \emph{leaves t}.
 
-Using this structure, we obtain a function that creates an iterator
-over the leaf elements of the original tree.
 Note how all notion of the explicitely shared leaf pointers
 has disappeared on this level, as their existence was hidden within the definition
 of the leaf elements iterator.
@@ -909,19 +1001,20 @@ lemma leaf_elements_iter_init_rule:
 \label{sec:imperative_range}
 
 A common use case of \btrees\ 
-is the obtaining of a lower bound on some key
+is obtaining a lower bound on some key
 or to obtain  all elements within a certain range. \cite{DBLP:journals/ftdb/Graefe11}
-A lower bound and the beginning of such a range iterator
-can be both obtained in logarithmic time, making use of the tree structure.
+We combine these operations with the notion of an \emph{lrange},
+the range of elements in the tree, bounded from below by $x$.
+An iterator over the \emph{lrange} can be obtained in logarithmic time,
+by making use of the tree structure.
 The operation is similar to the point query operation,
-only that it does not return the
-found element but an iterator pointing to this element.
-The range bounded from below is all elements returned by the iterator,
-the first element being the lower bound.
+only that it returns a pointer that is interpreted as iterator.
+The range bounded from below comprises all elements returned by the iterator,
+the lower bound is its first element.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-lrange]
 fun lrange:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a list" where
-    lrange (LNode ks) x = (lrange_list x ks) |
+    lrange (Leaf ks) x = (lrange_list x ks) |
     lrange (Node ts t) x = (
         case split ts x of (_,(sub,sep)#rs) $\Rightarrow$ (
                lrange sub x @ leaves_list rs @ leaves t
@@ -930,41 +1023,65 @@ fun lrange:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a list" where
     )
 \end{lstlisting}
   
-Again, we assume that there exists a function \textit{lrange\_list} that
-obtains the lower bounded range from a list of sorted elements.
+As before, we assume that there exists a function \textit{lrange\_list} that
+obtains the \emph{lrange} from a list of sorted elements.
 Note how the abstract function explicitely recurses into
 remaining parts of the tree and constructs lists on the leaves by concatenating them.
-This will not be the case in the refined version anymore
-as we know that the iterator comprises all elements in the remainder of the tree.
+This will not be the case in the refined version anymore,
+where it is sufficient to return the iterator to the found element.
 
-However showing this turns out to be not as straightforward
+The verification of the imperative version turns out to be not as straightforward
 as expected, exactly due to this recursive step.
 The reason is that iterators can only be expressed on a complete tree,
 where the last leaf is explicitely a null pointer.\footnote{
     The issue is a technicality. Iterators have a \textit{has\_next} function
     that returns whether there are any remaining elements.
-    In order to tell, we compare the leaf with the last leaf of the tree.
-    If this is a valid leaf node (not a null pointer) we need to show
+    We compare the current leaf with the last leaf of the tree.
+    If the last leaf is a valid leaf node (not a null pointer), and
+    the linked list supposedly empty, we need to show
     that the linked leaf list is not cyclic - a proof obligation
-    that can be omitted in the linked list view.
+    that can be omitted by requiring that the last leaf is a null pointer.
     % TODO more precise?
 }
-This contrasts the linked list view on the leafs that can be expressed
-recursively on subtrees.
+The linked list of a subtree is however bounded by valid leafs,
+precisely the first leaf of the next subtree.
 
 Therefore we introduce an alternative formulation of the
 abstract function, similar in thought to how we obtained the iterator
 on the list from the first leaf of the tree.
-In a first step, we obtain the correct list of leaf nodes
+In a first step, we obtain the correct leaf nodes $l$
 based on the recursive search through the tree.
-In a second step, we obtain the head of the list and apply
-the function that returns the lower bounded range of elements within,
-and concatenate it with the tail of the returned list of leaf nodes.
+In a second step, we obtain the head of $l$ and apply \emph{lrange\_list},
+to skip over the first elements in the first array that are not part of the \emph{lrange}.
+The result is concatenated with the tail of $l$.
 This way, during refinement of the tree internal search
-we only use the linked list view and the internal node view.
+we only use the \emph{leaf\_nodes} and \emph{trunk} view.
 Only when we have obtained the correct list for the whole tree,
 where the last element is a null pointer,
-we transform the result into the leaf element iterator.
+we transform the result into an iterator.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-leafs-range]
+fun leafs_range:: 'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a bplustree list where
+  leafs_range (Leaf ks) x = [Leaf ks] |
+  leafs_range (Node ts t) x = (
+      case split ts x of (_,(sub,sep)#rs) $\Rightarrow$ (
+             leafs_range sub x @ leaf_nodes_list rs @ leaf_nodes t
+      )
+   | (_,[]) $\Rightarrow$ leafs_range t x
+  )
+
+fun concat_leafs_range where
+  concat_leafs_range t x = (case leafs_range t x of (LNode ks)#list $\Rightarrow$
+    lrange_list x ks @ (concat (map leaves list))
+  )
+\end{lstlisting}
+
+
+Again we benefit from the refinement approach during verification.
+We first formulate this alternative approach on the abstract layer
+and verify that it yields the same result as \emph{lrange}.
+Then we refine the approach to the imperative layer
+and can directly deduce that the approach yields the correct result.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-leafs-range]
 lemma concat_leafs_range_rule:
@@ -972,7 +1089,7 @@ lemma concat_leafs_range_rule:
     and "sorted_less (leaves t)" and "Laligned t u"
     shows 
  "<bplustree_assn k t ti r None>
-  concat_leafs_range ti x
+  imp_concat_leafs_range ti x
   <leaf_elements_iter k t ti r (lrange t x)>$_t$"
 \end{lstlisting}
 
@@ -1105,8 +1222,7 @@ to real world implementations in this work
 
 \subsection{Future Work}
 
-This work extends the canon on verified \btree
-implementations.
+This work extends the canon on verified \btree\ operations.
 Some additional features will be necessary for
 usage in real-life scenarios.
 
