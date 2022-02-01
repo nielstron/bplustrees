@@ -592,7 +592,7 @@
   \@ifnextchar[\TPT@setuptnotes\TPTdoTablenotes} % ]
 \RequirePackage{listings}
 \lstset{basicstyle=\small\ttfamily,%
-        backgroundcolor=\color{lipicsLightGray},%
+        %backgroundcolor=\color{lipicsLightGray},%
         frame=single,framerule=0pt,xleftmargin=\fboxsep,xrightmargin=\fboxsep}
 \RequirePackage[left,mathlines]{lineno}
 \linenumbers
