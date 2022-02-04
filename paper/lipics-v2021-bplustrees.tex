@@ -1030,8 +1030,8 @@ the obtained result using the assertion about the complete tree.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-first-leaf]
 lemma first_leaf_rule:
-  assumes "k > 0" and "root_order k t"
-  shows "<bplustree_assn k t ti r z>
+  "k > 0" ; "root_order k t" $\Longrightarrow$
+  "<bplustree_assn k t ti r z>
   first_leaf ti
   <$\lambda$u. bplustree_assn k t ti r z * $\uparrow$(u = r)>$_t$"
 \end{lstlisting}
@@ -1060,7 +1060,7 @@ which we call \emph{leafs\_assn}.
 We define an iterator on this list assertion,
 fulfilling the list iterator interface defined by Lammich \cite{DBLP:conf/itp/Lammich19}.
 The iterator stores the pointer to the next element to be returned from the list.
-In addition we provide 
+The iterator interface requires some functionality.
 \begin{itemize}
     \item An \emph{init} function that returns the pointer to the head of the list.
     \item A \emph{has\_next} function that checks whether the current pointer is the null pointer.
@@ -1068,11 +1068,12 @@ In addition we provide
     \item Proofs that we can transform the \emph{leafs\_assn} statement into 
           a leaf iterator statement and vice versa.
 \end{itemize}
+We provide all of it and show that the linked leaf nodes of the \btree\ form a valid
+list of arrays that can be iterated.
 We combine this iterator with the iterator over partially filled arrays
-in the flattening iterator and obtain an iterator over leaf values \emph{leaf\_values\_iter}.
+in the flattening iterator and obtain an iterator over all leaf values \emph{leaf\_values\_iter}.
 
-Finally, we want to express
-that the whole tree does not change throughout the iteration.
+Finally, we want be able to express that the whole tree does not change throughout the iteration.
 For this, we need to keep track of both the leaf nodes assertion and the trunk assertion on \emph{t}.
 We therefore define the iterator such that it contains both assertions.
 It also existentially quantifies the fringe, hiding away
@@ -1082,16 +1083,24 @@ has disappeared on this level, as their existence was hidden within the definiti
 of the tree iterator.
 
 
-\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-first-leaf]
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-tree-iter]
 definition "tree_iter k t ti r vs it = \<exists>$_A$ fringe.
   leaf_values_iter fringe k (leaf_nodes t) (leaves t) r vs it *
   trunk_assn k t ti r None fringe"
+\end{lstlisting}
 
+The initializer using the \emph{first\_leaf} operation
+defined before now allows us to obtain an iterator over all leaf
+values of the tree.
+Using the iterator functionalities defined by the flattening operator,
+the values can be obtained step by step.
+
+\begin{lstlisting}
 lemma leaf_values_iter_init_rule:
-  assumes "k > 0" and "root_order k t"
-  shows "<bplustree_assn k t ti r None>
-    tree_iter_init ti
-    <$\lambda$it. tree_iter k t ti r (leaves t) it>$_t$"
+  "k > 0" ; "root_order k t" $\Longrightarrow$
+  "<bplustree_assn k t ti r None>
+  tree_iter_init ti
+  <$\lambda$it. tree_iter k t ti r (leaves t) it>$_t$"
 \end{lstlisting}
 
 
