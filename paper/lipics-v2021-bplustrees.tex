@@ -556,6 +556,10 @@ The notation for separation logic in Isabelle is quickly summarized in the list 
     \item \emph{list\_assn P xs ys} expresses that \emph{P xs[i] ys[i]} holds for all $i \leq |xs| = |ys|$.
 \end{itemize}
 % TODO introduce notation of sep logic
+Separation Logic formulae always express the state of some heap.
+The assertion $P$ describes all heaps for which the formula $P$ evaluates to true.
+The entailment $P \Longrightarrow_A Q$ holds iff $Q$ holds in every heap in which $P$ holds.
+$P = Q$ holds iff $P \Longrightarrow_A Q \wedge Q \Longrightarrow P$.
 More details can be found in the work of Lammich. \cite{DBLP:journals/afp/LammichM12}
 
 The assertion \emph{bplustree\_assn} expressing the refinement relation
