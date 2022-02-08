@@ -118,6 +118,7 @@
   {\\<^sub>A}{{$_A$}}1
   {\\<^sub>r}{{$_r$}}1
   {\\<^sub>a}{{$_a$}}1
+  {\\<^sub>t}{{$_t$}}1
   {:_i}{{$:_i$}}1
   {\\<A>}{{$\mathcal{A}$}}1
   {\\<O>}{{\sf o}}1
@@ -596,7 +597,7 @@ fun bplustree_assn :: nat $\Rightarrow$ 'a bplustree $\Rightarrow$ 'a btnode ref
     * bplustree_assn k t ti (last (r#rs)) z)
 \end{lstlisting}
     \caption[Assertion describing the imperative \btree]{
-        The \btree is specified by the split factor $k$, an abstract tree,
+        The \btree\ is specified by the split factor $k$, an abstract tree,
         a pointer to its root, a pointer to its first leaf and a pointer
         to the first leaf of the next sibling.
         The pointers to first leaf and next first leaf are used
@@ -794,8 +795,7 @@ as on the algebraic tree.
 This is expressed in Hoare triple notation and separation logic.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-refines]
-lemma isin_rule:
-   assumes "k > 0" and "root_order k t" and "sorted_less (inorder t)"
+lemma assumes "k > 0" and "root_order k t" and "sorted_less (inorder t)"
    and "sorted_less (leaves t)" shows
    "<bplustree_assn k t ti r z>
      isin ti x
@@ -830,8 +830,7 @@ This can only be shown on the imperative level as there is no abstract equivalen
 to the shared pointers.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:insert-refines]
-lemma insert_rule:
-    assumes "k > 0" and "sorted_less (inorder t)"
+lemma assumes "k > 0" and "sorted_less (inorder t)"
     and "sorted_less (leaves t)" and "root_order k t" shows
     "<bplustree_assn k t ti r z>
     imp_insert k x ti
@@ -895,10 +894,10 @@ which refines the head of the abstract list.
 Moreover, the imperative leaf contains a pointer to the next element in the list.
 
 With these definitions, we can show that the heap describing the imperative tree may be
-split up into its leafs and some remainder.
+split up into its leafs and the trunk.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split-oneway]
-lemma "bplustree_assn k t ti r z $\Longrightarrow_A$ leaf_nodes_assn k (leaf_nodes t) r z * true"
+lemma "bplustree_assn k t ti r z $\Longrightarrow_A$ leaf_nodes_assn k (leaf_nodes t) r z * trunk_assn k t ti r z"
 \end{lstlisting}
 
 \begin{figure}
@@ -923,7 +922,7 @@ fun leaf_nodes_assn where
 
 
 However, we cannot show that a structurally consistent, unchanged \btree\
-is still described by the split predicates.
+is still described by the combination of the two predicates.
 The reason is that we cannot express that the linked leaf nodes
 are precisely the leaf nodes on the lowest level of the trunk, depicted
 in red in \autoref{fig:btree-view-split}.
@@ -1005,10 +1004,9 @@ fun bplustree_assn_fringe where
        
 \end{lstlisting}
     \caption[\btree\ assertion with extracted fringe]{
+        An extended version of the \btree\ assertion from \autoref{fig:btree-assn}.
         In order to be able to correctly relate leaf view and internal nodes,
-        the shared pointers have to be made explicit without accessing them.
-        For this reason, a refined version of the tree assertion is derived
-        that guarantees to include the pointers passed as \emph{fringe}.
+        the shared pointers \emph{fringe} are made explicit, without accessing their memory location.
     }
     \label{fig:btree-assn-leafs}
 \end{figure}
@@ -1035,22 +1033,21 @@ By the formulation of the tree assertion, we can express
 the obtained result using the assertion about the complete tree.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-first-leaf]
-lemma first_leaf_rule:
-  assumes "k > 0" and "root_order k t" shows
+lemma assumes "k > 0" and "root_order k t" shows
   "<bplustree_assn k t ti r z>
   first_leaf ti
   <$\lambda$u. bplustree_assn k t ti r z * $\uparrow$(u = r)>$_t$"
 \end{lstlisting}
 
-On the result, we can apply lemma \hyperref[lst:btree-extract-fringe]{bplustree\_extract\_fringe} 
-and \hyperref[lst:btree-view-split]{bplustree\_view\_split}.
+On the result, we can apply lemmas \hyperref[lst:btree-extract-fringe]{\emph{bplustree\_extract\_fringe}} 
+and \hyperref[lst:btree-view-split]{\emph{bplustree\_view\_split}}.
 The transformed expression states that
 the result of \emph{first\_leaf t} is a pointer to \emph{leaf\_nodes t}.
 The tree root \emph{t} remains to refine \emph{trunk t}.
 
 From here, we could define an iterator over the leaf nodes
 along the fringe, refining the abstract list \emph{leaf\_nodes}.
-However our final goal is to iterate over the singleton values within each node.
+However our final goal is to iterate over the values within each array inside the nodes.
 We introduce a flattening iterator for this purpose.
 It takes an outer iterator over a data structure \textit{a} that returns elements of type \textit{b},
 and inner iterator over the data structure \textit{b}.
@@ -1075,13 +1072,13 @@ The iterator interface requires some functionality.
           a leaf iterator statement and vice versa.
 \end{itemize}
 We provide all of it and show that the linked leaf nodes of the \btree\ form a valid
-list of arrays that can be iterated.
+list of arrays that can be iterated over.
 We combine this iterator with the iterator over partially filled arrays
 in the flattening iterator and obtain an iterator over all leaf values \emph{leaf\_values\_iter}.
 
 Finally, we want be able to express that the whole tree does not change throughout the iteration.
 For this, we need to keep track of both the leaf nodes assertion and the trunk assertion on \emph{t}.
-We therefore define the iterator such that it contains both assertions.
+The assertion describing the iterator therefore contains both.
 It also existentially quantifies the fringe, hiding away
 the fact that it was extracted in the first place from the client perspective.
 Note how all notion of the explicitely shared leaf pointers
@@ -1102,11 +1099,24 @@ Using the iterator functionalities defined by the flattening operator,
 the values can be obtained step by step.
 
 \begin{lstlisting}
-lemma leaf_values_iter_init_rule:
-  assumes "k > 0" and "root_order k t" shows
+lemma assumes "k > 0" and "root_order k t" shows
   "<bplustree_assn k t ti r None>
   tree_iter_init ti
   <$\lambda$it. tree_iter k t ti r (leaves t) it>$_t$"
+
+lemma assumes "vs \<noteq> [] shows
+  <tree_iter k t ti r vs it>
+  leaf_elements_next it
+  <\<lambda>(a, it'). tree_iter k t ti r (tl vs) it' * \<up> (a = hd vs)>\<^sub>t"
+
+
+lemma 
+  "<tree_iter k t ti r vs it>
+  leaf_elements_has_next it
+  <\<lambda>r'. tree_iter k t ti r vs it * \<up> (r' = (vs \<noteq> []))>\<^sub>t"
+
+lemma "tree_iter k t ti r vs it \<Longrightarrow>\<^sub>A bplustree_assn k t ti r None * true"
+  
 \end{lstlisting}
 
 
@@ -1116,8 +1126,8 @@ lemma leaf_values_iter_init_rule:
 
 A common use case of \btrees\ 
 to obtain all values within a range \cite{DBLP:journals/ftdb/Graefe11}.
-We focus on the range of values in the tree bounded only from below by $x$
-, denoted by \emph{lrange t x}.
+We focus on the range of values in the tree bounded only from below by $x$,
+denoted by \emph{lrange t x}.
 An iterator over this range can be obtained in logarithmic time.
 The operation is similar to the point query operation.
 On the leaf level, it returns a pointer to the
@@ -1151,8 +1161,8 @@ in the iterator returns whether there are any remaining elements.
 We compare the current leaf with the last leaf of the tree.
 If the last leaf is a valid leaf node and not a null pointer, and
 the linked list supposedly empty, we need to show
-that the linked leaf list is not cyclic - a proof obligation
-that can be omitted by requiring that the last leaf is a null pointer.
+that the linked leaf list is not cyclic.
+We avoid this proof obligation by requiring that the last leaf is a null pointer.
 The linked list of a subtree is however bounded by valid leafs,
 precisely the first leaf of the next subtree.
 
@@ -1197,10 +1207,8 @@ Then we refine the approach to the imperative layer
 and can directly deduce that the approach yields the correct result.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-leafs-range]
-lemma concat_leafs_range_rule:
-    assumes "k > 0" and "root_order k t" 
-    and "sorted_less (leaves t)" and "Laligned t u"
-    shows 
+lemma assumes "k > 0" and "root_order k t" 
+    and "sorted_less (leaves t)" and "Laligned t u" shows 
  "<bplustree_assn k t ti r None>
   imp_concat_leafs_range ti x
   <tree_iter k t ti r (lrange t x)>$_t$"
@@ -1252,11 +1260,12 @@ and not stopping without any elimination in case of failure to prove the entailm
 The \btree\ implemented by Ernst \emph{et al.} \cite{DBLP:journals/sosym/ErnstSR15} features point queries and insertion,
 however explicitely leaves out pointers within the leaves,
 which forbids the implementation of iterators.
-This work is closer in nature to the \btree\ implementation by Malecha \emph{et al.} \cite{DBLP:conf/popl/MalechaMSW10}.
+Our work is closer in nature to the \btree\ implementation by Malecha \emph{et al.} \cite{DBLP:conf/popl/MalechaMSW10}.
 In addition to the functionality provided in their work, we extend
-the implementation with the missing Range iterator
-and supply a binary search within nodes, as well as a modular approach
-to further substitutionss.
+the implementation with a missing Range iterator
+and supply a binary search within nodes.
+Our approach is modular, allowing for the substitution of parts
+of the implementation with even more specialized and sophisticated implementations.
 
 Regarding the leaf iterator, we noticed that in the work of Malecha \emph{et al.}
 there is no need to extract the fringe explicitely.
@@ -1277,15 +1286,16 @@ about the heap state should be more flexible and involve less overall proof obli
 With respect to the effort in lines of code and proof
 as depicted in \autoref{fig:proof-comparison}, we see
 that our approach is similar in effort to the approach by Malecha \emph{et al.}.
-The numbers do not include introduced pure ML proof tactics.
+The numbers do not include the newly defined pure ML proof tactics.
 It should be also noted that this includes the statistics
 for the additional binary search and range iterator,
 that make up around 1000 lines of proof each.
-The comparison with Ernst \emph{et al.} is difficult, as it completely
-avoids the usage of leaf pointers and the iterator
-that makes up a signifant amount of the proof
-with at least 1000 lines of proof on its own, and also
-affecting the verification of point and insertion queries
+The comparison with Ernst \emph{et al.} is difficult.
+Their research completely avoids the usage of leaf pointers,
+therefore also omitting iterators completely.
+The iterator verification makes up a signifant amount of the proof
+with at least 1000 lines of proof on its own.
+The leaf pointers also affects the verification of point and insertion queries
 due to the additional invariant on the imperative level.
 We conclude that the Isabelle/HOL framework
 provides a feature set
