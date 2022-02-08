@@ -1087,7 +1087,7 @@ of the tree iterator.
 
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-tree-iter]
-definition "tree_iter k t ti r vs it = \<exists>$_A$ fringe.
+definition "bplustree_iter k t ti r vs it = \<exists>$_A$ fringe.
   leaf_values_iter fringe k (leaf_nodes t) (leaves t) r vs it *
   trunk_assn k t ti r None fringe"
 \end{lstlisting}
@@ -1097,24 +1097,26 @@ defined before now allows us to obtain an iterator over all leaf
 values of the tree.
 Using the iterator functionalities defined by the flattening operator,
 the values can be obtained step by step.
+The operations \emph{bplustree\_iter\_next} and \emph{bplustree\_iter\_has\_next}
+are exactly the respective operations defined for \emph{leaf\_values\_iter}, renamed.
 
 \begin{lstlisting}
 lemma assumes "k > 0" and "root_order k t" shows
   "<bplustree_assn k t ti r None>
-  tree_iter_init ti
-  <$\lambda$it. tree_iter k t ti r (leaves t) it>$_t$"
+  bplustree_iter_init ti
+  <$\lambda$it. bplustree_iter k t ti r (leaves t) it>$_t$"
 
 lemma assumes "vs \<noteq> [] shows
-  <tree_iter k t ti r vs it>
-  leaf_elements_next it
-  <\<lambda>(a, it'). tree_iter k t ti r (tl vs) it' * \<up> (a = hd vs)>\<^sub>t"
+  <bplustree_iter k t ti r vs it>
+  bplustree_iter_next it
+  <\<lambda>(a, it'). bplustree_iter k t ti r (tl vs) it' * \<up> (a = hd vs)>\<^sub>t"
 
 lemma 
   "<tree_iter k t ti r vs it>
-  leaf_elements_has_next it
-  <\<lambda>r'. tree_iter k t ti r vs it * \<up> (r' = (vs \<noteq> []))>\<^sub>t"
+  bplustree_iter_has_next it
+  <\<lambda>r'. bplustree_iter k t ti r vs it * \<up> (r' = (vs \<noteq> []))>\<^sub>t"
 
-lemma "tree_iter k t ti r vs it \<Longrightarrow>\<^sub>A bplustree_assn k t ti r None * true"
+lemma "bplustree_iter k t ti r vs it \<Longrightarrow>\<^sub>A bplustree_assn k t ti r None * true"
   
 \end{lstlisting}
 

@@ -1213,8 +1213,8 @@ thm leaf_values_init_def
 thm leaf_values_iter.flatten_it_init_def
 print_theorems
 
-fun tree_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
-  "tree_iter_init ti = do {
+fun bplustree_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
+  "bplustree_iter_init ti = do {
         rz \<leftarrow> tree_leaf_iter_init (Some ti);
         it \<leftarrow> leaf_values_init (fst rz);
         return it
@@ -1253,13 +1253,13 @@ lemma leaf_nodes_flatten_list: "leaf_nodes_assn k ts r None lptrs =
   subgoal by (rule leaf_nodes_imp_flatten_list_back)
   done
 
-definition "tree_iter_list k t ti r = (\<exists>\<^sub>A lptrs.
+definition "bplustree_iter_list k t ti r = (\<exists>\<^sub>A lptrs.
   leaf_values_iter.is_flatten_list lptrs k (map leaves (leaf_nodes t)) (leaves t) r *
   list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) *
   trunk_assn k t ti r None lptrs)"
 
-lemma bplustree_iff_leaf_view: "bplustree_assn k t ti r None = tree_iter_list k t ti r"
-  unfolding tree_iter_list_def
+lemma bplustree_iff_leaf_view: "bplustree_assn k t ti r None = bplustree_iter_list k t ti r"
+  unfolding bplustree_iter_list_def
   apply(simp add:
         bplustree_extract_leafs
         bplustree_leaf_nodes_sep
@@ -1269,7 +1269,7 @@ lemma bplustree_iff_leaf_view: "bplustree_assn k t ti r None = tree_iter_list k 
   apply (auto simp add: algebra_simps)
   done
 
-definition "tree_iter k t ti r vs it = (\<exists>\<^sub>A lptrs.
+definition "bplustree_iter k t ti r vs it = (\<exists>\<^sub>A lptrs.
   leaf_values_iter.is_flatten_it lptrs k (map leaves (leaf_nodes t)) (leaves t) r vs it *
   list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) *
   trunk_assn k t ti r None lptrs)"
@@ -1277,13 +1277,13 @@ definition "tree_iter k t ti r vs it = (\<exists>\<^sub>A lptrs.
 (* Now finally, we can hide away that we extracted anything
 and just provide the user with some pretty definitions *)
 
-lemma tree_iter_init_rule:
+lemma bplustree_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r None>
-tree_iter_init ti
-<\<lambda>it. tree_iter k t ti r (leaves t) it>\<^sub>t"
-  unfolding tree_iter_init.simps
-  unfolding tree_iter_def
+bplustree_iter_init ti
+<\<lambda>it. bplustree_iter k t ti r (leaves t) it>\<^sub>t"
+  unfolding bplustree_iter_init.simps
+  unfolding bplustree_iter_def
   using assms 
   apply (sep_auto heap add: tree_leaf_iter_init_rule)
   apply(subst leaf_nodes_flatten_list)
@@ -1296,29 +1296,29 @@ tree_iter_init ti
 
 (* using is_flatten_it we can now iterate through elements in the leafs *)
 
-abbreviation "tree_iter_next \<equiv> leaf_values_next" 
+abbreviation "bplustree_iter_next \<equiv> leaf_values_next" 
 
-lemma leaf_values_next_rule: "vs \<noteq> [] \<Longrightarrow>
-    <tree_iter k t ti r vs it>
-  tree_iter_next it
-  <\<lambda>(a, it'). tree_iter k t ti r (tl vs) it' * \<up> (a = hd vs)>\<^sub>t"
-  unfolding tree_iter_def
+lemma bplustree_iter_next_rule: "vs \<noteq> [] \<Longrightarrow>
+    <bplustree_iter k t ti r vs it>
+  bplustree_iter_next it
+  <\<lambda>(a, it'). bplustree_iter k t ti r (tl vs) it' * \<up> (a = hd vs)>\<^sub>t"
+  unfolding bplustree_iter_def
   apply(sep_auto heap add: leaf_values_iter.flatten_it_next_rule)
   done
 
-abbreviation "tree_iter_has_next \<equiv> leaf_values_has_next" 
+abbreviation "bplustree_iter_has_next \<equiv> leaf_values_has_next" 
 
-lemma leaf_values_has_next_rule: "
-    <tree_iter k t ti r vs it>
-  tree_iter_has_next it
-  <\<lambda>r'. tree_iter k t ti r vs it * \<up> (r' = (vs \<noteq> []))>\<^sub>t"
-  unfolding tree_iter_def
+lemma bplustree_iter_has_next_rule: "
+    <bplustree_iter k t ti r vs it>
+  bplustree_iter_has_next it
+  <\<lambda>r'. bplustree_iter k t ti r vs it * \<up> (r' = (vs \<noteq> []))>\<^sub>t"
+  unfolding bplustree_iter_def
   apply(sep_auto heap add: leaf_values_iter.flatten_it_has_next_rule)
   done
 
-lemma tree_iter_quit: 
-"tree_iter k t ti r vs it \<Longrightarrow>\<^sub>A bplustree_assn k t ti r None * true"
-  unfolding tree_iter_def
+lemma bplustree_iter_quit: 
+"bplustree_iter k t ti r vs it \<Longrightarrow>\<^sub>A bplustree_assn k t ti r None * true"
+  unfolding bplustree_iter_def
   apply(rule ent_ex_preI)
   subgoal for lptrs
   apply(rule ent_frame_fwd[OF leaf_values_iter.flatten_quit_iteration, where F="list_assn leaf_node (leaf_nodes t) (leaf_lists t) *

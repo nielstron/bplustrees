@@ -906,7 +906,7 @@ lemma concat_leafs_range_rule_help:
   assumes "k > 0" "root_order k t" "sorted_less (leaves t)" "Laligned t u"
   shows "<bplustree_assn_leafs k t ti r None lptrs>
 concat_leafs_range ti x
-<tree_iter k t ti r (abs_split_range.lrange t x)>\<^sub>t"
+<bplustree_iter k t ti r (abs_split_range.lrange t x)>\<^sub>t"
   apply(subst concat_leafs_range_def)
   apply(vcg (ss) heap: leafs_range_rule[of k t u])+
   subgoal using assms by simp
@@ -985,7 +985,7 @@ proof(goal_cases)
         done
       done
       subgoal
-        apply (sep_auto eintros del: exI simp add: tree_iter_def)
+        apply (sep_auto eintros del: exI simp add: bplustree_iter_def)
         apply(inst_existentials "lptrs1@lptrs2")
         apply(subgoal_tac "leaves t = (concat (map leaves xs1) @ pref @ lrange_list x ks @ concat (map leaves list))")
         apply(subgoal_tac "abs_split_range.lrange t x = (lrange_list x ks @ concat (map leaves list))")
@@ -1005,7 +1005,7 @@ lemma concat_leafs_range_rule:
   assumes "k > 0" "root_order k t" "sorted_less (leaves t)" "Laligned t u"
   shows "<bplustree_assn k t ti r None>
 concat_leafs_range ti x
-<tree_iter k t ti r (abs_split_range.lrange t x)>\<^sub>t"
+<bplustree_iter k t ti r (abs_split_range.lrange t x)>\<^sub>t"
   find_theorems bplustree_assn_leafs
   apply(simp add: bplustree_extract_leafs)
   using assms apply(sep_auto heap add: concat_leafs_range_rule_help)
