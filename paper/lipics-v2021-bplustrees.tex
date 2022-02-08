@@ -278,7 +278,7 @@ with Isabelle proof tactics.}%optional
 Even single-threaded databases are non-trivial to analyse and verify,
 especially machine-checked.
 The only work in the literature on that topic that we are aware of
-is the work by Malecha \cite{DBLP:conf/popl/MalechaMSW10}.
+is the work by Malecha \emph{et al.} \cite{DBLP:conf/popl/MalechaMSW10}.
 However, it lacks a number of common \btree\ features such as range
 queries and efficient binary search.
 We provide a computer assisted proof in the interactive
@@ -335,18 +335,18 @@ in \autoref{sec:conclusion}.
 There exist two pen and paper proofs via the rigorous approach.
 Fielding \cite{Fielding80} uses gradual refinement of abstract
 implementations.
-Sexton \cite{DBLP:journals/entcs/SextonT08} shows how to use 
+Sexton and Thielecke \cite{DBLP:journals/entcs/SextonT08} show how to use 
 separation logic in the verification proof.
 
 Among imperative implementations, two machine checked proofs exist as well.
-In the work of Ernst \cite{DBLP:journals/sosym/ErnstSR15},
+In the work of Ernst \emph{et al.} \cite{DBLP:journals/sosym/ErnstSR15},
 an imperative implementation is directly verified
 by combining interactive theorem proving in KIV
 with shape analysis using TVLA.
 The implementation is lacks shared pointers between leafs,
 simplifying the complexity of proofs on the structural integrity of the tree.
 Another direct proof on an imperative implementation
-was conducted by Malecha \cite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
+was conducted by Malecha \emph{et al.} \cite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
 extension to the interactive theorem prover Coq.
 Both works use recursively defined shape predicates
 that describe formally how the nodes and pointers
@@ -560,7 +560,11 @@ Separation Logic formulae always express the state of some heap.
 The assertion $P$ describes all heaps for which the formula $P$ evaluates to true.
 The entailment $P \Longrightarrow_A Q$ holds iff $Q$ holds in every heap in which $P$ holds.
 $P = Q$ holds iff $P \Longrightarrow_A Q \wedge Q \Longrightarrow P$.
-More details can be found in the work of Lammich. \cite{DBLP:journals/afp/LammichM12}
+The formulas are usually used in the context of Hoare triples.
+We write $<P> c <\lambda r.\ Q\ r>$ if, for any heap where $P$ holds, after executing
+imperative code $c$ that returns value $r$, formula $Q\ r$ holds on the resulting heap.
+$<P> c <\lambda r.\ Q\ r>_t$ is a shorthand for $<P> c <\lambda r.\ Q\ r * \mathit{true}>$
+More details can be found in the work of Lammich and Meis. \cite{DBLP:journals/afp/LammichM12}
 
 The assertion \emph{bplustree\_assn} expressing the refinement relation
  relates an algebraic tree (\emph{bplustree})
@@ -634,7 +638,7 @@ In order to define meaningful operations that navigate
 the node structure of the \btree,
 we need to find a method that handles search within a node.
 For general $k$-ary \btrees\ there have not been sophisticated search strategies.
-Ernst \cite{DBLP:journals/sosym/ErnstSR15} and Malecha \cite{DBLP:conf/popl/MalechaMSW10}
+Ernst \emph{et al.} \cite{DBLP:journals/sosym/ErnstSR15} and Malecha \emph{et al.} \cite{DBLP:conf/popl/MalechaMSW10}
 both use a linear search through the key and value lists.
 However, \btrees\ are supposed to have memory page sized nodes \cite{DBLP:journals/csur/Comer79}, 
 which makes a linear search unfeasible in practical contexts.
@@ -692,7 +696,7 @@ We provide these operations and show their correctness on the functional
 layer first, then refine the operations further to the imperative
 layer.
 For point queries and insertion, we follow the implementation
-suggested by Bayer \cite{DBLP:journals/acta/BayerM72}.
+suggested by Bayer and McCreight \cite{DBLP:journals/acta/BayerM72}.
 
 \subsection{Functional Point Query}
 \label{sec:functional_pq}
@@ -717,8 +721,8 @@ Since this function does not modify the tree involved at all,
 we only need to show that it returns the correct value.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-set-inorder]
-theorem isin_set_inorder:
-  "sorted_less (leaves t)" ; "aligned l t u" $\Longrightarrow$ "isin t x = (x $\in$ set (leaves t))"
+theorem assumes "sorted_less (leaves t)" and "aligned l t u" 
+  shows "isin t x = (x $\in$ set (leaves t))"
 \end{lstlisting}
 
 In general, these proofs on the abstract level are made
@@ -791,7 +795,8 @@ This is expressed in Hoare Triple notation and Separation Logic.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-refines]
 lemma isin_rule:
-   "k > 0" ; "root_order k t" ; "sorted_less (inorder t)" ; "sorted_less (leaves t)" $\Longrightarrow$
+   assumes "k > 0" and "root_order k t" and "sorted_less (inorder t)"
+   and "sorted_less (leaves t)" shows
    "<bplustree_assn k t ti r z>
      isin ti x
    <$\lambda$y. bplustree_assn k t ti r z * $\uparrow$(isin t x = y)>$_t$"
@@ -826,7 +831,8 @@ to the shared pointers.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:insert-refines]
 lemma insert_rule:
-    "k > 0" ; "sorted_less (inorder t)" ; "sorted_less (leaves t)" ; "root_order k t" $\Longrightarrow$
+    assumes "k > 0" and "sorted_less (inorder t)"
+    and "sorted_less (leaves t)" and "root_order k t" shows
     "<bplustree_assn k t ti r z>
     imp_insert k x ti
     <\<lambda>u. bplustree_assn k (insert k x t) u r z>$_t$"
@@ -872,7 +878,7 @@ in order to keep the parts of the heap disjoint and
 thus be able to locally reason about the heap state,
 Therefore we aim for a solution that is compatible with this philosophy rather than circumventing it.
 
-For this, we follow the approach of Malecha \cite{DBLP:conf/popl/MalechaMSW10} and
+For this, we follow the approach of Malecha \emph{et al.} \cite{DBLP:conf/popl/MalechaMSW10} and
 try to find an equivalent formulation that separates the whole tree in a
 view on its inner nodes and the linked leaf node list.
 The central idea to separate the tree is to
@@ -915,8 +921,7 @@ fun leaf_nodes_assn where
 A first attempt to use the below relationship fails.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-view-split-oneway]
-lemma bplustree_leaf_nodes:
-  "bplustree_assn k t ti r z $\Longrightarrow_A$ leaf_nodes_assn k (leaf_nodes t) r z * true"
+lemma "bplustree_assn k t ti r z $\Longrightarrow_A$ leaf_nodes_assn k (leaf_nodes t) r z * true"
 \end{lstlisting}
 
 We can show that the whole tree can be separated into a linked list in the leafs
@@ -1034,7 +1039,7 @@ the obtained result using the assertion about the complete tree.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-first-leaf]
 lemma first_leaf_rule:
-  "k > 0" ; "root_order k t" $\Longrightarrow$
+  assumes "k > 0" and "root_order k t" shows
   "<bplustree_assn k t ti r z>
   first_leaf ti
   <$\lambda$u. bplustree_assn k t ti r z * $\uparrow$(u = r)>$_t$"
@@ -1101,7 +1106,7 @@ the values can be obtained step by step.
 
 \begin{lstlisting}
 lemma leaf_values_iter_init_rule:
-  "k > 0" ; "root_order k t" $\Longrightarrow$
+  assumes "k > 0" and "root_order k t" shows
   "<bplustree_assn k t ti r None>
   tree_iter_init ti
   <$\lambda$it. tree_iter k t ti r (leaves t) it>$_t$"
@@ -1247,16 +1252,16 @@ and not stopping without any elimination in case of failure to prove the entailm
 \subsection{Evaluation}
 
 
-The \btree\ implemented by Ernst \cite{DBLP:journals/sosym/ErnstSR15} features point queries and insertion,
+The \btree\ implemented by Ernst \emph{et al.} \cite{DBLP:journals/sosym/ErnstSR15} features point queries and insertion,
 however explicitely leaves out pointers within the leaves,
 which forbids the implementation of iterators.
-This work is closer in nature to the \btree\ implementation by Malecha \cite{DBLP:conf/popl/MalechaMSW10}.
+This work is closer in nature to the \btree\ implementation by Malecha \emph{et al.} \cite{DBLP:conf/popl/MalechaMSW10}.
 In addition to the functionality provided in their work, we extend
 the implementation with the missing Range iterator
 and supply a binary search within nodes, as well as a modular approach
 to further substitutionss.
 
-Regarding the leaf iterator, we noticed that in the work of Malecha \cite{DBLP:conf/popl/MalechaMSW10}, 
+Regarding the leaf iterator, we noticed that in the work of Malecha \emph{et al.}
 there is no need to extract the fringe explicitely.
 The abstract leafs are defined such that they store the precise heap location of the refining node.
 In this definition, the precise heap location
@@ -1274,12 +1279,12 @@ about the heap state should be more flexible and involve less overall proof obli
 
 With respect to the effort in lines of code and proof
 as depicted in \autoref{fig:proof-comparison}, we see
-that our approach is similar in effort to the approach by Malecha.
+that our approach is similar in effort to the approach by Malecha \emph{et al.}.
 The numbers do not include introduced pure ML proof tactics.
 It should be also noted that this includes the statistics
 for the additional binary search and range iterator,
 that make up around 1000 lines of proof each.
-The comparison with Ernst is difficult, as it completely
+The comparison with Ernst \emph{et al.} is difficult, as it completely
 avoids the usage of leaf pointers and the iterator
 that makes up a signifant amount of the proof
 with at least 1000 lines of proof on its own, and also
