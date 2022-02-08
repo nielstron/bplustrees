@@ -43,7 +43,7 @@ lemma leaf_nodes_assn_aux_append:
 declare last.simps[simp del] butlast.simps[simp del]
 declare mult.left_assoc[simp add]
 lemma bplustree_leaf_nodes_help:
-  "bplustree_assn k t ti r z * true \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
+  "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * inner_nodes_assn k t ti r z"
 proof(induction arbitrary: r rule: bplustree_assn.induct)
   case (1 k xs a r z)
   then show ?case
@@ -51,9 +51,10 @@ proof(induction arbitrary: r rule: bplustree_assn.induct)
 next
   case (2 k ts t a r z ra)
   show ?case
-    apply(sep_auto)
+    apply(auto)
+    apply(rule ent_ex_preI)+
   proof (goal_cases)
-    case (1 a b ti tsi' rs)
+    case (1 tsi ti tsi' tsi'' rs)
     have *: "
         length tsi's = length rss \<Longrightarrow>
         length rss = length tss \<Longrightarrow>
@@ -62,14 +63,18 @@ next
         set tss \<subseteq> set ts \<Longrightarrow>
        bplustree_assn k t ti (last (ra # rss)) z * 
        blist_assn k tss
-        (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) * true \<Longrightarrow>\<^sub>A
-       leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z * true"
+        (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's)) \<Longrightarrow>\<^sub>A
+       leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z * 
+      inner_nodes_assn k t ti (last (ra#rss)) z *
+       list_assn ((\<lambda> t (ti,r',z'). inner_nodes_assn k t (the ti) r' z') \<times>\<^sub>a id_assn) tss
+        (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) rss)) (separators tsi's))
+"
       for rss tsi's tss
     proof (induct arbitrary: ra rule: list_induct3)
       case (Nil r)
       then show ?case
         apply sep_auto
-        using 2(1)[of ti r]
+        using 2(1)[of ti r "[]"]
       apply (simp add: last.simps butlast.simps)
       done
     next
@@ -100,22 +105,51 @@ next
           thm mult.commute
           thm star_aci
           apply(subst mult.commute)
-          supply R=ent_star_mono_true[where
-A="bplustree_assn k sub (the (fst subsepi)) r subleaf * true" and A'="leaf_nodes_assn k (leaf_nodes sub) r subleaf"
-and B="bplustree_assn k t ti (last (subleaf # rss)) z *
+          thm mult.commute[where b="inner_nodes_assn k sub (the (fst subsepi)) r subleaf"]
+          apply(subst mult.commute[where b="inner_nodes_assn k sub (the (fst subsepi)) r subleaf"])
+          find_theorems "_ * _ = _ * _"
+          apply(simp)
+          thm ent_star_mono
+          supply R=ent_star_mono[where
+P="bplustree_assn k sub (the (fst subsepi)) r subleaf" and P'="inner_nodes_assn k sub (the (fst subsepi)) r subleaf *
+ leaf_nodes_assn k (leaf_nodes sub) r subleaf"
+and Q="bplustree_assn k t ti (last (subleaf # rss)) z *
     id_assn sep (snd subsepi) *
     blist_assn k tss
-     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's)) * true"
-and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ leaf_nodes t) subleaf z"
+     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's))"
+and Q'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ leaf_nodes t) subleaf
+     z *
+    inner_nodes_assn k t ti (last (subleaf # rss)) z *
+    id_assn sep (snd subsepi) *
+    list_assn ((\<lambda>t (ti, x, y). inner_nodes_assn k t (the ti) x y) \<times>\<^sub>a id_assn) tss
+     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss)) (separators tsi's))"
           ,simplified]
           thm R
           apply(rule R)
           subgoal
+            apply(subst mult.commute)
             by simp
           subgoal
-            apply(subst mult.commute, simp)
-            apply(rule ent_true_drop_true)
-            apply(subst mult.commute, simp)
+            thm mult.commute
+            apply(subst mult.commute[where b="id_assn _ _"], simp)+
+            find_theorems "_ * _ = _* _"
+            apply(subst mult.commute)
+            supply R = ent_star_mono[where
+              P="id_assn sep (snd subsepi)" and P'="id_assn sep (snd subsepi)"
+and Q="bplustree_assn k t ti (last (subleaf # rss)) z *
+    blist_assn k tss
+     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss))
+       (separators tsi's))" and
+Q'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ leaf_nodes t) subleaf
+     z *
+    inner_nodes_assn k t ti (last (subleaf # rss)) z *
+    list_assn ((\<lambda>t (ti, x, y). inner_nodes_assn k t (the ti) x y) \<times>\<^sub>a id_assn) tss
+     (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) rss))
+       (separators tsi's))"
+, simplified]
+            thm R
+            apply(rule R)
+            apply simp
             done
       done
       qed
@@ -124,15 +158,15 @@ and B'="leaf_nodes_assn k (concat (map (\<lambda>a. leaf_nodes (fst a)) tss) @ l
       apply(rule entails_preI)
         using 1 apply (auto dest!: mod_starD list_assn_len)
         using *[of tsi' rs ts, simplified]
-        by (smt (z3) assn_aci(10) assn_times_comm ent_true_drop(1))
+        apply(inst_ex_assn tsi ti tsi' tsi'' rs)
+        by (smt (z3) assn_aci(10) assn_times_comm fr_refl mult.right_neutral pure_true)
   qed
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 declare mult.left_assoc[simp del]
 
 lemma bplustree_leaf_nodes:
-  "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * true"
-  apply(rule rem_true)
+  "bplustree_assn k t ti r z \<Longrightarrow>\<^sub>A leaf_nodes_assn k (leaf_nodes t) r z * inner_nodes_assn k t ti r z"
   using bplustree_leaf_nodes_help[of k t ti r z] by simp
 
 fun leaf_node:: "('a::heap) bplustree \<Rightarrow> 'a list \<Rightarrow> assn" where
@@ -436,11 +470,12 @@ lemma tree_leaf_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
   tree_leaf_iter_init (Some ti)
-  <\<lambda>(u,v). leaf_nodes_assn k (leaf_nodes t) u v * \<up>(u = r \<and> v = z)>\<^sub>t"
+  <\<lambda>(u,v). leaf_nodes_assn k (leaf_nodes t) u v * inner_nodes_assn k t ti r z * \<up>(u = r \<and> v = z)>\<^sub>t"
   using assms
   using bplustree_leaf_nodes_help[of k t ti r z]
   unfolding tree_leaf_iter_init_def
-  by (sep_auto)
+  apply (sep_auto)
+  using ent_star_mono ent_true by blast
 
 
 definition leaf_iter_next where
