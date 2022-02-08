@@ -252,18 +252,18 @@ fun leaf_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree list \<Rightarrow
   "leaf_nodes_assn _ _ _ _ _ = false"
 
 
-fun inner_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref list \<Rightarrow> assn" where
-  "inner_nodes_assn k (LNode xs) a r z lptrs = \<up>(r = Some a \<and> lptrs = [a])" |
-  "inner_nodes_assn k (Node ts t) a r z lptrs = 
+fun trunk_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref list \<Rightarrow> assn" where
+  "trunk_assn k (LNode xs) a r z lptrs = \<up>(r = Some a \<and> lptrs = [a])" |
+  "trunk_assn k (Node ts t) a r z lptrs = 
  (\<exists>\<^sub>A tsi ti tsi' tsi'' rs split.
       a \<mapsto>\<^sub>r Btnode tsi ti
-    * inner_nodes_assn k t ti (last (r#rs)) (last (rs@[z])) (last split)
+    * trunk_assn k t ti (last (r#rs)) (last (rs@[z])) (last split)
     * is_pfa (2*k) tsi' tsi
     * \<up>(concat split = lptrs)
     * \<up>(length tsi' = length rs)
     * \<up>(length split = length rs + 1)
     * \<up>(tsi'' = zip (zip (map fst tsi') (zip (butlast (r#rs)) (zip (butlast (rs@[z])) (butlast split)))) (map snd tsi'))
-    * list_assn ((\<lambda> t (ti,r',z',lptrs). inner_nodes_assn k t (the ti) r' z' lptrs) \<times>\<^sub>a id_assn) ts tsi''
+    * list_assn ((\<lambda> t (ti,r',z',lptrs). trunk_assn k t (the ti) r' z' lptrs) \<times>\<^sub>a id_assn) ts tsi''
     )"
 
 lemma leaf_nodes_assn_split:
@@ -372,9 +372,9 @@ lemma bplustree_assn_leafs_len_aux: "bplustree_assn_leafs k t a r z leafptrs = b
   by (meson bplustree_assn_leafs_len_imp imp_imp_pure)
 
 declare last.simps[simp del] butlast.simps[simp del]
-lemma inner_nodes_assn_leafs_len_imp: "h \<Turnstile> inner_nodes_assn k t a r z leafptrs \<Longrightarrow> length leafptrs = length (leaf_nodes t)"  
+lemma trunk_assn_leafs_len_imp: "h \<Turnstile> trunk_assn k t a r z leafptrs \<Longrightarrow> length leafptrs = length (leaf_nodes t)"  
 (* same procedure as for bplustree_nodes_assn_leaf *)
-proof(induction k t a r z leafptrs arbitrary: h rule: inner_nodes_assn.induct)
+proof(induction k t a r z leafptrs arbitrary: h rule: trunk_assn.induct)
   case (1 k xs a r z leafptrs)
   then show ?case
     by(clarsimp)
@@ -392,7 +392,7 @@ set tss \<subseteq> set ts \<Longrightarrow>
 set tsi's \<subseteq> set tsi' \<Longrightarrow> 
 set rss \<subseteq> set rs \<Longrightarrow> 
 h \<Turnstile> list_assn
-        ((\<lambda>t (ti, r', x, y). inner_nodes_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) tss
+        ((\<lambda>t (ti, r', x, y). trunk_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) tss
         (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) (zip rss splits))) (separators tsi's))
 \<Longrightarrow> (length (concat splits)) = length (concat (map (leaf_nodes \<circ> fst) tss))" for h tss tsi's splits rss ra
     proof(induction arbitrary: ra h rule: list_induct4)
@@ -426,8 +426,8 @@ h \<Turnstile> list_assn
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 
-lemma inner_nodes_assn_leafs_len_aux: "inner_nodes_assn k t a r z leafptrs = inner_nodes_assn k t a r z leafptrs * \<up>(length leafptrs = length (leaf_nodes t))"  
-  by (meson inner_nodes_assn_leafs_len_imp imp_imp_pure)
+lemma trunk_assn_leafs_len_aux: "trunk_assn k t a r z leafptrs = trunk_assn k t a r z leafptrs * \<up>(length leafptrs = length (leaf_nodes t))"  
+  by (meson trunk_assn_leafs_len_imp imp_imp_pure)
 
 declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_assn_leafs_not_empty_aux: "bplustree_assn_leafs k t a r z leafptrs = bplustree_assn_leafs k t a r z leafptrs * \<up>(leafptrs \<noteq> [])"
@@ -440,10 +440,10 @@ lemma bplustree_assn_leafs_not_empty_aux: "bplustree_assn_leafs k t a r z leafpt
   subgoal by sep_auto
   done
 
-lemma inner_nodes_assn_not_empty_aux: "inner_nodes_assn k t a r z leafptrs = inner_nodes_assn k t a r z leafptrs * \<up>(leafptrs \<noteq> [])"
+lemma trunk_assn_not_empty_aux: "trunk_assn k t a r z leafptrs = trunk_assn k t a r z leafptrs * \<up>(leafptrs \<noteq> [])"
   apply(intro ent_iffI)
   subgoal 
-    apply(subst inner_nodes_assn_leafs_len_aux)
+    apply(subst trunk_assn_leafs_len_aux)
     using leaf_nodes_not_empty
     apply sep_auto
   done
@@ -514,9 +514,9 @@ lemma bplustree_assn_leafs_hd_aux:
   by (meson bplustree_assn_leafs_hd imp_imp_pure)
 
 declare last.simps[simp del] butlast.simps[simp del]
-lemma inner_nodes_assn_hd:
-  "h \<Turnstile> inner_nodes_assn k t a r z leafptrs \<Longrightarrow> r = Some (hd leafptrs)"  
-proof(induction k t a r z leafptrs arbitrary: h rule: inner_nodes_assn.induct)
+lemma trunk_assn_hd:
+  "h \<Turnstile> trunk_assn k t a r z leafptrs \<Longrightarrow> r = Some (hd leafptrs)"  
+proof(induction k t a r z leafptrs arbitrary: h rule: trunk_assn.induct)
   case (1 k xs a r z leafptrs)
   then show ?case
     by(clarsimp)
@@ -551,14 +551,14 @@ next
         "split = ss1 # ss2 # splits"
         "tsi' = tss # tsi's"
         by (metis (no_types, lifting) "1"(3) "1"(4) Suc_length_conv \<open>length ts = length rs\<close>)
-      obtain h1 h2 where first_subtree: "(h1, h2) \<Turnstile> inner_nodes_assn k (fst a) (the (fst tss)) r ra ss1"
+      obtain h1 h2 where first_subtree: "(h1, h2) \<Turnstile> trunk_assn k (fst a) (the (fst tss)) r ra ss1"
         using 1 
         apply (auto simp add: butlast_double_Cons last_double_Cons * Cons)
         apply (auto simp add: prod_assn_def split: prod.splits )
         apply(auto dest!: mod_starD)
         done
       then have "ss1 \<noteq> []"
-        using inner_nodes_assn_not_empty_aux[of k "(fst a)" "(the (fst tss))" r ra ss1] 
+        using trunk_assn_not_empty_aux[of k "(fst a)" "(the (fst tss))" r ra ss1] 
         by auto
       then have "hd (concat split) = hd ss1"
         by (simp add: "*"(2))
@@ -571,27 +571,27 @@ next
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 
-lemma inner_nodes_assn_hd_aux:
-  "inner_nodes_assn k t a r z leafptrs = inner_nodes_assn k t a r z leafptrs * \<up>(r = Some (hd leafptrs))"  
-  by (simp add: imp_imp_pure inner_nodes_assn_hd)
+lemma trunk_assn_hd_aux:
+  "trunk_assn k t a r z leafptrs = trunk_assn k t a r z leafptrs * \<up>(r = Some (hd leafptrs))"  
+  by (simp add: imp_imp_pure trunk_assn_hd)
 
 declare last.simps[simp del] butlast.simps[simp del]
 lemma subleaf_at_head_of_concat_inner: "length tsi's = length rss \<Longrightarrow>
         length rss = length tss \<Longrightarrow>
         length tss = length splits \<Longrightarrow>
-list_assn ((\<lambda>t (ti, x, xa, y). inner_nodes_assn k t (the ti) x xa y) \<times>\<^sub>a R) tss
+list_assn ((\<lambda>t (ti, x, xa, y). trunk_assn k t (the ti) x xa y) \<times>\<^sub>a R) tss
      (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) (zip rss splits)))
        (separators tsi's)) *
-    inner_nodes_assn k t ti (last (subleaf # rss)) z ss
+    trunk_assn k t ti (last (subleaf # rss)) z ss
 = 
-list_assn ((\<lambda>t (ti, x, xa, y). inner_nodes_assn k t (the ti) x xa y) \<times>\<^sub>a R) tss
+list_assn ((\<lambda>t (ti, x, xa, y). trunk_assn k t (the ti) x xa y) \<times>\<^sub>a R) tss
      (zip (zip (subtrees tsi's) (zip (butlast (subleaf # rss)) (zip rss splits)))
        (separators tsi's)) *
-    inner_nodes_assn k t ti (last (subleaf # rss)) z ss * \<up>(Some (hd (concat splits@ss)) = subleaf)"
+    trunk_assn k t ti (last (subleaf # rss)) z ss * \<up>(Some (hd (concat splits@ss)) = subleaf)"
   apply(cases splits)
   subgoal
     apply (sep_auto simp add: last.simps)
-    apply (metis (mono_tags, hide_lams) inner_nodes_assn_hd_aux pure_assn_eq_conv)
+    apply (metis (mono_tags, hide_lams) trunk_assn_hd_aux pure_assn_eq_conv)
     done
   subgoal
   apply(cases tss; cases rss; cases tsi's)
@@ -600,8 +600,8 @@ list_assn ((\<lambda>t (ti, x, xa, y). inner_nodes_assn k t (the ti) x xa y) \<t
                 simp add: butlast_double_Cons last_double_Cons)
   apply(intro ent_iffI)
     subgoal
-      apply(subst inner_nodes_assn_hd_aux)
-      apply(subst inner_nodes_assn_not_empty_aux)
+      apply(subst trunk_assn_hd_aux)
+      apply(subst trunk_assn_not_empty_aux)
       apply sep_auto
       done
     subgoal by sep_auto
@@ -644,7 +644,7 @@ declare last.simps[simp add] butlast.simps[simp add]
 
 declare last.simps[simp del] butlast.simps[simp del]
 lemma bplustree_leaf_nodes_sep:
-  "bplustree_assn_leafs k t ti r z lptrs = leaf_nodes_assn k (leaf_nodes t) r z lptrs * inner_nodes_assn k t ti r z lptrs"
+  "bplustree_assn_leafs k t ti r z lptrs = leaf_nodes_assn k (leaf_nodes t) r z lptrs * trunk_assn k t ti r z lptrs"
 proof(induction arbitrary: r rule: bplustree_assn_leafs.induct)
   case (1 k xs a r z)
   then show ?case
@@ -673,9 +673,9 @@ next
          list_assn ((\<lambda>t (ti, x, y, s). bplustree_assn_leafs k t (the ti) x y s) \<times>\<^sub>a id_assn) tss
          (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) (zip rss splits))) (separators tsi's)) =
          leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) tss) @ leaf_nodes t) ra z (concat splits @ last split) *
-         list_assn ((\<lambda>t (ti, x, y, s). inner_nodes_assn k t (the ti) x y s) \<times>\<^sub>a id_assn) tss
+         list_assn ((\<lambda>t (ti, x, y, s). trunk_assn k t (the ti) x y s) \<times>\<^sub>a id_assn) tss
          (zip (zip (subtrees tsi's) (zip (butlast (ra # rss)) (zip rss splits))) (separators tsi's)) *
-        inner_nodes_assn k t ti (last (ra#rss)) z (last split)"
+        trunk_assn k t ti (last (ra#rss)) z (last split)"
         for rss tsi's tss splits
       proof (induct arbitrary: ra rule: list_induct4)
         case (Nil r)
@@ -694,12 +694,12 @@ next
           subgoal for sub sep
 (* extract fact that length of leaf nodes of subleaf matches leaf_nodes_assn_split req *)
           apply(subst bplustree_assn_leafs_len_aux[of k sub])
-          apply(subst inner_nodes_assn_leafs_len_aux[of k sub])
+          apply(subst trunk_assn_leafs_len_aux[of k sub])
             apply sep_auto
             apply(intro pure_eq_pre)
 (* extract fact that the remaining list is not empty *)
           apply(subst bplustree_assn_leafs_not_empty_aux[of k t])
-          apply(subst inner_nodes_assn_not_empty_aux[of k t])
+          apply(subst trunk_assn_not_empty_aux[of k t])
             apply sep_auto
             apply(intro pure_eq_pre)
           supply R = leaf_nodes_assn_split[of "leaf_nodes sub" fsplit
@@ -710,7 +710,7 @@ next
           subgoal by simp
           (* show that r = hd fsplit *)
           apply(subst bplustree_assn_leafs_hd_aux[of k sub])
-          apply(subst inner_nodes_assn_hd_aux[of k sub])
+          apply(subst trunk_assn_hd_aux[of k sub])
             apply sep_auto
             apply(intro pure_eq_pre)
 (* refactor multiplication s.t. we can apply the lemma about two mult. factors with an OTF lemma *)
@@ -1036,7 +1036,7 @@ lemma tree_leaf_iter_init_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
   tree_leaf_iter_init (Some ti)
-  <\<lambda>(u,v). \<exists>\<^sub>A lptrs. leaf_nodes_assn k (leaf_nodes t) r z lptrs * inner_nodes_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
+  <\<lambda>(u,v). \<exists>\<^sub>A lptrs. leaf_nodes_assn k (leaf_nodes t) r z lptrs * trunk_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
   using assms
   apply(vcg heap add: tree_leaf_iter_init_rule_help)
   by (simp add: bplustree_extract_leafs bplustree_leaf_nodes_sep)
@@ -1045,7 +1045,7 @@ lemma tree_leaf_iter_init_rule_alt:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn k t ti r z>
   tree_leaf_iter_init (Some ti)
-  <\<lambda>(u,v). \<exists>\<^sub>A lptrs ps. list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) * list_assn (is_pfa (2*k)) (map leaves (leaf_nodes t)) ps * leafs_assn ps lptrs r z * inner_nodes_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
+  <\<lambda>(u,v). \<exists>\<^sub>A lptrs ps. list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) * list_assn (is_pfa (2*k)) (map leaves (leaf_nodes t)) ps * leafs_assn ps lptrs r z * trunk_assn k t ti r z lptrs * \<up>(u = r \<and> v = z)>\<^sub>t"
   using assms
   apply(vcg heap add: tree_leaf_iter_init_rule)
   apply(sep_auto simp add: leaf_nodes_assn_flatten)
@@ -1197,26 +1197,26 @@ interpretation leaf_node_it: imp_list_iterate
   by (sep_auto simp add: leafs_assn_aux_append)
   done
 
-global_interpretation leaf_elements_iter: flatten_iter
+global_interpretation leaf_values_iter: flatten_iter
   "\<lambda>x y. leafs_assn x lptrs y None" "\<lambda>x y. leaf_iter_assn x lptrs y"
   leaf_iter_init leaf_iter_has_next leaf_iter_next
   "is_pfa (2*k)" "pfa_is_it (2*k)" pfa_it_init pfa_it_has_next pfa_it_next
-  defines leaf_elements_adjust = leaf_elements_iter.flatten_it_adjust
-      and leaf_elements_init = leaf_elements_iter.flatten_it_init
-      and leaf_elements_next = leaf_elements_iter.flatten_it_next
-      and leaf_elements_has_next = leaf_elements_iter.flatten_it_has_next
+  defines leaf_values_adjust = leaf_values_iter.flatten_it_adjust
+      and leaf_values_init = leaf_values_iter.flatten_it_init
+      and leaf_values_next = leaf_values_iter.flatten_it_next
+      and leaf_values_has_next = leaf_values_iter.flatten_it_has_next
   by (unfold_locales)
 
-thm leaf_elements_iter.is_flatten_list.simps
-thm leaf_elements_iter.is_flatten_it.simps
-thm leaf_elements_init_def
-thm leaf_elements_iter.flatten_it_init_def
+thm leaf_values_iter.is_flatten_list.simps
+thm leaf_values_iter.is_flatten_it.simps
+thm leaf_values_init_def
+thm leaf_values_iter.flatten_it_init_def
 print_theorems
 
 fun tree_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
   "tree_iter_init ti = do {
         rz \<leftarrow> tree_leaf_iter_init (Some ti);
-        it \<leftarrow> leaf_elements_init (fst rz);
+        it \<leftarrow> leaf_values_init (fst rz);
         return it
 }"
 
@@ -1224,7 +1224,7 @@ fun tree_iter_init :: "('a::heap) btnode ref \<Rightarrow> _" where
 lemma leaf_nodes_imp_flatten_list:
   "leaf_nodes_assn k ts r None lptrs \<Longrightarrow>\<^sub>A
    list_assn leaf_node ts (map leaves ts) *
-   leaf_elements_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r"
+   leaf_values_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r"
   apply(simp add: leaf_nodes_assn_flatten)
   apply(intro ent_ex_preI)
   subgoal for ps
@@ -1235,7 +1235,7 @@ lemma leaf_nodes_imp_flatten_list:
 
 lemma leaf_nodes_imp_flatten_list_back:
    "list_assn leaf_node ts (map leaves ts) *
-leaf_elements_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r \<Longrightarrow>\<^sub>A
+leaf_values_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r \<Longrightarrow>\<^sub>A
   leaf_nodes_assn k ts r None lptrs"
   apply(simp add: leaf_nodes_assn_flatten)
   apply(intro ent_ex_preI)
@@ -1247,16 +1247,16 @@ leaf_elements_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves t
 
 lemma leaf_nodes_flatten_list: "leaf_nodes_assn k ts r None lptrs =
    list_assn leaf_node ts (map leaves ts) *
-   leaf_elements_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r"
+   leaf_values_iter.is_flatten_list lptrs k (map leaves ts) (concat (map leaves ts)) r"
   apply(intro ent_iffI)
   subgoal by (rule leaf_nodes_imp_flatten_list)
   subgoal by (rule leaf_nodes_imp_flatten_list_back)
   done
 
 definition "tree_iter_list k t ti r = (\<exists>\<^sub>A lptrs.
-  leaf_elements_iter.is_flatten_list lptrs k (map leaves (leaf_nodes t)) (leaves t) r *
+  leaf_values_iter.is_flatten_list lptrs k (map leaves (leaf_nodes t)) (leaves t) r *
   list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) *
-  inner_nodes_assn k t ti r None lptrs)"
+  trunk_assn k t ti r None lptrs)"
 
 lemma bplustree_iff_leaf_view: "bplustree_assn k t ti r None = tree_iter_list k t ti r"
   unfolding tree_iter_list_def
@@ -1270,9 +1270,9 @@ lemma bplustree_iff_leaf_view: "bplustree_assn k t ti r None = tree_iter_list k 
   done
 
 definition "tree_iter k t ti r vs it = (\<exists>\<^sub>A lptrs.
-  leaf_elements_iter.is_flatten_it lptrs k (map leaves (leaf_nodes t)) (leaves t) r vs it *
+  leaf_values_iter.is_flatten_it lptrs k (map leaves (leaf_nodes t)) (leaves t) r vs it *
   list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) *
-  inner_nodes_assn k t ti r None lptrs)"
+  trunk_assn k t ti r None lptrs)"
 
 (* Now finally, we can hide away that we extracted anything
 and just provide the user with some pretty definitions *)
@@ -1287,7 +1287,7 @@ tree_iter_init ti
   using assms 
   apply (sep_auto heap add: tree_leaf_iter_init_rule)
   apply(subst leaf_nodes_flatten_list)
-  apply(vcg heap add: leaf_elements_iter.flatten_it_init_rule)
+  apply(vcg heap add: leaf_values_iter.flatten_it_init_rule)
   subgoal for lptrs
     apply(inst_ex_assn lptrs)
     apply(sep_auto simp add: concat_leaf_nodes_leaves)
@@ -1296,24 +1296,24 @@ tree_iter_init ti
 
 (* using is_flatten_it we can now iterate through elements in the leafs *)
 
-abbreviation "tree_iter_next \<equiv> leaf_elements_next" 
+abbreviation "tree_iter_next \<equiv> leaf_values_next" 
 
-lemma leaf_elements_next_rule: "vs \<noteq> [] \<Longrightarrow>
+lemma leaf_values_next_rule: "vs \<noteq> [] \<Longrightarrow>
     <tree_iter k t ti r vs it>
   tree_iter_next it
   <\<lambda>(a, it'). tree_iter k t ti r (tl vs) it' * \<up> (a = hd vs)>\<^sub>t"
   unfolding tree_iter_def
-  apply(sep_auto heap add: leaf_elements_iter.flatten_it_next_rule)
+  apply(sep_auto heap add: leaf_values_iter.flatten_it_next_rule)
   done
 
-abbreviation "tree_iter_has_next \<equiv> leaf_elements_has_next" 
+abbreviation "tree_iter_has_next \<equiv> leaf_values_has_next" 
 
-lemma leaf_elements_has_next_rule: "
+lemma leaf_values_has_next_rule: "
     <tree_iter k t ti r vs it>
   tree_iter_has_next it
   <\<lambda>r'. tree_iter k t ti r vs it * \<up> (r' = (vs \<noteq> []))>\<^sub>t"
   unfolding tree_iter_def
-  apply(sep_auto heap add: leaf_elements_iter.flatten_it_has_next_rule)
+  apply(sep_auto heap add: leaf_values_iter.flatten_it_has_next_rule)
   done
 
 lemma tree_iter_quit: 
@@ -1321,8 +1321,8 @@ lemma tree_iter_quit:
   unfolding tree_iter_def
   apply(rule ent_ex_preI)
   subgoal for lptrs
-  apply(rule ent_frame_fwd[OF leaf_elements_iter.flatten_quit_iteration, where F="list_assn leaf_node (leaf_nodes t) (leaf_lists t) *
-    inner_nodes_assn k t ti r None lptrs"])
+  apply(rule ent_frame_fwd[OF leaf_values_iter.flatten_quit_iteration, where F="list_assn leaf_node (leaf_nodes t) (leaf_lists t) *
+    trunk_assn k t ti r None lptrs"])
   apply solve_entails
   apply(simp add:
         bplustree_extract_leafs
@@ -1340,6 +1340,6 @@ lemma tree_iter_quit:
 
 declare first_leaf.simps[code]
 declare last_leaf.simps[code]
-(* declare leaf_elements_iter.flatten_it_adjust.simps[code] *)
+(* declare leaf_values_iter.flatten_it_adjust.simps[code] *)
 (* Code exports can be found with in ImpSplitCE *)
 end

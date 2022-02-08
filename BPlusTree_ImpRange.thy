@@ -214,7 +214,7 @@ lemma leafs_range_rule:
   shows "<bplustree_assn_leafs k t ti r z lptrs>
 leafs_range ti x
 <\<lambda>p. (\<exists>\<^sub>A xs1 xs2 lptrs1 lptrs2 ps.
-  inner_nodes_assn k t ti r z lptrs *
+  trunk_assn k t ti r z lptrs *
   leaf_nodes_assn k xs1 r p lptrs1 *
   list_assn leaf_node xs2 (map bplustree.vals xs2) *
   list_assn (is_pfa (2 * k)) (map bplustree.vals xs2) ps *
@@ -296,7 +296,7 @@ lemma blist_leafs_assn_split_help:
     (blist_leafs_assn k ts
       (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi'))
       =
-     list_assn ((\<lambda>t (ti, r', x, y). inner_nodes_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) ts
+     list_assn ((\<lambda>t (ti, r', x, y). trunk_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) ts
       (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi')) *
      leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts)) r (last (r#rrs)) (concat spl)
 ) "
@@ -341,14 +341,14 @@ next
             subgoal for sub' sep'
             apply(subgoal_tac "y = Some (hd z')")
             prefer 2
-            subgoal by (auto dest!: mod_starD inner_nodes_assn_hd)
+            subgoal by (auto dest!: mod_starD trunk_assn_hd)
           apply sep_auto
     apply(subst leaf_nodes_assn_split[where yi="the y" and ysr="tl z'@concat zs'"])
-        find_theorems inner_nodes_assn length
-        subgoal by (auto dest!: mod_starD inner_nodes_assn_leafs_len_imp)
+        find_theorems trunk_assn length
+        subgoal by (auto dest!: mod_starD trunk_assn_leafs_len_imp)
         apply(subgoal_tac "z' \<noteq> []")
         prefer 2
-          subgoal by (auto dest!: mod_starD inner_nodes_assn_leafs_len_imp simp add: leaf_nodes_not_empty)
+          subgoal by (auto dest!: mod_starD trunk_assn_leafs_len_imp simp add: leaf_nodes_not_empty)
           subgoal by simp
         apply (simp add: simp_map_temp)
         apply(sep_auto)
@@ -367,7 +367,7 @@ lemma blist_leafs_assn_split:
     (blist_leafs_assn k ts
       (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi'))
       =
-     list_assn ((\<lambda>t (ti, r', x, y). inner_nodes_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) ts
+     list_assn ((\<lambda>t (ti, r', x, y). trunk_assn k t (the ti) r' x y) \<times>\<^sub>a id_assn) ts
       (zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs spl))) (separators tsi')) *
      leaf_nodes_assn k (concat (map (leaf_nodes \<circ> fst) ts)) r (last (r#rrs)) (concat spl)
 ) "
@@ -406,7 +406,7 @@ lemma leafs_range_rule:
   shows "<bplustree_assn_leafs k t ti r z lptrs >
 leafs_range ti x
 <\<lambda>p. (\<exists>\<^sub>A lptrs xs1 lptrs1 lptrs2.
-  inner_nodes_assn k t ti r z lptrs *
+  trunk_assn k t ti r z lptrs *
   leaf_nodes_assn k xs1 r p lptrs1 *
   leaf_nodes_assn k (abs_split_range.leafs_range t x) p z lptrs2 *
   \<up>(lptrs = lptrs1@lptrs2) *
@@ -873,7 +873,7 @@ definition concat_leafs_range where
   li \<leftarrow> !(the lp);
   case li of Btleaf xs nxt \<Rightarrow> do {
     arr_it \<leftarrow> imp_lrange_list x xs;
-    fla_it \<leftarrow> leaf_elements_adjust (nxt,None) arr_it;
+    fla_it \<leftarrow> leaf_values_adjust (nxt,None) arr_it;
     return fla_it
   }
 }"
@@ -900,7 +900,7 @@ next
   qed
 qed
 
-lemmas leaf_elements_adjust_rule = tree_iter.flatten_it_adjust_rule
+lemmas leaf_values_adjust_rule = leaf_values_iter.flatten_it_adjust_rule
 
 lemma concat_leafs_range_rule_help:
   assumes "k > 0" "root_order k t" "sorted_less (leaves t)" "Laligned t u"
@@ -959,9 +959,9 @@ proof(goal_cases)
       apply(rule norm_pre_ex_rule)+
       subgoal for ksia ksin it ps2 ps1
       supply R = fi_rule[
-            OF leaf_elements_adjust_rule,
+            OF leaf_values_adjust_rule,
             where F="list_assn leaf_node (leaf_nodes t) (leaf_lists t) *
-                     inner_nodes_assn k t ti r None (lptrs1 @ r' # lptrs2') *
+                     trunk_assn k t ti r None (lptrs1 @ r' # lptrs2') *
                      true"]
         thm R
         supply R' = R[of _ k "map leaves xs1" ps1 "map leaves list" ps2 "(ksia,ksin)"
