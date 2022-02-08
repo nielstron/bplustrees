@@ -1109,7 +1109,6 @@ lemma assumes "vs \<noteq> [] shows
   leaf_elements_next it
   <\<lambda>(a, it'). tree_iter k t ti r (tl vs) it' * \<up> (a = hd vs)>\<^sub>t"
 
-
 lemma 
   "<tree_iter k t ti r vs it>
   leaf_elements_has_next it
