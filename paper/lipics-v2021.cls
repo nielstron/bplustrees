@@ -149,7 +149,6 @@
       \ifx\@EventLongTitle\@empty\else\@EventLongTitle.\\\fi
       \ifx\@EventEditors\@empty\else
         \@Eds: \@EventEditors
-        ; Article~No.\,\@ArticleNo; pp.\,\@ArticleNo:\thepage--\@ArticleNo:\number\numexpr\getpagerefnumber{TotPages}%
         \\
       \fi
       \setbox\@tempboxa\hbox{\IfFileExists{lipics-logo-bw.pdf}{\includegraphics[height=14\p@,trim=0 15 0 0]{lipics-logo-bw}}{\includegraphics[height=14\p@, width=62pt]{example-image-plain}}}%
