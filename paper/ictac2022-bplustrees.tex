@@ -362,7 +362,7 @@ between leaf pointers.
 The above outlined steps are performed via manual refinement in Imperative HOL \cite{DBLP:conf/tphol/BulwahnKHEM08}.
 We build on the library of verified imperative utilities
 provided by the Separation Logic Framework \cite{DBLP:journals/afp/LammichM12}
-and the verification of B-Trees \cite{DBLP:journals/afp/Mundler21},
+and the verification of B-trees \cite{DBLP:journals/afp/Mundler21},
 namely list interfaces and partially filled arrays.
 The implementation is defined with respect to an abstract imperative
 operation for node-internal navigation.
@@ -613,7 +613,7 @@ Thus we obtain imperative code that makes use of an efficient
 binary search, without adding complexity to the proofs.
 The definition and implementation closely follows
 the approach described in detail in the
-verification of B-Trees \cite{DBLP:journals/afp/Mundler21}.
+verification of B-trees \cite{DBLP:journals/afp/Mundler21}.
 % TODO copy from BSc. Thesis?
 
 
@@ -666,7 +666,7 @@ We argue that recursing into a specific subtree
 is equivalent to splitting this list at the correct position
 and searching in the correct sublist.
 The same approach was applicable for proving the correctnes of functional
-operations on B-Trees \cite{DBLP:journals/afp/Mundler21}.
+operations on B-trees \cite{DBLP:journals/afp/Mundler21}.
 
 The proofs on the functional level can therefore be made concise.
 We go on and define an imperative version of the operation that
@@ -1184,7 +1184,7 @@ regarding the actual refinement on the imperative level.
 }
 \footnotetext[4]{
     6 months include the preceding work on the verification
-    of simple B-Trees.
+    of simple B-trees.
     As they share much of the functionality with \btrees\ 
     but required their own specifics,
     the time spent on them cannot be accounted for 1:1.
