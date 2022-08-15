@@ -189,7 +189,7 @@ Tobias Nipkow\inst{2}\orcidID{0000-0003-0730-515X}}
 \institute{Department of Computer Science, ETH Zurich, Switzerland
 \email{nmuendler@ethz.ch} \and
 Department of Informatics, Technical University of Munich, Germany
-\email{nipkow@in.tum.de}}
+\url{https://in.tum.de/~nipkow/}}
 %
 %
 %
@@ -247,6 +247,7 @@ and present how we dealt with the resulting technical verification challenges.
 
 
 \section{Contributions}
+\label{sec:contributions}
 
 In this work, we specify the \btree\ data structure in the
 functional modeling language higher-order logic (HOL).
@@ -264,8 +265,9 @@ but inefficient code.
 \end{itemize}
 
 The remainder of the paper is structured as follows.
-In \cref{sec:introduction}, we present a brief overview on related
-work and introduce the definition of \btree\ used in our approach.
+In \cref{sec:related_work}, we present a brief overview on related
+work.
+The definition of \btree\ and our approach is introduced in \cref{sec:approach}.
 In \cref{sec:set,sec:range},
 we refine a functionally correct, abstract specification of
 point, insertion and range queries as well as iterators
@@ -279,7 +281,7 @@ is accessible via GitHub\footnote{\url{https://github.com/nielstron/bplustrees}}
 \subsection{Related Work}
 \label{sec:related_work}
 
-There exist two pen and paper proofs via a rigorous formal approach.
+There exist two pen and paper verifications of \btree\ implementations via a rigorous formal approach.
 Fielding \cite{Fielding80} uses gradual refinement of abstract
 implementations.
 Sexton and Thielecke \cite{DBLP:journals/entcs/SextonT08} show how to use 
@@ -306,7 +308,7 @@ Both works use recursively defined shape predicates
 that describe formally how the nodes and pointers
 represent an abstract tree of finite height.
 The result is both a fairly abstract specification of a \btree,
-that leaves some design decisions to the impertive implementation,
+that leaves some design decisions to the imperative implementation,
 and an imperative implementation that supports
 iterators.
 
@@ -395,23 +397,13 @@ with \textit{a :: 'a}.
 \subsection{Definitions}
 \label{sec:data_structure_defs}
 
-% TODO shorten
-
-We first define an algebraic version of \btrees.
-Proofs about the correctness of operations and the preservation of invariants
-are only done on the abstract level, where they are much simpler
-and many implementation details can be disregarded.
-It will serve as a reference point for the efficient
-imperative implementation.
-
-The algebraic \btree\ is defined as follows:
+We first define an algebraic version of \btrees\ as follows:
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-def]
 datatype 'a bplustree =
     Leaf ('a list) |
     Node (('a bplustree \<times> 'a ) list) ('a bplustree)
 \end{lstlisting}
-
 
 \begin{figure}
     \centering
@@ -431,7 +423,7 @@ The leaves \emph{Leaf} [$v_1$, …, $v_n$] contain a list of \textit{values} $v_
 Separators are only used for navigation within the tree.
 The concatenation of lists of values of a tree $t$ yields
 all elements contained in the tree. We refer to this list as \emph{leaves t}.
-A \btree\ with above structure must fulfill the invariants
+A \btree\ with the above structure must fulfill the invariants
 \textit{balancedness}, \textit{order} and \textit{alignment}.
 
 \textit{Balancedness} requires
@@ -456,29 +448,36 @@ For the values within the leaves, \textit{sortedness} is required explicitly.
 We require the even stronger fact that \emph{leaves t} is sorted.
 This is a useful statement when arguing about the correctness of set operations.
 
-All of the four mentioned invariants are proven to be maintained by the abstract set operations.
-While these abstract operations already yields executable code,
-they are not translated into particularly efficient code.
+\subsection{Implementation Definitions}
+\label{sec:data_structure_imps}
 
-The efficient implementation of \btrees\ is defined
+Proofs about the correctness of operations
+with respect to implementing an abtract set interface and
+preserving these invariants
+are only done on the abstract level, where they are much simpler
+and many implementation details can be disregarded.
+It will serve as a reference point for the efficient
+imperative implementation.
+
+The more efficient executable implementation of \btrees\ is defined
 on the imperative level.
-Each imperative node contains pointers (\emph{ref}) rather than the full subtree.
+Each imperative node contains non-null pointers (\emph{ref}) rather than the algebraic subtree.
 We refine lists with partially filled arrays of capacity $2k$.
-A partially filled array $(a,i)$ with capacity $c$ is an array $a$ of fixed size $c$.
-Only the first $i$ elements are considered content of the array.
+A partially filled array $(a,n)$ with capacity $c$ is an array $a$ of fixed size $c$.
+The array consists of the elements at indices 0 to $n-1$.
+Element accesses beyond index $n$ are undefined.
 Unlike dynamic arrays, partially filled arrays are not expected to grow or shrink.
-This way, the data structures are refined to an imperative level,
-each imperative node contains the equivalent information to an abstract node.
+Each imperative node contains the equivalent information to an abstract node.
 The only addition is that leaves now also contain a pointer to another leaf,
 which will form a linked list over all leaves in the tree.
+This was not implemented in the algebraic version as it requires pointer aliasing.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-imp-def]
 datatype 'a btnode =
-  Btnode (('a btnode ref option \<times> 'a) pfarray) ('a btnode ref) |
-  Btleaf ('a pfarray) ('a btnode ref option)
+  Btleaf ('a pfarray) ('a btnode ref option) |
+  Btnode (('a btnode ref option \<times> 'a) pfarray) ('a btnode ref) 
 \end{lstlisting}
 
-It is possible to modify elements on the heap and share pointers with this setup.
 In order to use the algebraic data structure as a reference point,
 we introduce a refinement relation.
 The correctness of operations on the imperative node
@@ -499,50 +498,54 @@ The notation for separation logic in Isabelle is quickly summarized in the list 
     \item $\uparrow(P)$ holds if the heap is empty and predicate $P$ holds
     \item $a \mapsto_r x$ holds if the heap at location $a$ is reserved and contains
     value $x$
-    \item $\exists_A x.\ P\ x$ holds if there exists some $x$ such that $P x$
+    \item $\exists_A\ x.\ P\ x$ holds if there exists some $x$ such that $P x$
     holds on the heap.
     \item $P_1 * P_2$ denotes the separating conjunction and holds if each assertion $P_1$ and $P_2$ hold on non-overlapping parts
     of the heap
-    \item \emph{is\_pfa c xs xsi} expresses that $xsi$ is a partially filled array
-    with capacity $c$ that refines the list $xs$.
-    \item \emph{list\_assn P xs ys} expresses that \emph{P xs[i] ys[i]} holds for all $i \leq |xs| = |ys|$.
+    \item \emph{is\_pfa c xs xsi} holds if $xsi$ is a partially filled array
+    with capacity $c$ and \emph{xs[i] = xsi[i]} holds for all $i \leq |xs| = |xsi|$.
+    \item \emph{list\_assn R xs ys} holds if \emph{R xs[i] ys[i]} holds for all $i \leq |xs| = |ys|$.
 \end{itemize}
 % TODO introduce notation of sep logic
-Separation Logic formulae always express the state of some heap.
-The assertion $P$ describes all heaps for which the formula $P$ evaluates to true.
+Separation Logic formulae express assertions that can be made about the state of the heap.
+They are therefore just called \emph{assertion} in the following.
+The assertion $P$ describes all heaps for which the formula $P$ evaluates to \emph{true}.
 The entailment $P \Longrightarrow_A Q$ holds iff $Q$ holds in every heap in which $P$ holds.
-$P = Q$ holds iff $P \Longrightarrow_A Q \wedge Q \Longrightarrow P$.
-The formulas are usually used in the context of Hoare triples.
+For two assertions $P$ and $Q$, $P = Q$ holds iff $P \Longrightarrow_A Q \wedge Q \Longrightarrow_A P$.
+For proving imperative code correct, assertions are used in the context of Hoare triples.
 We write $<P> c <\lambda r.\ Q\ r>$ if, for any heap where $P$ holds, after executing
 imperative code $c$ that returns value $r$, formula $Q\ r$ holds on the resulting heap.
 $<P> c <\lambda r.\ Q\ r>_t$ is a shorthand for $<P> c <\lambda r.\ Q\ r * \mathit{true}>$
 More details can be found in the work of Lammich and Meis \cite{DBLP:journals/afp/LammichM12}.
 
-The assertion \emph{bplustree\_assn} expressing the refinement relation
- relates an algebraic tree (\emph{bplustree})
-and an imperative tree (\emph{btnode ref}), as well as the first and last leaf of the imperative tree.
+The assertion \emph{bplustree\_assn} expresses the refinement relation.
+It relates an algebraic tree (\emph{bplustree})
+and a non-null pointer to an imperative tree $a$ (\emph{btnode ref}), pinning its first leaf $r$ and the first leaf of the next sibling $z$.
 The formal relation is shown in \cref{fig:btree-assn}.
 
 \begin{figure}
    \centering 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-relation]
-fun bplustree_assn :: nat $\Rightarrow$ 'a bplustree $\Rightarrow$ 'a btnode ref $\Rightarrow$ 'a btnode ref $\Rightarrow$ 'a btnode ref
-    where
-  bplustree_assn k (LNode xs) a r z =
-  $\exists_A$ xsi fwd.  a $\mapsto_r$ Btleaf xsi fwd * is_pfa (2*k) xs xsi * $\uparrow$(fwd = z) * $\uparrow$(r = Some a)
-    | bplustree_assn k (Node ts t) a r z =
+fun bplustree_assn :: nat $\Rightarrow$ 'a bplustree $\Rightarrow$ 'a btnode ref
+      $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btnode ref option where
+      bplustree_assn k (Node ts t) a r z =
   $\exists_A$ tsi ti tsi' rs.
       a $\mapsto_r$ Btnode tsi ti
+      -- $\text{\emph{Obtain list with array contents for folding list\_assn}}$
     * is_pfa (2*k) tsi' tsi
     * $\uparrow$(length tsi' = length rs)
+      -- $\text{\emph{Recursively apply the assertion to subtree pointers}}$
     * list_assn (($\lambda$ t (ti,r',z'). bplustree_assn k t (the ti) r' z') $\times_a$ id_assn) ts (
+      -- $\text{\emph{Pointers to left/right sibling are obtained by offset zipping}}$
         zip (zip (map fst tsi') (zip (butlast (r#rs)) rs))) (map snd tsi')))
     * bplustree_assn k t ti (last (r#rs)) z)
+    | bplustree_assn k (Leaf xs) a r z =
+  $\exists_A$ xsi fwd.  a $\mapsto_r$ Btleaf xsi fwd * is_pfa (2*k) xs xsi * $\uparrow$(fwd = z) * $\uparrow$(r = Some a)
 \end{lstlisting}
     \caption[Assertion describing the imperative \btree]{
         The \btree\ is specified by the split factor $k$, an abstract tree,
-        a pointer to its root, a pointer to its first leaf and a pointer
-        to the first leaf of the next sibling.
+        a pointer to its root $a$, a pointer to its first leaf $r$ and a pointer
+        to the first leaf of the next sibling $z$.
         The pointers to first leaf and next first leaf are used
         to establish the linked leaves invariant.
     }
@@ -550,22 +553,21 @@ fun bplustree_assn :: nat $\Rightarrow$ 'a bplustree $\Rightarrow$ 'a btnode ref
 \end{figure}
 
 The main structural relationship between abstract and imperative tree
-is established by linking abstract list and array via the \textit{is\_pfa} predicate,
-and recursively linking the abstract subtrees and subtree pointers
-inside the \textit{list\_assn}.
+is established by linking abstract list and array via the \textit{is\_pfa} predicate.
+We then fold  over the two lists using \textit{list\_assn},
+which establishes a refinement relation for every pair of list elements.
 
-In addition to the refinement relation,
-the first and last leaf \textit{r} and \textit{z} are used to express the structural invariant
+In addition to the refinement of data structures,
+the first leaf $r$ and next leaf $z$ are used to express the structural invariant
 that the leaves are correctly linked.
 There is no abstract equivalent for the forwarding pointers in the leaves,
 therefore we only introduce and reason about their state on the imperative layer.
-The linking property is required for the iterator on the tree in \cref{sec:imperative_iter}.
-The structural invariant of correct linking is ensured
-by passing the first leaf of the right neighbor to each subtree.
+The invariant is ensured by passing the first leaf of the right neighbor to each subtree.
 The pointer is passed recursively to the leaf node,
 where it is compared to the actual pointer of the leaf.
 All of this happens in the convoluted \textit{list\_assn}, by
 folding over the list of the leaf pointer list \textit{rs} zipped with itself, offset by one.
+The linking property is required for the iterator on the tree in \cref{sec:imperative_iter}.
 
 
 
@@ -644,7 +646,7 @@ as described in \cref{sec:split}.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-def]
 fun isin:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ bool" where
-  isin (LNode ks) x = (isin_list x ks) |
+  isin (Leaf ks) x = (isin_list x ks) |
   isin (Node ts t) x = (case split ts x of
      (_,(sub,sep)#rs) $\Rightarrow$ isin sub x
    | (_,[]) $\Rightarrow$ isin t x
@@ -819,7 +821,7 @@ the statements can be separated using the separating conjunction.
 
 Formally, we define an assertion \emph{trunk\_assn} and \emph{leaf\_nodes\_assn}.
 The former is the same as \emph{bplustree\_assn} (see \cref{fig:btree-assn}),
-except that we remove all assertions about the content of the tree in the \emph{LNode} case.
+except that we remove all assertions about the content of the tree in the \emph{Leaf} case.
 The latter is defined similar to a linked list refining a list of abstract tree leaf nodes,
 shown in \cref{fig:leaf-nodes-assn}.
 The list is refined by a pointer to the head of the list,
@@ -838,7 +840,7 @@ lemma "bplustree_assn k t ti r z
     \centering
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:leaf-nodes-assn]
 fun leaf_nodes_assn where
-  "leaf_nodes_assn k ((LNode xs)#lns) (Some r) z =
+  "leaf_nodes_assn k ((Leaf xs)#lns) (Some r) z =
  (\<exists>$_A$ xsi fwd.
       r \<mapsto>$_r$ Btleaf xsi fwd
     * is_pfa (2*k) xs xsi
@@ -905,7 +907,7 @@ lemma bplustree_extract_fringe:
     \centering
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-assn-leaves]
 fun bplustree_assn_fringe where
-    bplustree_assn_fringe k (LNode xs) a r z fringe =
+    bplustree_assn_fringe k (Leaf xs) a r z fringe =
     $\exists_A$ xsi fwd.
         a $\mapsto_r$ Btleaf xsi fwd
       * is_pfa (2*k) xs xsi
@@ -942,7 +944,7 @@ fun bplustree_assn_fringe where
 Using the \emph{fringe}, we can precisely state an equivalent separated assertion.
 We describe the trunk with the assertion \emph{trunk\_assn},
 which is the same as \emph{bplustree\_assn\_fringe},
-except that the \emph{LNode} case is changed to only $\uparrow(r = \mathit{Some}\ a \wedge \mathit{fringe} = [a])$.
+except that the \emph{Leaf} case is changed to only $\uparrow(r = \mathit{Some}\ a \wedge \mathit{fringe} = [a])$.
 In addition, we extend the definition of \emph{leaf\_nodes\_assn}
 to take the \emph{fringe} pointers into account.
 We now require that the \emph{fringe} of the trunk is
@@ -1041,7 +1043,7 @@ As before, we assume that there exists a function \textit{lrange\_list} that
 obtains the \emph{lrange} from a list of sorted values.
 
 The \textit{has\_next} function in the iterator returns whether there are any remaining elements.
-We compare the current leaf with the last leaf of the tree.
+We compare the current leaf with the last leaf of the list.
 If the last leaf is a valid leaf node, and the linked list supposedly empty,
 we need to show that the linked leaf list is not cyclic.
 We avoid this proof obligation by requiring that the last leaf is a null pointer.
@@ -1077,7 +1079,7 @@ fun leaves_range:: 'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a bplustree list
   )
 
 fun concat_leaves_range where
-  concat_leaves_range t x = (case leaves_range t x of (LNode ks)#list $\Rightarrow$
+  concat_leaves_range t x = (case leaves_range t x of (Leaf ks)#list $\Rightarrow$
     lrange_list x ks @ (concat (map leaves list))
   )
 \end{lstlisting}
