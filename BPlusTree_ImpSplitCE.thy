@@ -103,14 +103,14 @@ lemma [code]:
            (\<lambda>li. case li of
                   Btleaf xs nxt \<Rightarrow>
                     bplustree_lrange_list x xs \<bind>
-                    (\<lambda>arr_it. leaf_elements_adjust (nxt, None) arr_it \<bind> return)))"
+                    (\<lambda>arr_it. leaf_values_adjust (nxt, None) arr_it \<bind> return)))"
   unfolding bplustree_lrange_list_def
   by (simp add: bplustree_imp_binary_split.concat_leafs_range_def)
 
-export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_elements_iter_init leaf_elements_next leaf_elements_has_next checking OCaml SML Scala
-export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in OCaml module_name BPlusTree
-export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in SML module_name BPlusTree
-export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_elements_iter_init leaf_elements_next leaf_elements_has_next in Scala module_name BPlusTree
+export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_values_init leaf_values_next leaf_values_has_next checking OCaml SML Scala
+export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_values_init leaf_values_next leaf_values_has_next in OCaml module_name BPlusTree
+export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_values_init leaf_values_next leaf_values_has_next in SML module_name BPlusTree
+export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_values_init leaf_values_next leaf_values_has_next in Scala module_name BPlusTree
 
 
 

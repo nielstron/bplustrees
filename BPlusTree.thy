@@ -433,7 +433,7 @@ next
     then show "l < x \<and> x \<le> u"
     proof (cases)
       case sub
-      then guess sub sep by auto 
+      then obtain sub sep where "(sub,sep) \<in> set ts" "x \<in> set (leaves sub)" by auto 
       then obtain l' where "aligned l' sub sep" "l' \<in> set (separators ts) \<union> {l}"
         using "2.prems"(1) \<open>(sub, sep) \<in> set ts\<close> align_sub by blast
       then have "\<forall>x \<in> set (leaves sub). l' < x \<and> x \<le> sep"
@@ -598,7 +598,7 @@ next
           by auto
       next
         case sub
-        then guess sub sep by auto 
+        then obtain sub sep where "(sub,sep) \<in> set ts'" "x \<in> set (leaves sub)" by auto 
         then obtain l' where "aligned l' sub sep" "l' \<in> set (separators ts') \<union> {b}"
           using "2.prems" Lalign_sub h_split local.Cons by blast
         then have "\<forall>x \<in> set (leaves sub). l' < x \<and> x \<le> sep"

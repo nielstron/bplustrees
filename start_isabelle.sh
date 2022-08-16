@@ -1,4 +1,4 @@
 #! /bin/bash
 
-isabelle components -u $HOME/bin/Isabelle2021/afp-2021-10-19/thys
-isabelle jedit -l Refine_Imperative_HOL
+isabelle components -u $HOME/Isabelle/afp-current/afp-2022-08-15/thys
+isabelle jedit -l Refine_Imperative_HOL BPlusTree.thy

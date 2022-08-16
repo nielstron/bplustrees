@@ -591,7 +591,7 @@ list_assn ((\<lambda>t (ti, x, xa, y). trunk_assn k t (the ti) x xa y) \<times>\
   apply(cases splits)
   subgoal
     apply (sep_auto simp add: last.simps)
-    apply (metis (mono_tags, hide_lams) trunk_assn_hd_aux pure_assn_eq_conv)
+    apply (metis (mono_tags, opaque_lifting) trunk_assn_hd_aux pure_assn_eq_conv)
     done
   subgoal
   apply(cases tss; cases rss; cases tsi's)
@@ -623,7 +623,7 @@ list_assn ((\<lambda>t (ti, x, xa, y). bplustree_assn_leafs k t (the ti) x xa y)
   apply(cases splits)
   subgoal
     apply (sep_auto simp add: last.simps)
-    apply (metis (mono_tags, hide_lams) bplustree_assn_leafs_hd_aux pure_assn_eq_conv)
+    apply (metis (mono_tags, opaque_lifting) bplustree_assn_leafs_hd_aux pure_assn_eq_conv)
     done
   subgoal
   apply(cases tss; cases rss; cases tsi's)

@@ -55,7 +55,7 @@ proof (goal_cases)
       case (Cons x xs y ys z zs w ws)
       then have "concat ws = concat xs"
         apply simp
-        by (metis (no_types, hide_lams) ab_semigroup_mult_class.mult.left_commute star_assoc)
+        by (metis (no_types, opaque_lifting) ab_semigroup_mult_class.mult.left_commute star_assoc)
       moreover have "x = w"
         using "Cons.prems" preciseD[OF inner_list.precise, where h="(aa,b)"]
         apply(simp)

@@ -26,7 +26,7 @@ lemma sorted_leq_lrange: "sorted_wrt (\<le>) xs \<Longrightarrow> lrange_list (l
   by (metis dual_order.trans filter_True)
 
 lemma sorted_less_lrange: "sorted_less xs \<Longrightarrow> lrange_list (l::'a::linorder) xs = lrange_filter l xs"
-  by (metis sorted_leq_lrange sorted_sorted_wrt strict_sorted_iff strict_sorted_sorted_wrt)
+  by (simp add: sorted_leq_lrange strict_sorted_iff)
 
 lemma lrange_list_sorted: "sorted_less (xs@x#ys) \<Longrightarrow>
   lrange_list l (xs@x#ys) =

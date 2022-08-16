@@ -15,7 +15,7 @@ lemma insert_list_length[simp]:
   shows "length (insert_list k ks) = length ks + (if k \<in> set ks then 0 else 1)"
 proof -
   have "distinct (insert_list k ks)"
-    by (metis assms(1,3) strict_sorted_iff strict_sorted_sorted_wrt)
+    using assms(1) assms(3) strict_sorted_iff by blast
   then have "length (insert_list k ks) = card (set (insert_list k ks))"
     by (simp add: distinct_card)
   also have "\<dots> = card (set ks \<union> {k})"
@@ -23,7 +23,7 @@ proof -
   also have "\<dots> = card (set ks) + (if k \<in> set ks then 0 else 1)"
     by (cases "k \<in> set ks") (auto simp add: insert_absorb)
   also have "\<dots> = length ks + (if k \<in> set ks then 0 else 1)"
-    by (metis assms(1) distinct_card strict_sorted_iff strict_sorted_sorted_wrt)
+    using assms(1) distinct_card strict_sorted_iff by auto
   finally show ?thesis.
 qed
 
@@ -34,7 +34,7 @@ lemma delete_list_length[simp]:
   shows "length (delete_list k ks) = length ks - (if k \<in> set ks then 1 else 0)"
 proof -
   have "distinct (delete_list k ks)"
-    by (metis assms(1,3) strict_sorted_iff strict_sorted_sorted_wrt)
+    using assms(1) assms(3) strict_sorted_iff by blast
   then have "length (delete_list k ks) = card (set (delete_list k ks))"
     by (simp add: distinct_card)
   also have "\<dots> = card (set ks - {k})"
@@ -42,7 +42,7 @@ proof -
   also have "\<dots> = card (set ks) - (if k \<in> set ks then 1 else 0)"
     by (cases "k \<in> set ks") (auto)
   also have "\<dots> = length ks - (if k \<in> set ks then 1 else 0)"
-    by (metis assms(1) distinct_card strict_sorted_iff strict_sorted_sorted_wrt)
+    by (metis assms(1) distinct_card strict_sorted_iff)
   finally show ?thesis.
 qed
 
@@ -2467,7 +2467,7 @@ lemma Laligned_subst_last_merge: "Laligned (Node (ts'@[(sub', sep'),(sub,sep)]) 
   Laligned (Node (ts'@[(sub', sep')]) t') u" 
   apply (induction ts')
   apply auto
-  by (metis (no_types, hide_lams) Node_merge_aligned aligned.simps(2) aligned_split_left inbetween.simps(1))
+  by (metis (no_types, opaque_lifting) Node_merge_aligned aligned.simps(2) aligned_split_left inbetween.simps(1))
 
 lemma Laligned_subst_last_merge_two: "Laligned (Node (ts@[(sub',sep'),(sub,sep)]) t) u \<Longrightarrow> aligned sep' lt a \<Longrightarrow> aligned a rt u \<Longrightarrow> Laligned (Node (ts@[(sub',sep'),(lt,a)]) rt) u" 
   apply(induction ts)

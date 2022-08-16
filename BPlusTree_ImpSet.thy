@@ -333,9 +333,8 @@ definition insert :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref \<Rightar
 
 lemma take_butlast_prepend: "take n (butlast (r # pointers)) =
        butlast (r # take n pointers)"
-  apply(cases pointers)
-  subgoal by auto[]
-  by (smt (verit, del_insts) One_nat_def Suc_to_right length_Cons length_butlast length_take min_eq_arg(2) nat_le_linear take_Suc_Cons take_butlast_conv take_take)
+  apply (cases "length pointers > n")
+  by (simp_all add: butlast_take take_Cons' take_butlast)
 
 lemma take_butlast_append: "take n (butlast (xs @ x # ys)) =
        take n (xs @ (butlast (x#ys)))"
@@ -362,6 +361,20 @@ qed
 lemma "BPlusTree_Split.split_half ts = (ls,rs) \<Longrightarrow> length ls = Suc (length ts) div 2"
   by (metis Suc_eq_plus1 split_half_conc)
 
+lemma take_half_less: "take (Suc (length ts) div 2) ts = ls @ [(sub, sep)] \<Longrightarrow> length ls < length ts"
+proof -
+  assume " take (Suc (length ts) div 2) ts = ls @ [(sub, sep)]"
+  then have "ts \<noteq> []"
+    by force
+  then have "Suc (length ts) div 2 \<le> length ts"
+    by linarith
+  then have "length (take (Suc (length ts) div 2) ts) \<le> length ts" 
+    by simp
+  moreover have "length ls < length (take (Suc (length ts) div 2) ts)"
+    by (simp add: \<open>take (Suc (length ts) div 2) ts = ls @ [(sub, sep)]\<close>)
+  ultimately show "length ls < length ts"
+    by linarith
+qed
 
 declare abs_split_set.node\<^sub>i.simps [simp add]
 declare last.simps[simp del] butlast.simps[simp del]
@@ -421,10 +434,7 @@ next
       thm R
       apply(subst R)
       subgoal
-          using assms(3,4) apply(auto dest!: mod_starD  list_assn_len     
-          simp add: list_assn_prod_map id_assn_list_alt)
-          apply (metis One_nat_def Suc_eq_plus1 length_Cons length_append length_take list.size(3) min_less_self_conv(2) not_less_eq trans_less_add1)
-          done
+        by (meson take_half_less)
      supply R=list_assn_append_Cons_left[where xs="take (length ls) ts" and ys="drop (Suc (length ls)) ts" and x="ts ! (length ls)"]
       thm R
       apply(subst R)
@@ -474,7 +484,7 @@ next
         proof (goal_cases)
         case 1
         have "length ls < length tsi''"
-          using assms(3,4) "1"(11) by auto
+          using assms(3,4) "1" by auto
         moreover have "subinext = snd (snd (fst (tsi'' ! length ls)))"
           using 1 calculation by force
         ultimately have "subinext = map snd (map snd (map fst tsi'')) ! length ls"
@@ -482,7 +492,7 @@ next
         then show ?case
           using assms(3,4) by auto
       qed
-          subgoal apply(auto dest!: mod_starD  list_assn_len)     
+          subgoal  apply(auto dest!: mod_starD  list_assn_len)
         proof (goal_cases)
           case 1 
           then have "length ls  < length ts"
@@ -506,7 +516,8 @@ next
           also have "\<dots> = length ts"
             by (simp add: 1)
           finally show ?case 
-            by (metis 1 div2_Suc_Suc length_append_singleton length_take)
+            using 1
+            by (metis Suc_eq_plus1 abs_split_set.length_take_left div2_Suc_Suc length_append length_append_singleton numeral_2_eq_2)
         qed
     apply(subgoal_tac "length ts = length tsi''")
         prefer 2 subgoal using assms(3,4) by (auto dest!: mod_starD  list_assn_len)     
@@ -531,7 +542,7 @@ next
             "snd (tsi'' ! length tsi''l) = snd (tsi' ! length tsi''l)"
           using assms(4) by auto
         then show ?case
-          by (simp add: "1"(4) \<open>tsi'' ! length tsi''l = ((subi'', subir, subinext), sepi'')\<close>)
+          by (simp add: "1" \<open>tsi'' ! length tsi''l = ((subi'', subir, subinext), sepi'')\<close>)
         case 2
         then show ?case
           by (metis \<open>snd (tsi'' ! length tsi''l) = snd (tsi' ! length tsi''l)\<close> \<open>tsi'' ! length tsi''l = ((subi'', subir, subinext), sepi'')\<close> snd_conv)
@@ -548,10 +559,10 @@ next
         moreover have "map fst (map snd (map fst tsi'')) = butlast (r#pointers)"
           using assms(3,4) by auto
         moreover have "(last (r#take (length ls) pointers)) = butlast (r#pointers) ! (length tsi''l)"
-          by (smt (z3) "1"(10) "1"(11) One_nat_def Suc_eq_plus1 Suc_to_right abs_split_set.length_take_left append_butlast_last_id div_le_dividend le_add2 length_butlast length_ge_1_conv length_take lessI list.size(4) min_eq_arg(2) nth_append_length nth_take nz_le_conv_less take_Suc_Cons take_butlast_conv)
+          by (smt (z3) "1" One_nat_def Suc_eq_plus1 Suc_to_right abs_split_set.length_take_left append_butlast_last_id div_le_dividend le_add2 length_butlast length_ge_1_conv length_take lessI list.size(4) min_eq_arg(2) nth_append_length nth_take nz_le_conv_less take_Suc_Cons take_butlast_conv)
         ultimately show ?case
           using 1 apply auto
-          by (metis (no_types, hide_lams) "1"(11) length_map map_map nth_append_length)
+          by (metis (no_types, opaque_lifting) 1 length_map map_map nth_append_length)
       qed
     apply(subgoal_tac "(last (subinext # drop (Suc (length tsi''l)) pointers)) = last (r#pointers)")
        prefer 2 subgoal
@@ -673,7 +684,7 @@ lemma zip_append_last: "length as = length bs \<Longrightarrow> zip (as@[a]) (bs
   by simp
 
 lemma pointers_append: "zip (z#as) (as@[a]) = zip (butlast (z#as)) as @ [(last (z#as),a)]"
-  by (metis (no_types, hide_lams) Suc_eq_plus1 append_butlast_last_id butlast_snoc length_Cons length_append_singleton length_butlast list.distinct(1) zip_append_last)
+  by (metis (no_types, opaque_lifting) Suc_eq_plus1 append_butlast_last_id butlast_snoc length_Cons length_append_singleton length_butlast list.distinct(1) zip_append_last)
 
 lemma node\<^sub>i_rule_app: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
     and "length tsi' = length pointers"
@@ -1132,7 +1143,7 @@ and tsi''="zip (zip (subtrees
                     have "?tsi'' ! ?i = ((fst (tsi'!?i), (r' # pointers) ! ?i, pointers ! ?i), snd (tsi' ! ?i))"
                       using pointer_zip_access 1 by fastforce
                     moreover have "?tsi'' ! ?i = ((suba, subleaf, subnext), sepa)"
-                      by (metis "1"(19) "1"(8) nth_append_length)
+                      by (metis "1" nth_append_length)
                     ultimately show ?thesis by simp
                   qed
                   ultimately show ?case using 1
@@ -1149,7 +1160,7 @@ and tsi''="zip (zip (subtrees
                     have "?tsi'' ! ?i = ((fst (tsi'!?i), (r' # pointers) ! ?i, pointers ! ?i), snd (tsi' ! ?i))"
                       using pointer_zip_access 1 by fastforce
                     moreover have "?tsi'' ! ?i = ((suba, subleaf, subnext), sepa)"
-                      by (metis "1"(19) "1"(8) nth_append_length)
+                      by (metis "1" nth_append_length)
                     ultimately have "(r'#pointers) ! ?i = subleaf"
                       by simp
                     then show ?thesis
@@ -1169,13 +1180,13 @@ and tsi''="zip (zip (subtrees
                     have "?tsi'' ! ?i = ((fst (tsi'!?i), (r' # pointers) ! ?i, pointers ! ?i), snd (tsi' ! ?i))"
                       using pointer_zip_access 1 by fastforce
                     moreover have "?tsi'' ! ?i = ((suba, subleaf, subnext), sepa)"
-                      by (metis "1"(19) "1"(8) nth_append_length)
+                      by (metis "1" nth_append_length)
                     ultimately show ?thesis by simp
                   qed
                   moreover have "drop (length lsi') pointers \<noteq> []"
-                    using "1"(3) by auto
+                    using "1" by auto
                   moreover have "pointers \<noteq> []"
-                    using "1"(3) by auto
+                    using "1" by auto
                   ultimately show ?case
                     apply(auto simp add: Cons_nth_drop_Suc  last.simps)
                     apply(auto simp add: last_conv_nth)
@@ -1637,7 +1648,7 @@ proof -
       subgoal using list_split Cons apply (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
         by (metis add_Suc_right length_Cons length_append length_take less_add_Suc1 min_eq_arg(2))
       prefer 2
-      subgoal by (smt (z3) assn_aci(10) ent_pure_pre_iff id_assn_list_alt list_split local.Cons return_cons_rule split_relation_access)
+      subgoal  by (simp add: list_split local.Cons split_relation_access)
       using list_split Cons apply (auto simp add: split_relation_alt list_assn_append_Cons_left split!: prod.splits list.splits dest!: mod_starD list_assn_len)
       done
   next
@@ -1653,7 +1664,7 @@ proof -
       subgoal using list_split Cons by (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
       apply vcg
       subgoal using list_split Cons by (auto simp add: split_relation_alt is_pfa_def split!: prod.splits list.splits dest!: mod_starD list_assn_len)
-      subgoal by (smt (z3) ent_pure_pre_iff fr_refl id_assn_list_alt list_split local.Cons split_relation_access)
+      subgoal by (simp add: list_split local.Cons split_relation_access)
       apply vcg
       using list_split Cons apply (auto simp add: split_relation_alt split!: prod.splits list.splits dest!: mod_starD list_assn_len)
     done
