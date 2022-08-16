@@ -254,7 +254,7 @@ functional modeling language higher-order logic (HOL).
 The tree is proven to refine a finite set of linearly ordered elements.
 All proofs are machine-checked in the Isabelle/HOL framework.
 Within the framework,
-the functional specification already yields automatic extraction of executable,
+the functional specifications already yield automatic extraction of executable,
 but inefficient code.
 
  The contributions of this work are as follows
@@ -276,7 +276,7 @@ Finally, we present learned lessons and evaluate the results
 in \cref{sec:conclusion}.
 
 The complete source code of the implementation referenced in this research
-is accessible via GitHub\footnote{\url{https://github.com/nielstron/bplustrees}}.
+is accessible via the Archive of Formal Proofs \cite{DBLP:journals/afp/Mundler21}.
 
 \subsection{Related Work}
 \label{sec:related_work}
@@ -333,12 +333,12 @@ by implementing an additional range query operation.
 The \btree\ is a ubiquitous data structure to efficiently retrieve and manipulate
 indexed data stored on storage devices with slow memory access \cite{DBLP:journals/csur/Comer79}.
 They are $k$-ary balanced search trees, where $k$ is a free parameter.
-We specify them as implementing a set interface,
-where all elements in the leaves comprise the content of an abstract set.
-The inner nodes only contain separators instead of the set content.
-These separators have the same type as the set content,
+We specify them as implementing a set interface on elements of type \emph{'a},
+where the elements in the leaves comprise the content of an abstract set.
+The inner nodes contain separators.
+These have the same type \emph{'a} as the set content,
 but are only used to guide the recursive navigation through the tree
-by bounding all set values in the neighboring subtrees.
+by bounding the elements in the neighboring subtrees.
 Further the leaves usually contain pointers
 to the next leaf, allowing for efficient iterators and range queries.
 A more formal and detailed outline of \btrees\ can be found in \cref{sec:data_structure_defs}.
@@ -415,12 +415,11 @@ datatype 'a bplustree =
 \end{figure}
 
 
-Every node \emph{Node} [($t_1$,$a_1$), …, ($t_n$,$a_n$)] $t_{n+1}$ contains an interleaved list of \textit{keys} $a_i$ and \textit{subtrees} $t_i$.
+Every node \emph{Node} [($t_1$,$a_1$), …, ($t_n$,$a_n$)] $t_{n+1}$ contains an interleaved list of \textit{keys} or \emph{separators} $a_i$ and \textit{subtrees} $t_i$.
 We write as $t_i$ the subtree to the left of $a_i$ and
 $t_{i+1}$ the subtree to the right of $a_i$.
 We refer to $t_{n+1}$ as the \textit{last} subtree.
 The leaves \emph{Leaf} [$v_1$, …, $v_n$] contain a list of \textit{values} $v_i$.
-Separators are only used for navigation within the tree.
 The concatenation of lists of values of a tree $t$ yields
 all elements contained in the tree. We refer to this list as \emph{leaves t}.
 A \btree\ with the above structure must fulfill the invariants
@@ -485,7 +484,7 @@ can then be shown by relating imperative input and output
 and to the abstract input and output of a correct abstract operation.
 In particular we want to show that if we assume \emph{R t $t_i$},
 where $R$ is the refinement relation and $t$ and $t_i$ are the abstract
-and the imperative version of the "same" tree,
+and the imperative version of the same conceptual tree,
 \emph{R o(t) $o_i$($t_i$)} should hold, where $o_i$ is the imperative refinement
 of operation $o$.
 The relation is expressed as a separation logic formula that links an abstract tree to its
@@ -513,9 +512,9 @@ The assertion $P$ describes all heaps for which the formula $P$ evaluates to \em
 The entailment $P \Longrightarrow_A Q$ holds iff $Q$ holds in every heap in which $P$ holds.
 For two assertions $P$ and $Q$, $P = Q$ holds iff $P \Longrightarrow_A Q \wedge Q \Longrightarrow_A P$.
 For proving imperative code correct, assertions are used in the context of Hoare triples.
-We write $<P> c <\lambda r.\ Q\ r>$ if, for any heap where $P$ holds, after executing
+We write $\langle P\rangle\ c\ \langle\lambda r.\ Q\ r\rangle$ if, for any heap where $P$ holds, after executing
 imperative code $c$ that returns value $r$, formula $Q\ r$ holds on the resulting heap.
-$<P> c <\lambda r.\ Q\ r>_t$ is a shorthand for $<P> c <\lambda r.\ Q\ r * \mathit{true}>$
+$\langle P\rangle\ c\ \langle\lambda r.\ Q\ r\rangle_t$ is a shorthand for $\langle P\rangle\ c\ \langle\lambda r.\ Q\ r * \mathit{true}\rangle$
 More details can be found in the work of Lammich and Meis \cite{DBLP:journals/afp/LammichM12}.
 
 The assertion \emph{bplustree\_assn} expresses the refinement relation.
@@ -584,17 +583,18 @@ However, \btrees\ are supposed to have memory page sized nodes \cite{DBLP:journa
 which makes a linear search impractical.
 
 We introduce a context (\emph{locale} in Isabelle) in which we assume that we
-have access to a function that correctly navigates through the node internal structure,
-indicating the correct follow up subtree for recursive calls.
+have access to a function that correctly navigates through the node internal structure.
+\emph{Correct} in this context meaning that the selected subtree for recursive calls
+will lead to the element we are looking for.
 We call this function \emph{split}, and define it only by its behavior.
-The specification for \emph{split} is given in \cref{fig:split-def}.
+The specification for \emph{split} is given in \cref{fig:split-def} (where \emph{'b = 'a bplustree $\times$ 'a}).
 A corresponding function \emph{split\_list} is defined on the separator-only lists in the leaf nodes.
 
 \begin{figure}
    \centering 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:split-def]
 locale split_tree =
-    fixes split ::  "('a bplustree \<times> 'a) list \<Rightarrow> 'a \<Rightarrow> (('a bplustree \<times> 'a) list 
+    fixes split ::  "'b list \<Rightarrow> 'a \<Rightarrow> 'b list \<times> 'b list
     "split xs p = (ls,rs) \<Longrightarrow> xs = ls @ rs" 
     "split xs p = (ls@[(sub,sep)],rs); sorted_less (separators xs) \<Longrightarrow> sep < p" 
     "split xs p = (ls,(sub,sep)#rs); sorted_less (separators xs) \<Longrightarrow> p \<le> sep" 
@@ -625,7 +625,7 @@ verification of B-trees \cite{DBLP:journals/afp/Mundler21}.
 \btrees\ refine sets on linearly ordered elements.
 For a tree $t$, the refined abstract set is computed as \emph{set (leaves t)}.
 The set interface requires that there should be query, insertion and deletion
-operations $o_t$ such that \emph{set (leaves ($o_t$ t)) = o (set (leaves t)}.
+operations $o_t$ such that \emph{set (leaves ($o_t$ t)) = o (set (leaves t))}.
 Moreover, the invariants described in \cref{sec:approach}
 can be assumed to hold for $t$ and are required for $o_t$.
 We provide these operations and show their correctness on the functional
@@ -663,7 +663,8 @@ theorem assumes "sorted_less (leaves t)" and "aligned l t u"
 
 In general, these proofs on the abstract level are 
 based on yet another refinement relation suggested by Nipkow~\cite{DBLP:conf/itp/Nipkow16}. 
-We say that the \btree\ $t$ refines a sorted list of its leaf values, \emph{leaves t}.
+We say that the \btree\ $t$ refines a sorted list of its leaf values, \emph{leaves t},
+the concatenated lists of values in leafs visited in in-order traversal of the tree.
 We argue that recursing into a specific subtree
 is equivalent to splitting this list at the correct position
 and searching in the correct sublist.
@@ -684,39 +685,41 @@ This is inevitable since the function would not terminate
 given cyclic trees.
 However, we will show that if the input refines an abstract tree,
 the function terminates and is correct.
-The imperative \emph{isin} refines each step of the abstract
+The imperative \emph{isin$_i$} refines each step of the abstract
 operation with an imperative equivalent.
 The result can be seen in \cref{fig:isin-imp-def}.
 
 \begin{figure}
     \centering
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-imp-def]
-partial_function (heap) isin :: "'a btnode ref $\Rightarrow$ 'a $\Rightarrow$  bool Heap" where
-  isin p x = do {
+partial_function (heap) isin$_i$ :: "'a btnode ref $\Rightarrow$ 'a $\Rightarrow$  bool Heap" where
+  isin$_i$ p x = do {
   node $\leftarrow$ !p;
   (case node of
-     Btleaf xs _ $\Rightarrow$ imp_isin_list x xs |
+     Btleaf xs _ $\Rightarrow$ isin_list$_i$ x xs |
      Btnode ts t $\Rightarrow$ do {
-       i $\leftarrow$ imp_split ts x;
+       i $\leftarrow$ split$_i$ ts x;
        tsl $\leftarrow$ length ts;
        if i < tsl then do {
          s $\leftarrow$ get ts i;
          let (sub,sep) = s in
-           isin (the sub) x
+           isin$_i$ (the sub) x
        } else
-           isin t x
+           isin$_i$ t x
     }
 )}
 \end{lstlisting}
-\caption[Definition of imperative \emph{isin}]{
-    The imperative definition of the \emph{isin} function.
+\caption[Definition of \emph{isin$_i$}]{
+    The imperative refinement of the \emph{isin} function.
+    As a partial function, its termination is not guaranteed for all inputs.
+    Additionally it implicitly makes use of the heap monad.
 }
 \label{fig:isin-imp-def}
 \end{figure}
 
-Again, we assume that \emph{imp\_split} performs the correct node internal search
+Again, we assume that \emph{split$_i$} performs the correct node internal search
 and refines an abstract \emph{split}.
-Note how \emph{imp\_split} does not actually split
+Note how \emph{split$_i$} does not actually split
 the internal array, but rather returns the index of the pair
 that would have been returned by the abstract split function.
 The pattern matching against an empty list
@@ -731,9 +734,9 @@ This is expressed in Hoare triple notation and separation logic.
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:isin-refines]
 lemma assumes "k > 0" and "root_order k t" and "sorted_less (inorder t)"
    and "sorted_less (leaves t)" shows
-   "<bplustree_assn k t ti r z>
-     isin ti x
-   <$\lambda$y. bplustree_assn k t ti r z * $\uparrow$(isin t x = y)>$_t$"
+   "\<langle>bplustree_assn k t ti r z\<rangle>
+     isin$_i$ ti x
+   \<langle>$\lambda$y. bplustree_assn k t ti r z * $\uparrow$(isin t x = y)\<rangle>$_t$"
 \end{lstlisting}
 
 The proof follows inductively on the structure of the abstract tree.
@@ -766,9 +769,9 @@ to the shared pointers.
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:insert-refines]
 lemma assumes "k > 0" and "sorted_less (inorder t)"
     and "sorted_less (leaves t)" and "root_order k t" shows
-    "<bplustree_assn k t ti r z>
-    imp_insert k x ti
-    <\<lambda>u. bplustree_assn k (insert k x t) u r z>$_t$"
+    "\<langle>bplustree_assn k t ti r z\<rangle>
+    insert$_i$ k x ti
+    \<langle>\<lambda>u. bplustree_assn k (insert k x t) u r z\<rangle>$_t$"
 \end{lstlisting}
   
 
@@ -799,15 +802,15 @@ to obtain an efficient implementation.
 \label{sec:imperative_iter}
 
 To obtain an iterator, recurse down the tree to obtain the first leaf.
-From there we follow leaf
-pointers along the fringe of the tree until we reach the final leaf marked by a null forwarding pointer.
+From there we follow leaf pointers until we reach the final leaf marked by a null forwarding pointer.
 From an assertion perspective the situation is more complex.
+Recall the refinement relation between abstract and implemented \btree.
 It is important to find an explicit formulation of the linked list view on the leaf pointers.
-Meanwhile, we want to maintain enough information about the remainder of the tree
-to be able to state that the complete tree does not change by iterating through the leaves.
+Meanwhile, we want to ensure that the complete tree does not change by iterating through the leaves.
 We cannot express an assertion about the linked list along the leaves
-and the assertion on the whole tree in two independent predicates,
-as separation logic forces us to not make statements about the contents of
+and the assertion on the whole tree in two fully independent predicates
+as the memory described overlaps.
+Separation logic forces us to not make statements about the contents of
 any memory location twice.
 
 We follow the approach of Malecha \emph{et al.} \cite{DBLP:conf/popl/MalechaMSW10} and
@@ -818,6 +821,19 @@ express that the linked leaf nodes refine \emph{leaf\_nodes t}
 and that the inner nodes refine \emph{trunk t}, as depicted in \cref{fig:btree-view-split}.
 These are two independent parts of the heap and therefore
 the statements can be separated using the separating conjunction.
+
+% TODO graphic explaining the issue
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{btree-view-split.pdf}
+    \caption[Split view of the \btree]
+    {In order to obtain separate assertions about the concatenated leaf list (\emph{leaf\_nodes})
+    and the internal nodes (\emph{trunk}) of the tree, the structure is abstractly split along the
+    pointers marked in red, the \emph{fringe}. In order to be able to combine the \emph{leaf\_nodes} and the \emph{trunk} together,
+    the \emph{fringe} has to be extracted and shared explicitly.}
+    \label{fig:btree-view-split}
+\end{figure}
+
 
 Formally, we define an assertion \emph{trunk\_assn} and \emph{leaf\_nodes\_assn}.
 The former is the same as \emph{bplustree\_assn} (see \cref{fig:btree-assn}),
@@ -863,18 +879,6 @@ The reason is that we cannot express that the linked leaf nodes
 are precisely the leaf nodes on the lowest level of the trunk, depicted
 in red in \cref{fig:btree-view-split}.
 
-% TODO graphic explaining the issue
-\begin{figure}
-    \centering
-    \includegraphics[width=1\linewidth]{btree-view-split.pdf}
-    \caption[Split view of the \btree]
-    {In order to obtain separate assertions about the concatenated leaf list (\emph{leaf\_nodes})
-    and the internal nodes (\emph{trunk}) of the tree, the structure is abstractly split along the
-    pointers marked in red, the \emph{fringe}. In order to be able to combine the \emph{leaf\_nodes} and the \emph{trunk} together,
-    the \emph{fringe} has to be extracted and shared explicitly.}
-    \label{fig:btree-view-split}
-\end{figure}
-
 The root of this problem is actually a feature of the refinement approach.
 When stating that a part of the heap
 refines some abstract data structure,
@@ -889,7 +893,7 @@ We need to specifically express that the leaf pointers,
 and not the abstract structure they refine,
 are precisely the same in the two statements.
 
-In a second attempt make the sharing explicit.
+In a second attempt, the sharing is made explicit.
 We extract from the whole tree the precise list of pointers to leaf nodes, the \emph{fringe}
 in the correct order.
 Recursively, the fringe of a tree is the concatenation of all fringes
@@ -913,27 +917,31 @@ fun bplustree_assn_fringe where
       * is_pfa (2*k) xs xsi
       * $\uparrow$(fwd = z)
       * $\uparrow$(r = Some a)
+      -- $\text{\emph{In case of a singleton leaf, the leaf itself is the fringe of the tree}}$
       * $\uparrow$(fringe = [a])
     |
     bplustree_assn_fringe k (Node ts t) a r z fringe =
-    $\exists_A$ tsi ti tsi' tsi'' rs split.
+    $\exists_A$ tsi ti tsi' tsi'' rs fr_sep.
         a $\mapsto_r$ Btnode tsi ti
-      * bplustree_assn_fringe k t ti (last (r#rs)) (last (rs@[z])) (last split)
       * is_pfa (2*k) tsi' tsi
-      * $\uparrow$(concat split = fringe)
       * $\uparrow$(length tsi' = length rs)
-      * $\uparrow$(length split = length rs + 1)
+      -- $\text{\emph{The fringe is decomposed into the fringe of each subtree}}$
+      * $\uparrow$(concat fr_sep = fringe)
+      * $\uparrow$(length fr_sep = length rs + 1)
+      -- $\text{\emph{Folding over all subtrees as before, now passing each subfringe to subtrees}}$
       * list_assn (
-          ($\lambda$ t (ti,r',z',fring). bplustree_assn_fringe k t (the ti) r' z' fring)
+          ($\lambda$ t (ti,r',z',fr). bplustree_assn_fringe k t (the ti) r' z' fr)
            $\times_a$ id_assn
         ) ts (zip 
-            (zip (map fst tsi') (zip (butlast (r#rs)) (zip rs (butlast split))))
+            (zip (map fst tsi') (zip (butlast (r#rs)) (zip rs (butlast fr_sep))))
             (map snd tsi')
         )
+      * bplustree_assn_fringe k t ti (last (r#rs)) (last (rs@[z])) (last fr_sep)
        
 \end{lstlisting}
     \caption[\btree\ assertion with extracted fringe]{
-        An extended version of the \btree\ assertion from \cref{fig:btree-assn}.
+        An extended version of the \btree\ assertion from \cref{fig:btree-assn} on imperative tree
+        root $a$, first leaf $r$, first leaf of the next sibling $z$ and leaf pointer list $fringe$.
         In order to be able to correctly relate leaf view and internal nodes,
         the shared pointers \emph{fringe} are made explicit, without accessing their memory location.
     }
@@ -963,15 +971,15 @@ the obtained result using the assertion about the complete tree.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-first-leaf]
 lemma assumes "k > 0" and "root_order k t" shows
-  "<bplustree_assn k t ti r z>
+  "\<langle>bplustree_assn k t ti r z\<rangle>
   first_leaf ti
-  <$\lambda$u. bplustree_assn k t ti r z * $\uparrow$(u = r)>$_t$"
+  \<langle>$\lambda$u. bplustree_assn k t ti r z * $\uparrow$(u = r)\<rangle>$_t$"
 \end{lstlisting}
 
 On the result, we can apply lemmas \hyperref[lst:btree-extract-fringe]{\emph{bplustree\_extract\_fringe}} 
 and \hyperref[lst:btree-view-split]{\emph{bplustree\_view\_split}}.
 The transformed expression states that
-the result of \emph{first\_leaf t} is a pointer to \emph{leaf\_nodes t}.
+the result of \emph{first\_leaf ti} is a pointer to \emph{leaf\_nodes t}.
 The tree root \emph{t} remains to refine \emph{trunk t}.
 
 From here, we could define an iterator over the leaf nodes
@@ -979,16 +987,13 @@ along the fringe, refining the abstract list \emph{leaf\_nodes}.
 Our final goal is to iterate over the values within each array inside the nodes.
 We introduce a flattening iterator for this purpose.
 It takes an outer iterator over a data structure \textit{a} that returns elements of type \textit{b},
-and inner iterator over the data structure \textit{b}.
-It returns an iterator over the concatenated list of elements.
-The exact implementation of this iterator is left out as a technical detail,
-and we can find an equivalent formulation of the leaf list and the list of arrays,
-which we call \emph{leaves\_assn}.
+and inner iterator over the data structure \textit{b} that returns elements of type \textit{c}.
+It returns an iterator over data structure \textit{a}
+that returns the concatenated list of elements of type \textit{c}.
+The exact implementation of this iterator is left out as a technical detail.
 
-We define an iterator on this list assertion.
-The list iterator interface used is as defined by Lammich \cite{DBLP:conf/itp/Lammich19}.
-The iterator stores the pointer to the next element to be returned from the list.
-The iterator interface requires some functionality.
+The list iterator interface used is as defined by Lammich \cite{DBLP:conf/itp/Lammich19}
+and specifies the following function.
 \begin{itemize}
     \item An \emph{init} function that returns the pointer to the head of the list.
     \item A \emph{has\_next} function that checks whether the current pointer is the null pointer.
@@ -996,20 +1001,30 @@ The iterator interface requires some functionality.
     \item Proofs that we can transform the \emph{leaves\_assn} statement into 
           a leaf iterator statement and vice versa.
 \end{itemize}
-We combine this iterator with the iterator over partially filled arrays
-in the flattening iterator and obtain an iterator over all leaf values \emph{leaf\_values\_iter}.
+We implement such an iterator for the linked list of leaf nodes \emph{leaf\_nodes\_iter}
+and combine it with the iterator over partially filled arrays
+using the flattening iterator to obtain the \emph{leaves\_iter}.
 
 Finally, we want be able to express that the whole tree does not change throughout the iteration.
 For this, we need to keep track of both the leaf nodes assertion and the trunk assertion on \emph{t}.
 The assertion describing the iterator therefore contains both.
-It also contains the fringe.
-Note how all notion of the explicitly shared leaf pointers
-has disappeared on this level, the client perspective,
-as their existence is hidden within the definition of the tree iterator.
+Most parameters to the iterator assertion are static, and express the context of the iterator,
+i.e. the full extent of the leaf nodes.
+The iterator state $it$ itself is a pair of an iterator state for a partial array,
+the current position in that array and its size,
+and a pointer to the next leaf and the final leaf.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-tree-iter]
+definition "bplustree_iter k t ti r vs it = \<exists>$_A$ fringe.
+  leaves_iter fringe k (leaf_nodes t) (leaves t) r vs it *
+  trunk_assn k t ti r None fringe"
+\end{lstlisting}
+
+Note how all notion of the explicitly shared fringe
+has disappeared from the client perspective
+as its existence is hidden within the definition of the tree iterator.
 We initialize the iterator using the \emph{first\_leaf} operation
 and obtain the singleton tree elements with the flattening iterator.
-
-
 
 
 \subsection{Range queries}
@@ -1017,14 +1032,12 @@ and obtain the singleton tree elements with the flattening iterator.
 
 A common use case of \btrees\ is
 to obtain all values within a range \cite{DBLP:journals/ftdb/Graefe11}.
-We focus on the range of values in the tree bounded only from below by $x$,
-denoted by \emph{lrange t x}.
-The operation is similar to the point query operation.
-On the leaf level, it returns a pointer to the
-reached leaf, that is interpreted as iterator on the list of linked leaves.
-The range bounded from below comprises all values returned by the iterator,
-the lower bound is its first element.
-Due to the lack of links on the abstract layer,
+We focus on the range bounded from below, \emph{lrange t x = $\{y \in set(t) | y \geq x\}$}.
+From an implementation perspective, the operation is similar to the point query operation.
+On the leaf level, it returns a pointer to the reached leaf.
+This pointer is then interpreted as iterator over the remaining list of linked leaves.
+The range bounded from below comprises all values returned by the iterator.
+Due to the lack of a linked leaf list in the abstract tree,
 the abstract definition explicitly concatenates all values in the subtrees 
 to the right of the reached node.
 
@@ -1033,7 +1046,7 @@ fun lrange:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a list" where
     lrange (Leaf ks) x = (lrange_list x ks) |
     lrange (Node ts t) x = (
         case split ts x of (_,(sub,sep)#rs) $\Rightarrow$ (
-               lrange sub x @ leaves_list rs @ leaves t
+               lrange sub x @ (concat (map leaves rs)) @ leaves t
         )
      | (_,[]) $\Rightarrow$ lrange t x
     )
@@ -1042,61 +1055,52 @@ fun lrange:: "'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a list" where
 As before, we assume that there exists a function \textit{lrange\_list} that
 obtains the \emph{lrange} from a list of sorted values.
 
-The \textit{has\_next} function in the iterator returns whether there are any remaining elements.
-We compare the current leaf with the last leaf of the list.
-If the last leaf is a valid leaf node, and the linked list supposedly empty,
-we need to show that the linked leaf list is not cyclic.
-We avoid this proof obligation by requiring that the last leaf is a null pointer.
+The verification of the imperative version turns out to be not as straightforward
+as expected, exactly due to this recursive step.
+The reason is that iterators can only be expressed on a complete tree,
+where the last leaf is explicitly a null pointer.
 The linked list of a subtree is however bounded by valid leaves,
 precisely the first leaf of the next subtree.
 
-Therefore we introduce an alternative formulation \emph{concat\_leaves\_range} of the
-abstract function, similar in thought to how we obtained the iterator
-on the list from the first leaf of the tree.
-In a first step, we obtain the list of leaf nodes \emph{leaves\_range} (not the contents of them)
-based on the recursive search through the tree.
-In a second step, we obtain the head of \emph{leaves\_range} and apply \emph{lrange\_list},
-to skip over the first values in the first array that are not part of the \emph{lrange}.
-The result is concatenated with the tail of \emph{leaves\_range}.
-
-On the imperative layer \emph{leaves\_range}
-can be obtained using only the \emph{leaf\_nodes} and \emph{trunk}
-assertions.
-Only when we have obtained the list of leaves for the whole tree,
-we transform the result into an iterator over the leaves.
-At this point, the list is terminated by a null pointer
-and we obtain an iterator with the existing definition.
+In order implement and verify a refinement of this function we therefore decide
+to implement an intermediate abstract function \emph{leaf\_nodes\_lrange}.
+This function returns the leaf nodes comprising the \emph{lrange} instead of their contents.
 
 \begin{minipage}{\linewidth}
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-leaves-range]
-fun leaves_range:: 'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a bplustree list where
-  leaves_range (Leaf ks) x = [Leaf ks] |
-  leaves_range (Node ts t) x = (
-      case split ts x of (_,(sub,sep)#rs) $\Rightarrow$ (
-             leaves_range sub x @ leaf_nodes_list rs @ leaf_nodes t
-      )
-   | (_,[]) $\Rightarrow$ leaves_range t x
-  )
+fun leaf_nodes_lrange:: 'a bplustree $\Rightarrow$ 'a $\Rightarrow$ 'a bplustree list where
+  leaf_nodes_lrange (Leaf ks) x = [Leaf ks] |
+  leaf_nodes_lrange (Node ts t) x = case split ts x of
+      (_,(sub,sep)#rs) $\Rightarrow$ 
+        leaf_nodes_lrange sub x @ concat (map leaf_nodes rs) @ leaf_nodes t
+    | (_,[]) $\Rightarrow$ leaf_nodes_lrange t x
+  
 
-fun concat_leaves_range where
-  concat_leaves_range t x = (case leaves_range t x of (Leaf ks)#list $\Rightarrow$
-    lrange_list x ks @ (concat (map leaves list))
-  )
+fun concat_leaf_nodes_lrange where
+  concat_leaf_nodes_lrange t x = case leaf_nodes_lrange t x of
+  (LNode ks)#list $\Rightarrow$ lrange_list x ks @ concat (map leaves list)
 \end{lstlisting}
 \end{minipage}
 
-Here, we apply the process of abstract refinement again.
-We first formulate \emph{concat\_leaves\_range} on the abstract layer
-and verify that it yields the same result as \emph{lrange}.
-Then we refine the approach to the imperative layer
-and can directly deduce that the approach yields the correct result.
+We then show that the concatenation of the contents of the leaf nodes
+\emph{concat\_leaf\_nodes\_lrange t x = lrange t x}.
+On the imperative layer \emph{leaf\_nodes\_lrange$_i$}
+can be obtained using only the \emph{leaf\_nodes} and \emph{trunk}
+assertions as we never access the contents of the leaf nodes.
+We therefore avoid having to unfold any assertions about the structure of the leaf nodes.
+The function returns a pointer that splits the list of leaf nodes of the whole tree,
+terminated by the null pointer that marks the end of the complete tree.
+We transform the result into an iterator over the leaf nodes,
+as this pointer split notation aligns with the definition of \emph{leaf\_nodes\_iter}.
+Finally we can transform this and the result of \emph{lrange\_list$_i$} to
+an iterator on the singleton leaf elements.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-leaves-range]
 lemma assumes "k > 0" and "root_order k t" 
     and "sorted_less (leaves t)" and "Laligned t u" shows 
- "<bplustree_assn k t ti r None>
-  imp_concat_leaves_range ti x
-  <tree_iter k t ti r (lrange t x)>$_t$"
+  "\<langle>bplustree_assn k t ti r None\<rangle>
+  concat_leaf_nodes_lrange$_i$ ti x
+  \<langle>bplustree_iter k t ti r (lrange t x)\<rangle>$_t$"
 \end{lstlisting}
 
 % TODO vis
@@ -1106,7 +1110,7 @@ lemma assumes "k > 0" and "root_order k t"
 \label{sec:conclusion}
 
 We were able to formally verify an imperative implementation
-of the ubiquitous \btree\ data structure, feauturing range queries and binary search.
+of the ubiquitous \btree\ data structure, featuring range queries and binary search.
 
 
 \subsection{Evaluation}
@@ -1125,7 +1129,7 @@ of the implementation with even more specialized and sophisticated implementatio
 Regarding the leaf iterator, we noticed that in the work of Malecha \emph{et al.}
 there is no need to extract the fringe explicitly.
 The abstract leaves are defined such that they store the precise heap location of the refining node.
-In our proposed definition, the precise heap location is irrelevant in almost every situation and can be omitted,
+In our proposed definition, the precise heap location is irrelevant in almost every situation and can be omitted.
 Only when splitting the tree we obtain the memory location
 of nodes explicitly, because these locations are needed to guarantee
 structual soundness of the whole tree.
@@ -1156,16 +1160,17 @@ implementation yields the challenge
 of making memory locations explicit where needed.
 On the other hand, it permits great freedom
 regarding the actual refinement on the imperative level.
+\renewcommand*{\thefootnote}{\fnsymbol{footnote}}
 
 \begin{figure}
     \centering
     \begin{tabular}{l|c|c|c}
-        \                & \cite{DBLP:conf/popl/MalechaMSW10}$^{+}$ & \cite{DBLP:journals/sosym/ErnstSR15}$^{d}$ & Our approach$^{+}$ \\
+        \                & Malecha \emph{et al.}\cite{DBLP:conf/popl/MalechaMSW10}$^{+}$ & \cite{DBLP:journals/sosym/ErnstSR15}$^{d}$ & Our approach$^{+}$ \\
         \hline
         Functional code &   360      & -                    & 413  \\ %TODO update
         Imperative code &   510      & 1862                  & 1093  \\
-        Proofs          &  5190      & 350 + 510 + 2940\footnotemark[3] & 8663 \\
-        Timeframe (months) &  -     & 6+                      & 6\footnotemark[4] + 6   \\
+        Proofs          &  5190      & 350 + 510 + 2940\footnotemark[1] & 8663 \\
+        Timeframe (months) &  ?     & $>6$                      & 6 + 6\footnotemark[2] \\
     \end{tabular}
     \caption[Comparison of (unoptimized) Lines of Code and Proof and time investment in related mechanized \btree\ verifications.]
     {Comparison of (unoptimized) Lines of Code and Proof and time investment in related mechanized \btree\ verifications.
@@ -1174,7 +1179,7 @@ regarding the actual refinement on the imperative level.
     }
     \label{fig:proof-comparison}
 \end{figure}
-\footnotetext[3]{
+\footnotetext[1]{
     The proof integrates TVLA and KIV, and hence comprises
     explicitly added rules for TVLA (the first number),
     user-invented theorems in KIV (the second number)
@@ -1184,13 +1189,29 @@ regarding the actual refinement on the imperative level.
     We hence interpret them as each one apply-Style command and hence
     one line of proof.
 }
-\footnotetext[4]{
+\footnotetext[2]{
     6 months include the preceding work on the verification
-    of simple B-trees.
+    of B-trees.
     As they share much of the functionality with \btrees\ 
     but required their own specifics,
     the time spent on them cannot be accounted for 1:1.
 }
+
+
+\renewcommand*{\thefootnote}{\arabic{footnote}}
+\subsection{Outlook}
+
+This research may serve as a template for the implementation of \btrees\
+in Isabelle-LLVM. \cite{DBLP:conf/itp/Lammich19}
+At the beginning of this work, the code generator did
+not yet support recursive data structures, but
+this functionality was added recently.
+
+As of now, the imperative implementation provided by this research was
+directly exported into executable imperative code in Haskell, SML and OCaml.
+It may thus find applications in the development of
+libraries where a verified implementation of a set interface is needed.
+
 
 % \subsection{Future Work}
 
