@@ -56,7 +56,7 @@ locale split_range = split_tree split
 begin
 
 fun lrange:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a list" where
-  "lrange (LNode ks) x = (lrange_list x ks)" |
+  "lrange (Leaf ks) x = (lrange_list x ks)" |
   "lrange (Node ts t) x = (
       case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
              lrange sub x @ leaves_list rs @ leaves t
@@ -211,13 +211,13 @@ qed
 text "Now the alternative explanation that first obtains the correct leaf node
 and in a second step obtains the correct element from the leaf node."
 
-fun leafs_range:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a bplustree list" where
-  "leafs_range (LNode ks) x = [LNode ks]" |
-  "leafs_range (Node ts t) x = (
+fun leaf_nodes_lrange:: "'a bplustree \<Rightarrow> 'a \<Rightarrow> 'a bplustree list" where
+  "leaf_nodes_lrange (Leaf ks) x = [Leaf ks]" |
+  "leaf_nodes_lrange (Node ts t) x = (
       case split ts x of (_,(sub,sep)#rs) \<Rightarrow> (
-             leafs_range sub x @ leaf_nodes_list rs @ leaf_nodes t
+             leaf_nodes_lrange sub x @ leaf_nodes_list rs @ leaf_nodes t
       ) 
-   | (_,[]) \<Rightarrow> leafs_range t x
+   | (_,[]) \<Rightarrow> leaf_nodes_lrange t x
   )"
 
 text "lrange proof"
@@ -231,10 +231,10 @@ lemma concat_leaf_nodes_leaves_list: "(concat (map leaves (leaf_nodes_list ts)))
   subgoal using concat_leaf_nodes_leaves by auto
   done
 
-theorem leafs_range_set: 
+theorem leaf_nodes_lrange_set: 
   assumes "sorted_less (leaves t)"
     and "aligned l t u"
-  shows "suffix (lrange_filter x (leaves t)) (concat (map leaves (leafs_range t x)))"
+  shows "suffix (lrange_filter x (leaves t)) (concat (map leaves (leaf_nodes_lrange t x)))"
   using assms
 proof(induction t x arbitrary: l u rule: lrange.induct)
   case (1 ks x)
@@ -250,30 +250,30 @@ next
   show ?case
   proof (cases rs)
     case Nil
-    then have *: "leafs_range (Node ts t) x = leafs_range t x"
+    then have *: "leaf_nodes_lrange (Node ts t) x = leaf_nodes_lrange t x"
       by (simp add: list_split)
-    moreover have "suffix (lrange_filter x (leaves t)) (concat (map leaves (leafs_range t x)))"
+    moreover have "suffix (lrange_filter x (leaves t)) (concat (map leaves (leaf_nodes_lrange t x)))"
       by (metis "2.IH"(1) "2.prems"(1) "2.prems"(2) align_last' list_split local.Nil sorted_leaves_induct_last)
-    then have "suffix (lrange_filter x (leaves (Node ts t))) (concat (map leaves (leafs_range t x)))"
+    then have "suffix (lrange_filter x (leaves (Node ts t))) (concat (map leaves (leaf_nodes_lrange t x)))"
       by (metis "2.prems"(1) "2.prems"(2) aligned_imp_Laligned leaves.simps(2) list_conc list_split local.Nil lrange_sorted_split same_append_eq self_append_conv split_tree.leaves_split split_tree_axioms)
     ultimately show ?thesis by simp
   next
     case (Cons a list)
     then obtain sub sep where a_split: "a = (sub,sep)"
       by (cases a)
-      then have "leafs_range (Node ts t) x = leafs_range sub x @ leaf_nodes_list list @ leaf_nodes t"
+      then have "leaf_nodes_lrange (Node ts t) x = leaf_nodes_lrange sub x @ leaf_nodes_list list @ leaf_nodes t"
         using list_split Cons a_split
         by auto
-      moreover have *: "suffix (lrange_filter x (leaves sub)) (concat (map leaves (leafs_range sub x)))"
+      moreover have *: "suffix (lrange_filter x (leaves sub)) (concat (map leaves (leaf_nodes_lrange sub x)))"
         by (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) a_split align_sub in_set_conv_decomp list_conc list_split local.Cons sorted_leaves_induct_subtree)
-      then have "suffix (lrange_filter x (leaves (Node ts t))) (concat (map leaves (leafs_range sub x @ leaf_nodes_list list @ leaf_nodes t)))"
+      then have "suffix (lrange_filter x (leaves (Node ts t))) (concat (map leaves (leaf_nodes_lrange sub x @ leaf_nodes_list list @ leaf_nodes t)))"
       proof (goal_cases)
         case 1
         have "lrange_filter x (leaves (Node ts t)) = lrange_filter x (leaves sub @ leaves_list list @ leaves t)" 
           by (metis (no_types, lifting) "2.prems"(1) "2.prems"(2) a_split aligned_imp_Laligned append.assoc concat_map_maps fst_conv list.simps(9) list_split local.Cons lrange_sorted_split maps_simps(1))
         also have "\<dots> = lrange_filter x (leaves sub) @ leaves_list list @ leaves t"
           by (metis "2.prems"(1) "2.prems"(2) a_split aligned_imp_Laligned calculation list_split local.Cons lrange_sorted_split_right split_range.lrange_sorted_split split_range_axioms)
-        moreover have "(concat (map leaves (leafs_range sub x @ leaf_nodes_list list @ leaf_nodes t))) = (concat (map leaves (leafs_range sub x)) @ leaves_list list @ leaves t)" 
+        moreover have "(concat (map leaves (leaf_nodes_lrange sub x @ leaf_nodes_list list @ leaf_nodes t))) = (concat (map leaves (leaf_nodes_lrange sub x)) @ leaves_list list @ leaves t)" 
           using concat_leaf_nodes_leaves_list[of list] concat_leaf_nodes_leaves[of t]
           by simp
         ultimately show ?case
@@ -284,8 +284,8 @@ next
     qed
 qed
 
-lemma leafs_range_not_empty: "\<exists>ks list. leafs_range t x = (LNode ks)#list \<and> (LNode ks) \<in> set (leaf_nodes t)" 
-  apply(induction t x rule: leafs_range.induct)
+lemma leaf_nodes_lrange_not_empty: "\<exists>ks list. leaf_nodes_lrange t x = (Leaf ks)#list \<and> (Leaf ks) \<in> set (leaf_nodes t)" 
+  apply(induction t x rule: leaf_nodes_lrange.induct)
   apply (auto split!: prod.splits list.splits)
   by (metis Cons_eq_appendI fst_conv in_set_conv_decomp split_conc)
 
@@ -293,8 +293,8 @@ lemma leafs_range_not_empty: "\<exists>ks list. leafs_range t x = (LNode ks)#lis
 text "Note that, conveniently, this argument is purely syntactic,
 we do not need to show that this has anything to do with linear orders"
 
-lemma leafs_range_pre_lrange: "leafs_range t x = (LNode ks)#list \<Longrightarrow> lrange_list x ks @ (concat (map leaves list)) = lrange t x"
-proof(induction t x arbitrary: ks list rule: leafs_range.induct)
+lemma leaf_nodes_lrange_pre_lrange: "leaf_nodes_lrange t x = (Leaf ks)#list \<Longrightarrow> lrange_list x ks @ (concat (map leaves list)) = lrange t x"
+proof(induction t x arbitrary: ks list rule: leaf_nodes_lrange.induct)
   case (1 ks x)
   then show ?case by simp
 next
@@ -313,11 +313,11 @@ next
       proof(cases subsep)
         case sub_sep: (Pair sub sep)
         thm "2.IH"(2) "2.prems"
-        have "\<exists>list'. leafs_range sub x = (LNode ks)#list'"
-          using "2.prems" split Cons sub_sep leafs_range_not_empty[of sub x]
+        have "\<exists>list'. leaf_nodes_lrange sub x = (Leaf ks)#list'"
+          using "2.prems" split Cons sub_sep leaf_nodes_lrange_not_empty[of sub x]
             apply simp
           by fastforce
-        then obtain list' where *: "leafs_range sub x = (LNode ks)#list'"
+        then obtain list' where *: "leaf_nodes_lrange sub x = (Leaf ks)#list'"
           by blast
         moreover have "list = list'@concat (map (leaf_nodes \<circ> fst) rss) @ leaf_nodes t"
           using * 
@@ -333,17 +333,17 @@ next
 qed
 
 text "We finally obtain a function that is way easier to reason about in the imperative setting"
-fun concat_leafs_range where
-  "concat_leafs_range t x = (case leafs_range t x of (LNode ks)#list \<Rightarrow> lrange_list x ks @ (concat (map leaves list)))"
+fun concat_leaf_nodes_lrange where
+  "concat_leaf_nodes_lrange t x = (case leaf_nodes_lrange t x of (Leaf ks)#list \<Rightarrow> lrange_list x ks @ (concat (map leaves list)))"
 
-lemma concat_leafs_range_lrange: "concat_leafs_range t x = lrange t x"
+lemma concat_leaf_nodes_lrange_lrange: "concat_leaf_nodes_lrange t x = lrange t x"
 proof -
-  obtain ks list where *: "leafs_range t x = (LNode ks)#list"
-    using leafs_range_not_empty by blast
-  then have "concat_leafs_range t x = lrange_list x ks @ (concat (map leaves list))"
+  obtain ks list where *: "leaf_nodes_lrange t x = (Leaf ks)#list"
+    using leaf_nodes_lrange_not_empty by blast
+  then have "concat_leaf_nodes_lrange t x = lrange_list x ks @ (concat (map leaves list))"
     by simp
   also have "\<dots> = lrange t x"
-    using leafs_range_pre_lrange[OF *]
+    using leaf_nodes_lrange_pre_lrange[OF *]
     by simp
   finally show ?thesis .
 qed

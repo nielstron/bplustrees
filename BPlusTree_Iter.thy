@@ -12,7 +12,7 @@ begin
 (* TODO use list_zip? \<rightarrow> not well defined return type *)
 
 fun bplustree_assn_leafs :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref list \<Rightarrow> assn" where
-  "bplustree_assn_leafs k (LNode xs) a r z leafptrs = 
+  "bplustree_assn_leafs k (Leaf xs) a r z leafptrs = 
  (\<exists>\<^sub>A xsi fwd.
       a \<mapsto>\<^sub>r Btleaf xsi fwd
     * is_pfa (2*k) xs xsi
@@ -241,7 +241,7 @@ lemma bplustree_discard_leafs:
 
 
 fun leaf_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref list \<Rightarrow> assn" where
-  "leaf_nodes_assn k ((LNode xs)#lns) (Some r) z (r'#lptrs) = 
+  "leaf_nodes_assn k ((Leaf xs)#lns) (Some r) z (r'#lptrs) = 
  (\<exists>\<^sub>A xsi fwd.
       r \<mapsto>\<^sub>r Btleaf xsi fwd
     * is_pfa (2*k) xs xsi
@@ -253,7 +253,7 @@ fun leaf_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree list \<Rightarrow
 
 
 fun trunk_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref list \<Rightarrow> assn" where
-  "trunk_assn k (LNode xs) a r z lptrs = \<up>(r = Some a \<and> lptrs = [a])" |
+  "trunk_assn k (Leaf xs) a r z lptrs = \<up>(r = Some a \<and> lptrs = [a])" |
   "trunk_assn k (Node ts t) a r z lptrs = 
  (\<exists>\<^sub>A tsi ti tsi' tsi'' rs split.
       a \<mapsto>\<^sub>r Btnode tsi ti
@@ -798,7 +798,7 @@ declare last.simps[simp add] butlast.simps[simp add]
 
 
 fun leaf_node:: "('a::heap) bplustree \<Rightarrow> 'a list \<Rightarrow> assn" where
-  "leaf_node (LNode xs) xsi = \<up>(xs = xsi)" |
+  "leaf_node (Leaf xs) xsi = \<up>(xs = xsi)" |
   "leaf_node _ _ = false"
 
 fun leafs_assn :: "('a::heap) pfarray list \<Rightarrow> 'a btnode ref list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
@@ -955,7 +955,7 @@ lemma first_leaf_rule[sep_heap_rules]:
   <\<lambda>u. bplustree_assn k t ti r z * \<up>(u = r)>\<^sub>t"
   using assms
 proof(induction t arbitrary: ti z)
-  case (LNode x)
+  case (Leaf x)
   then show ?case
     apply(subst first_leaf.simps)
     apply (sep_auto dest!: mod_starD)
@@ -993,7 +993,7 @@ lemma last_leaf_rule[sep_heap_rules]:
   <\<lambda>u. bplustree_assn k t ti r z * \<up>(u = z)>\<^sub>t"
   using assms
 proof(induction t arbitrary: ti r)
-  case (LNode x)
+  case (Leaf x)
   then show ?case
     apply(subst last_leaf.simps)
     apply (sep_auto dest!: mod_starD)
@@ -1269,10 +1269,10 @@ lemma bplustree_iff_leaf_view: "bplustree_assn k t ti r None = bplustree_iter_li
   apply (auto simp add: algebra_simps)
   done
 
-definition "bplustree_iter k t ti r vs it = (\<exists>\<^sub>A lptrs.
-  leaf_values_iter.is_flatten_it lptrs k (map leaves (leaf_nodes t)) (leaves t) r vs it *
+definition "bplustree_iter k t ti r vs it = (\<exists>\<^sub>A fringe.
+  leaf_values_iter.is_flatten_it fringe k (map leaves (leaf_nodes t)) (leaves t) r vs it *
   list_assn leaf_node (leaf_nodes t) (map leaves (leaf_nodes t)) *
-  trunk_assn k t ti r None lptrs)"
+  trunk_assn k t ti r None fringe)"
 
 (* Now finally, we can hide away that we extracted anything
 and just provide the user with some pretty definitions *)

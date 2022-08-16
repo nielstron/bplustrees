@@ -15,7 +15,7 @@ text "B-Plus-Trees are basically B-Trees, that don't have empty Leafs but Leafs 
 the relevant data. "
 
 
-datatype 'a bplustree = LNode (vals: "'a list") | Node (keyvals: "('a bplustree * 'a) list") (lasttree: "'a bplustree")
+datatype 'a bplustree = Leaf (vals: "'a list") | Node (keyvals: "('a bplustree * 'a) list") (lasttree: "'a bplustree")
 
 type_synonym 'a bplustree_list =  "('a bplustree * 'a) list"
 type_synonym 'a bplustree_pair =  "('a bplustree * 'a)"
@@ -29,17 +29,17 @@ text "The set of B-Plus-tree needs to be manually defined, regarding only the le
 This overrides the default instantiation."
 
 fun set_nodes :: "'a bplustree \<Rightarrow> 'a set" where
-  "set_nodes (LNode ks) = {}" |
+  "set_nodes (Leaf ks) = {}" |
   "set_nodes (Node ts t) = \<Union>(set (map set_nodes (subtrees ts))) \<union> (set (separators ts)) \<union> set_nodes t"
 
 fun set_leaves :: "'a bplustree \<Rightarrow> 'a set" where
-  "set_leaves (LNode ks) = set ks" |
+  "set_leaves (Leaf ks) = set ks" |
   "set_leaves (Node ts t) = \<Union>(set (map set_leaves (subtrees ts))) \<union> set_leaves t"
 
 text "The inorder is a view of only internal seperators"
 
 fun inorder :: "'a bplustree \<Rightarrow> 'a list" where
-  "inorder (LNode ks) = []" |
+  "inorder (Leaf ks) = []" |
   "inorder (Node ts t) = concat (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts) @ inorder t"
 
 abbreviation "inorder_list ts \<equiv> concat (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts)"
@@ -47,13 +47,13 @@ abbreviation "inorder_list ts \<equiv> concat (map (\<lambda> (sub, sep). inorde
 text "The leaves view considers only its leafs."
 
 fun leaves :: "'a bplustree \<Rightarrow> 'a list" where
-  "leaves (LNode ks) = ks" |
+  "leaves (Leaf ks) = ks" |
   "leaves (Node ts t) = concat (map leaves (subtrees ts)) @ leaves t"
 
 abbreviation "leaves_list ts \<equiv> concat (map leaves (subtrees ts))"
 
 fun leaf_nodes where
-"leaf_nodes (LNode xs) = [LNode xs]" |
+"leaf_nodes (Leaf xs) = [Leaf xs]" |
 "leaf_nodes (Node ts t) = concat (map leaf_nodes (subtrees ts)) @ leaf_nodes t"
 
 abbreviation "leaf_nodes_list ts \<equiv> concat (map leaf_nodes (subtrees ts))"
@@ -64,7 +64,7 @@ text "And the elems view contains all elements of the tree"
 (* NOTE this doesn't help *)
 
 fun elems :: "'a bplustree \<Rightarrow> 'a list" where
-  "elems (LNode ks) = ks" |
+  "elems (Leaf ks) = ks" |
   "elems (Node ts t) = concat (map (\<lambda> (sub, sep). elems sub @ [sep]) ts) @ elems t"
 
 abbreviation "elems_list ts \<equiv> concat (map (\<lambda> (sub, sep). elems sub @ [sep]) ts)"
@@ -74,7 +74,7 @@ thm leaves.simps
 thm inorder.simps
 thm elems.simps
 
-value "leaves (Node [(LNode [], (0::nat)), (Node [(LNode [], 1), (LNode [], 10)] (LNode []), 12), ((LNode []), 30), ((LNode []), 100)] (LNode []))"
+value "leaves (Node [(Leaf [], (0::nat)), (Node [(Leaf [], 1), (Leaf [], 10)] (Leaf []), 12), ((Leaf []), 30), ((Leaf []), 100)] (Leaf []))"
 
 subsection "Height and Balancedness"
 
@@ -85,7 +85,7 @@ instantiation bplustree :: (type) height
 begin
 
 fun height_bplustree :: "'a bplustree \<Rightarrow> nat" where
-  "height (LNode ks) = 0" |
+  "height (Leaf ks) = 0" |
   "height (Node ts t) = Suc (Max (height ` (set (subtrees ts@[t]))))"
 
 instance ..
@@ -95,15 +95,15 @@ end
 text "Balancedness is defined is close accordance to the definition by Ernst"
 
 fun bal:: "'a bplustree \<Rightarrow> bool" where
-  "bal (LNode ks) = True" |
+  "bal (Leaf ks) = True" |
   "bal (Node ts t) = (
     (\<forall>sub \<in> set (subtrees ts). height sub = height t) \<and>
     (\<forall>sub \<in> set (subtrees ts). bal sub) \<and> bal t
   )"
 
 
-value "height (Node [(LNode [], (0::nat)), (Node [(LNode [], 1), (LNode [], 10)] (LNode []), 12), ((LNode []), 30), ((LNode []), 100)] (LNode []))"
-value "bal (Node [(LNode [], (0::nat)), (Node [(LNode [], 1), (LNode [], 10)] (LNode []), 12), ((LNode []), 30), ((LNode []), 100)] (LNode []))"
+value "height (Node [(Leaf [], (0::nat)), (Node [(Leaf [], 1), (Leaf [], 10)] (Leaf []), 12), ((Leaf []), 30), ((Leaf []), 100)] (Leaf []))"
+value "bal (Node [(Leaf [], (0::nat)), (Node [(Leaf [], 1), (Leaf [], 10)] (Leaf []), 12), ((Leaf []), 30), ((Leaf []), 100)] (Leaf []))"
 
 
 subsection "Order"
@@ -116,7 +116,7 @@ text "The order of a B-tree is defined just as in the original paper by Bayer."
    from k=1 onwards NOTE this is what I ended up implementing *)
 
 fun order:: "nat \<Rightarrow> 'a bplustree \<Rightarrow> bool" where
-  "order k (LNode ks) = ((length ks \<ge> k)  \<and> (length ks \<le> 2*k))" |
+  "order k (Leaf ks) = ((length ks \<ge> k)  \<and> (length ks \<le> 2*k))" |
   "order k (Node ts t) = (
   (length ts \<ge> k)  \<and>
   (length ts \<le> 2*k) \<and>
@@ -127,7 +127,7 @@ text \<open>The special condition for the root is called \textit{root\_order}\<c
 
 (* the invariant for the root of the bplustree *)
 fun root_order:: "nat \<Rightarrow> 'a bplustree \<Rightarrow> bool" where
-  "root_order k (LNode ks) = (length ks \<le> 2*k)" |
+  "root_order k (Leaf ks) = (length ks \<le> 2*k)" |
   "root_order k (Node ts t) = (
   (length ts > 0) \<and>
   (length ts \<le> 2*k) \<and>
@@ -159,7 +159,7 @@ lemma finite_set_in_idem:
   shows "max a (Max (Set.insert a A)) = Max (Set.insert a A)"
   using Max_insert assms max.commute max.left_commute by fastforce
 
-lemma height_Leaf: "height t = 0 \<longleftrightarrow> (\<exists>ks. t = (LNode ks))"
+lemma height_Leaf: "height t = 0 \<longleftrightarrow> (\<exists>ks. t = (Leaf ks))"
   by (induction t) (auto)
 
 lemma height_bplustree_order:
@@ -331,7 +331,7 @@ lemma cong_inbetween[fundef_cong]: "
 
 (* adding l < u makes sorted_less inorder not necessary anymore *)
 fun aligned :: "'a ::linorder \<Rightarrow> _" where 
-"aligned l (LNode ks) u = (l < u \<and> (\<forall>x \<in> set ks. l < x \<and> x \<le> u))" |
+"aligned l (Leaf ks) u = (l < u \<and> (\<forall>x \<in> set ks. l < x \<and> x \<le> u))" |
 "aligned l (Node ts t) u = (inbetween aligned l ts t u)"
 
 lemma sorted_less_merge: "sorted_less (as@[a]) \<Longrightarrow> sorted_less (a#bs) \<Longrightarrow> sorted_less (as@a#bs)"
@@ -489,7 +489,7 @@ lemma aligned_subst_last: "aligned l (Node (ts'@[(sub', sep')]) t) u \<Longright
   done
 
 fun Laligned :: "'a ::linorder bplustree \<Rightarrow> _" where 
-"Laligned (LNode ks) u = (\<forall>x \<in> set ks. x \<le> u)" |
+"Laligned (Leaf ks) u = (\<forall>x \<in> set ks. x \<le> u)" |
 "Laligned (Node ts t) u = (case ts of [] \<Rightarrow> (Laligned t u) |
  (sub,sep)#ts' \<Rightarrow> ((Laligned sub sep) \<and> inbetween aligned sep ts' t u))"
 

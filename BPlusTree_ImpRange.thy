@@ -7,7 +7,7 @@ begin
 
 abbreviation "blist_leafs_assn k \<equiv> list_assn ((\<lambda> t (ti,r',z',lptrs). bplustree_assn_leafs k t (the ti) r' z' lptrs) \<times>\<^sub>a id_assn)"
 
-context imp_split_tree
+context split\<^sub>i_tree
 begin
 
 lemma list_induct5 [consumes 4, case_names Nil Cons]:
@@ -81,13 +81,13 @@ blist_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) rs)) (map snd tsi)
   by sep_auto
 
 declare butlast.simps[simp del] last.simps[simp del]
-lemma imp_split_leafs_rule_help: 
+lemma split\<^sub>i_leafs_rule_help: 
 "sorted_less (separators ts) \<Longrightarrow>
   length tsi = length rs \<Longrightarrow>
   tsi' = (zip (zip (map fst tsi) (zip (butlast (r#rs)) (butlast (rs@[z]))))) (map snd tsi) \<Longrightarrow>
  <is_pfa c tsi (a,n) 
   * blist_assn k ts tsi' > 
-    imp_split (a,n) p 
+    split\<^sub>i (a,n) p 
   <\<lambda>i. \<exists>\<^sub>Aspl.
     is_pfa c tsi (a,n)
     * blist_leafs_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip (butlast (rs@[z])) spl))) (map snd tsi))
@@ -101,7 +101,7 @@ proof(rule hoare_triple_preI, goal_cases)
     using 1 by (auto dest!: mod_starD list_assn_len)
   then have **: "length ts = length tsi"
     using 1 by (auto dest!: mod_starD list_assn_len)
-  note R = imp_split_rule[of ts tsi rs "zip (zip (subtrees tsi) (zip (butlast (r # rs)) rs)) (separators tsi)" r]
+  note R = split\<^sub>i_rule[of ts tsi rs "zip (zip (subtrees tsi) (zip (butlast (r # rs)) rs)) (separators tsi)" r]
   from 1 show ?thesis
     apply(vcg)
     using ** 1(2)
@@ -120,7 +120,7 @@ lemma fr_refl_rot: "P \<Longrightarrow>\<^sub>A R \<Longrightarrow> F * P \<Long
   using fr_refl[of P R F] by (simp add: mult.commute)
 
 declare butlast.simps[simp del] last.simps[simp del]
-lemma imp_split_leafs_rule[sep_heap_rules]: 
+lemma split\<^sub>i_leafs_rule[sep_heap_rules]: 
   assumes "sorted_less (separators ts)"
   and "length tsi = length rs"
   and "length spl = length rs"
@@ -128,7 +128,7 @@ lemma imp_split_leafs_rule[sep_heap_rules]:
   shows "
  <is_pfa c tsi (a,n) 
   * blist_leafs_assn k ts tsi' > 
-    imp_split (a,n) p 
+    split\<^sub>i (a,n) p 
   <\<lambda>i. \<exists>\<^sub>Aspl.
     is_pfa c tsi (a,n)
     * blist_leafs_assn k ts (zip (zip (map fst tsi) (zip (butlast (r#rs)) (zip (butlast (rs@[z])) spl))) (map snd tsi))
@@ -142,7 +142,7 @@ proof(rule hoare_triple_preI, goal_cases)
     using 1 by (auto dest!: mod_starD list_assn_len)
   then have **: "length ts = length tsi"
     using 1 assms by (auto dest!: mod_starD list_assn_len)
-  note R = imp_split_leafs_rule_help[
+  note R = split\<^sub>i_leafs_rule_help[
     OF assms(1,2),
     of "zip (zip (subtrees tsi) (zip (butlast (r # rs)) (butlast (rs @ [z])))) (separators tsi)" r
         z c a n k
@@ -172,23 +172,23 @@ We now try to implement a search for the first element of the range efficiently
 subsection "The imperative split locale"
 
 
-locale imp_split_range = abs_split_range: split_range split lrange_list + imp_split_tree split imp_split
+locale split\<^sub>i_range = abs_split_range: split_range split lrange_list + split\<^sub>i_tree split split\<^sub>i
   for split::
     "('a bplustree \<times> 'a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" 
     and lrange_list ::  "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a list"
-    and imp_split :: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap" +
-  fixes imp_lrange_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfa_it Heap"
+    and split\<^sub>i :: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap" +
+  fixes lrange_list\<^sub>i:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfa_it Heap"
   assumes lrange_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
    <is_pfa c ks (a',n')> 
-    imp_lrange_list x (a',n') 
+    lrange_list\<^sub>i x (a',n') 
   <pfa_is_it c ks (a',n') (lrange_list x ks)>\<^sub>t"
 begin
 
-partial_function (heap) leafs_range ::
+partial_function (heap) leaf_nodes_lrange\<^sub>i ::
   "'a btnode ref \<Rightarrow> 'a \<Rightarrow> 'a btnode ref option Heap"
   where
-    "leafs_range p x = do {
+    "leaf_nodes_lrange\<^sub>i p x = do {
   node \<leftarrow> !p;
   (case node of
      Btleaf xs z \<Rightarrow> do {
@@ -196,30 +196,30 @@ partial_function (heap) leafs_range ::
       }
        |
      Btnode ts t \<Rightarrow> do {
-       i \<leftarrow> imp_split ts x;
+       i \<leftarrow> split\<^sub>i ts x;
        tsl \<leftarrow> pfa_length ts;
        if i < tsl then do {
          s \<leftarrow> pfa_get ts i;
          let (sub,sep) = s in
-           leafs_range (the sub) x
+           leaf_nodes_lrange\<^sub>i (the sub) x
        } else
-           leafs_range t x
+           leaf_nodes_lrange\<^sub>i t x
     }
 )}"
 
 
 (* HT when expressed on list of leaves 
-lemma leafs_range_rule:
+lemma leaf_nodes_lrange\<^sub>i_rule:
   assumes "k > 0" "root_order k t"
   shows "<bplustree_assn_leafs k t ti r z lptrs>
-leafs_range ti x
+leaf_nodes_lrange\<^sub>i ti x
 <\<lambda>p. (\<exists>\<^sub>A xs1 xs2 lptrs1 lptrs2 ps.
   trunk_assn k t ti r z lptrs *
   leaf_nodes_assn k xs1 r p lptrs1 *
   list_assn leaf_node xs2 (map bplustree.vals xs2) *
   list_assn (is_pfa (2 * k)) (map bplustree.vals xs2) ps *
   leafs_assn ps lptrs2 p z *
-  \<up>(concat (map bplustree.vals xs2) = abs_split_range.leafs_range t x) *
+  \<up>(concat (map bplustree.vals xs2) = abs_split_range.leaf_nodes_lrange\<^sub>i t x) *
   \<up>(lptrs = lptrs1@lptrs2) *
   \<up>(leaf_nodes t = xs1@xs2)
 )>\<^sub>t"
@@ -401,23 +401,23 @@ lemma Laligned_sub: "Laligned (Node (ls@(sub,sep)#rs) t) u \<Longrightarrow> Lal
 
 (* much shorter when expressed on the nodes themselves *)
 declare last.simps[simp del] butlast.simps[simp del]
-lemma leafs_range_rule:
+lemma leaf_nodes_lrange\<^sub>i_rule:
   assumes "k > 0" "root_order k t" "Laligned t u"
   shows "<bplustree_assn_leafs k t ti r z lptrs >
-leafs_range ti x
+leaf_nodes_lrange\<^sub>i ti x
 <\<lambda>p. (\<exists>\<^sub>A lptrs xs1 lptrs1 lptrs2.
   trunk_assn k t ti r z lptrs *
   leaf_nodes_assn k xs1 r p lptrs1 *
-  leaf_nodes_assn k (abs_split_range.leafs_range t x) p z lptrs2 *
+  leaf_nodes_assn k (abs_split_range.leaf_nodes_lrange t x) p z lptrs2 *
   \<up>(lptrs = lptrs1@lptrs2) *
-  \<up>(leaf_nodes t = xs1@(abs_split_range.leafs_range t x))
+  \<up>(leaf_nodes t = xs1@(abs_split_range.leaf_nodes_lrange t x))
 )
 >\<^sub>t"
   using assms
-proof(induction t x arbitrary: ti r z u lptrs rule: abs_split_range.leafs_range.induct)
+proof(induction t x arbitrary: ti r z u lptrs rule: abs_split_range.leaf_nodes_lrange.induct)
   case (1 ks x)
   then show ?case
-    apply(subst leafs_range.simps)
+    apply(subst leaf_nodes_lrange\<^sub>i.simps)
     apply (sep_auto eintros del: exI)
     apply(inst_existentials "[ti]" "[]::'a bplustree list" "[]::'a btnode ref list" "[ti]")
     apply sep_auto+
@@ -433,14 +433,14 @@ next
     case Nil
     then show ?thesis
       using split_pair
-    apply(subst leafs_range.simps)
+    apply(subst leaf_nodes_lrange\<^sub>i.simps)
     apply simp
     apply(vcg)
     apply simp
     subgoal for tsi tii tsi' rrs spl
       apply(cases tsi)
       subgoal for tsia tsin
-    supply R = imp_split_leafs_rule[of ts tsi' rrs "butlast spl" "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
+    supply R = split\<^sub>i_leafs_rule[of ts tsi' rrs "butlast spl" "(zip (zip (subtrees tsi') (zip (butlast (r # rrs)) (zip rrs (butlast spl))))
         (separators tsi'))" r z]
       thm R
     apply (vcg heap add: R)
@@ -498,14 +498,14 @@ next
     then obtain sub sep where subsep_split[simp]:"subsep = (sub,sep)"
       by (cases subsep)
     then show ?thesis
-    apply(subst leafs_range.simps)
+    apply(subst leaf_nodes_lrange\<^sub>i.simps)
     using split_pair Cons apply (simp split!: list.splits prod.splits)
     apply(vcg)
     apply simp
     subgoal for tsi tii tsi' rs' spl_first
       apply(cases tsi)
       subgoal for tsia tsin
-    supply R = imp_split_leafs_rule[of ts tsi' rs' "butlast spl_first" "(zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (butlast spl_first))))
+    supply R = split\<^sub>i_leafs_rule[of ts tsi' rs' "butlast spl_first" "(zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (butlast spl_first))))
         (separators tsi'))" r z]
       thm R
     apply (vcg heap add: R)
@@ -863,28 +863,28 @@ tsia tsin tii tsi' "zip (zip (subtrees tsi') (zip (butlast (r # rs')) (zip rs' (
 qed
 declare last.simps[simp add] butlast.simps[simp add]
 
-(*fun concat_leafs_range where
-  "concat_leafs_range t x = (case leafs_range t x of (LNode ks)#list \<Rightarrow> lrange_list x ks @ (concat (map leaves list)))"
+(*fun concat_leaf_nodes_lrange\<^sub>i where
+  "concat_leaf_nodes_lrange\<^sub>i t x = (case leaf_nodes_lrange\<^sub>i t x of (Leaf ks)#list \<Rightarrow> lrange_list x ks @ (concat (map leaves list)))"
 *)
 
-definition concat_leafs_range where
-"concat_leafs_range ti x = do {
-  lp \<leftarrow> leafs_range ti x;
+definition concat_leaf_nodes_lrange\<^sub>i where
+"concat_leaf_nodes_lrange\<^sub>i ti x = do {
+  lp \<leftarrow> leaf_nodes_lrange\<^sub>i ti x;
   li \<leftarrow> !(the lp);
   case li of Btleaf xs nxt \<Rightarrow> do {
-    arr_it \<leftarrow> imp_lrange_list x xs;
+    arr_it \<leftarrow> lrange_list\<^sub>i x xs;
     fla_it \<leftarrow> leaf_values_adjust (nxt,None) arr_it;
     return fla_it
   }
 }"
 
-lemma sorted_less_leaf_nodes: "sorted_less (leaves t) \<Longrightarrow> (LNode ks) \<in> set (leaf_nodes t) \<Longrightarrow> sorted_less ks"
+lemma sorted_less_leaf_nodes: "sorted_less (leaves t) \<Longrightarrow> (Leaf ks) \<in> set (leaf_nodes t) \<Longrightarrow> sorted_less ks"
 proof(induction t arbitrary: ks rule: leaf_nodes.induct)
   case (1 xs)
   then show ?case by simp
 next
   case I: (2 ts t)
-  then have "(\<exists>x \<in> set ts. LNode ks \<in> set (leaf_nodes (fst x))) \<or> LNode ks \<in> set (leaf_nodes t)"
+  then have "(\<exists>x \<in> set ts. Leaf ks \<in> set (leaf_nodes (fst x))) \<or> Leaf ks \<in> set (leaf_nodes t)"
     by simp
   then show ?case 
   proof(standard, goal_cases)
@@ -902,13 +902,13 @@ qed
 
 lemmas leaf_values_adjust_rule = leaf_values_iter.flatten_it_adjust_rule
 
-lemma concat_leafs_range_rule_help:
+lemma concat_leaf_nodes_lrange\<^sub>i_rule_help:
   assumes "k > 0" "root_order k t" "sorted_less (leaves t)" "Laligned t u"
   shows "<bplustree_assn_leafs k t ti r None lptrs>
-concat_leafs_range ti x
+concat_leaf_nodes_lrange\<^sub>i ti x
 <bplustree_iter k t ti r (abs_split_range.lrange t x)>\<^sub>t"
-  apply(subst concat_leafs_range_def)
-  apply(vcg (ss) heap: leafs_range_rule[of k t u])+
+  apply(subst concat_leaf_nodes_lrange\<^sub>i_def)
+  apply(vcg (ss) heap: leaf_nodes_lrange\<^sub>i_rule[of k t u])+
   subgoal using assms by simp
   subgoal using assms by simp
   subgoal using assms by simp
@@ -918,13 +918,13 @@ concat_leafs_range ti x
   apply(auto dest!: mod_starD)
 proof(goal_cases)
   case (1 l xs1 lptrs1 lptrs2)
-  obtain ks list where *[simp]: "abs_split_range.leafs_range t x = (LNode ks)#list \<and> (LNode ks) \<in> set (leaf_nodes t)"
-    using abs_split_range.leafs_range_not_empty by blast
+  obtain ks list where *[simp]: "abs_split_range.leaf_nodes_lrange t x = (Leaf ks)#list \<and> (Leaf ks) \<in> set (leaf_nodes t)"
+    using abs_split_range.leaf_nodes_lrange_not_empty by blast
   then obtain r' lptrs2' where [simp]: "lptrs2 = r' # lptrs2'"
     using 1
     by (metis Suc_length_conv leaf_nodes_assn_impl_length)
   have sorted_less_ks: "sorted_less ks"
-    using \<open>abs_split_range.leafs_range t x = LNode ks # list \<and> LNode ks \<in> set (leaf_nodes t)\<close> assms(3) sorted_less_leaf_nodes imp_split_range_axioms by blast
+    using \<open>abs_split_range.leaf_nodes_lrange t x = Leaf ks # list \<and> Leaf ks \<in> set (leaf_nodes t)\<close> assms(3) sorted_less_leaf_nodes split\<^sub>i_range_axioms by blast
   then obtain pref where ks_split: "ks = pref @ lrange_list x ks"
   proof (goal_cases)
     case 1
@@ -990,7 +990,7 @@ proof(goal_cases)
         apply(subgoal_tac "leaves t = (concat (map leaves xs1) @ pref @ lrange_list x ks @ concat (map leaves list))")
         apply(subgoal_tac "abs_split_range.lrange t x = (lrange_list x ks @ concat (map leaves list))")
         subgoal using 1(1) 1(2) ks_split by sep_auto
-        subgoal by (metis \<open>abs_split_range.leafs_range t x = LNode ks # list \<and> LNode ks \<in> set (leaf_nodes t)\<close> abs_split_range.split_range_axioms split_range.leafs_range_pre_lrange)
+        subgoal by (metis \<open>abs_split_range.leaf_nodes_lrange t x = Leaf ks # list \<and> Leaf ks \<in> set (leaf_nodes t)\<close> abs_split_range.split_range_axioms split_range.leaf_nodes_lrange_pre_lrange)
         subgoal
           using concat_leaf_nodes_leaves[symmetric, of t] 1(1) ks_split
           by auto
@@ -1001,32 +1001,32 @@ proof(goal_cases)
   qed
 qed
 
-lemma concat_leafs_range_rule:
+lemma concat_leaf_nodes_lrange\<^sub>i_rule:
   assumes "k > 0" "root_order k t" "sorted_less (leaves t)" "Laligned t u"
   shows "<bplustree_assn k t ti r None>
-concat_leafs_range ti x
+concat_leaf_nodes_lrange\<^sub>i ti x
 <bplustree_iter k t ti r (abs_split_range.lrange t x)>\<^sub>t"
   find_theorems bplustree_assn_leafs
   apply(simp add: bplustree_extract_leafs)
-  using assms apply(sep_auto heap add: concat_leafs_range_rule_help)
+  using assms apply(sep_auto heap add: concat_leaf_nodes_lrange\<^sub>i_rule_help)
   done
 
 end
 
-context imp_split_list
+context split\<^sub>i_list
 begin
 
-definition imp_lrange_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfa_it Heap"
-  where "imp_lrange_list x ks = do {
-    i \<leftarrow> imp_split_list ks x;
+definition lrange_list\<^sub>i:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfa_it Heap"
+  where "lrange_list\<^sub>i x ks = do {
+    i \<leftarrow> split\<^sub>i_list ks x;
     return (ks, i)
 }"
 
-lemma imp_lrange_list_rule [sep_heap_rules]:
+lemma lrange_list\<^sub>i_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows
    "<is_pfa c ks (a',n')> 
-    imp_lrange_list x (a',n') 
+    lrange_list\<^sub>i x (a',n') 
   <pfa_is_it c ks (a',n') (abs_split_list.lrange_split x ks)>\<^sub>t"
 proof -
   obtain ls rs where list_split: "split_list ks x = (ls, rs)"
@@ -1036,18 +1036,18 @@ proof -
   moreover have "ks = ls@rs"
     using abs_split_list.split_list_req(1) list_split by blast
   ultimately show ?thesis
-      apply(subst imp_lrange_list_def)
+      apply(subst lrange_list\<^sub>i_def)
       using assms list_split abs_split_list.lrange_split_req
       apply(sep_auto simp add: sorted_less_lrange pfa_is_it_def split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)
       done
 qed
 end
 
-context imp_split_full
+context split\<^sub>i_full
 begin
 
-sublocale imp_split_range split  imp_split_list.abs_split_list.lrange_split imp_split imp_split_list.imp_lrange_list
-  using imp_split_list.abs_split_list.lrange_split_req imp_split_list.imp_lrange_list_rule
+sublocale split\<^sub>i_range split  split\<^sub>i_list.abs_split_list.lrange_split split\<^sub>i split\<^sub>i_list.lrange_list\<^sub>i
+  using split\<^sub>i_list.abs_split_list.lrange_split_req split\<^sub>i_list.lrange_list\<^sub>i_rule
   apply unfold_locales 
   apply sep_auto +
   done

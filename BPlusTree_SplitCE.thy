@@ -50,17 +50,17 @@ global_interpretation bplustree_linear_search:
   subgoal by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
   done
 
-lemma [code]: "bplustree_ls_isin (LNode ks) x = bplustree_ls_isin_list x ks"
+lemma [code]: "bplustree_ls_isin (Leaf ks) x = bplustree_ls_isin_list x ks"
   by (simp add: bplustree_ls_isin_list_def)
 declare bplustree_linear_search.isin.simps(2)[code]
 
-lemma [code]: "bplustree_ls_ins k x (LNode ks) =
+lemma [code]: "bplustree_ls_ins k x (Leaf ks) =
 bplustree_linear_search.Lnode\<^sub>i k (bplustree_ls_insert_list x ks)"
   by (simp add: bplustree_ls_insert_list_def)
 declare bplustree_linear_search.ins.simps(2)[code]
 
-lemma [code]: "bplustree_ls_del k x (LNode ks) =
-LNode (bplustree_ls_delete_list x ks)"
+lemma [code]: "bplustree_ls_del k x (Leaf ks) =
+Leaf (bplustree_ls_delete_list x ks)"
   by (simp add: bplustree_ls_delete_list_def)
 declare bplustree_linear_search.del.simps(2)[code]
 
@@ -131,27 +131,27 @@ end
 
 value "uint8_max"
 
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [21,22,23]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [21,22,23]))) in
       root_order k x"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [21,22,23]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [21,22,23]))) in
       bal x"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       sorted_less (leaves x)"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       Laligned x top"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       x"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       bplustree\<^sub>q x 4"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       bplustree\<^sub>q x 20"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       bplustree\<^sub>i k 9 x"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x)"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       bplustree\<^sub>d k 10 (bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x))"
-value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(LNode [1,2], 2),(LNode [3,4], 4),(LNode [5,6,7], 8)] (LNode [9,10]), 10)] (Node [(LNode [11,12,13,14], 14), (LNode [15,17], 20)] (LNode [50,55,56]))) in
+value "let k=2::nat; x::uint8 bplustree = (Node [(Node [(Leaf [1,2], 2),(Leaf [3,4], 4),(Leaf [5,6,7], 8)] (Leaf [9,10]), 10)] (Node [(Leaf [11,12,13,14], 14), (Leaf [15,17], 20)] (Leaf [50,55,56]))) in
       bplustree\<^sub>d k 3 (bplustree\<^sub>d k 10 (bplustree\<^sub>i k 1 (bplustree\<^sub>i k 9 x)))"
 
 

@@ -16,65 +16,65 @@ that refines the abstract split function."
 
 
 (* TODO separate into split_tree and split + split_list  *)
-locale imp_split_set = abs_split_set: split_set split + imp_split_tree split imp_split
+locale split\<^sub>i_set = abs_split_set: split_set split + split\<^sub>i_tree split split\<^sub>i
   for split::
     "('a bplustree \<times> 'a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" 
-  and imp_split :: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap" +
-  fixes imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
-    and imp_ins_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
-    and imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
+  and split\<^sub>i :: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap" +
+  fixes isin_list\<^sub>i:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
+    and ins_list\<^sub>i:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
+    and del_list\<^sub>i:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
   assumes isin_list_rule [sep_heap_rules]:"sorted_less ks \<Longrightarrow>
    <is_pfa c ks (a',n')> 
-    imp_isin_list x (a',n') 
+    isin_list\<^sub>i x (a',n') 
   <\<lambda>b. 
     is_pfa c ks (a',n')
     * \<up>(isin_list x ks = b)>\<^sub>t"
   and ins_list_rule [sep_heap_rules]:"sorted_less ks' \<Longrightarrow>
    <is_pfa c ks' (a',n')>
-    imp_ins_list x (a',n') 
+    ins_list\<^sub>i x (a',n') 
   <\<lambda>(a'',n'').  is_pfa (max c (length (insert_list x ks'))) (insert_list x ks') (a'',n'') >\<^sub>t"
   and del_list_rule [sep_heap_rules]:"sorted_less ks'' \<Longrightarrow>
    <is_pfa c ks'' (a',n')> 
-    imp_del_list x (a',n') 
+    del_list\<^sub>i x (a',n') 
   <\<lambda>(a'',n''). is_pfa c (delete_list x ks'') (a'',n'') >\<^sub>t"
 begin
 
 subsection "Initialization"
 
-definition empty ::"nat \<Rightarrow> 'a btnode ref Heap"
-  where "empty k = do {
+definition empty\<^sub>i ::"nat \<Rightarrow> 'a btnode ref Heap"
+  where "empty\<^sub>i k = do {
   empty_list \<leftarrow> pfa_empty (2*k);
   empty_leaf \<leftarrow> ref (Btleaf empty_list None);
   return empty_leaf
 }"
 
-lemma empty_rule:
+lemma empty\<^sub>i_rule:
   shows "<emp>
-  empty k
+  empty\<^sub>i k
   <\<lambda>r. bplustree_assn k (abs_split_set.empty_bplustree) r (Some r) None>"
-  apply(subst empty_def)
+  apply(subst empty\<^sub>i_def)
   apply(sep_auto simp add: abs_split_set.empty_bplustree_def)
   done
 
 subsection "Membership"
 
 (* TODO introduce imperative equivalents to searching/inserting/deleting in a list *)
-partial_function (heap) isin :: "'a btnode ref \<Rightarrow> 'a \<Rightarrow>  bool Heap"
+partial_function (heap) isin\<^sub>i :: "'a btnode ref \<Rightarrow> 'a \<Rightarrow>  bool Heap"
   where
-    "isin p x = do {
+    "isin\<^sub>i p x = do {
   node \<leftarrow> !p;
   (case node of
-     Btleaf xs _ \<Rightarrow> imp_isin_list x xs |
+     Btleaf xs _ \<Rightarrow> isin_list\<^sub>i x xs |
      Btnode ts t \<Rightarrow> do {
-       i \<leftarrow> imp_split ts x;
+       i \<leftarrow> split\<^sub>i ts x;
        tsl \<leftarrow> pfa_length ts;
        if i < tsl then do {
          s \<leftarrow> pfa_get ts i;
          let (sub,sep) = s in
-           isin (the sub) x
+           isin\<^sub>i (the sub) x
        } else
-           isin t x
+           isin\<^sub>i t x
     }
 )}"
 
@@ -107,12 +107,12 @@ qed
 
 lemma  "k > 0 \<Longrightarrow> root_order k t \<Longrightarrow> sorted_less (inorder t) \<Longrightarrow> sorted_less (leaves t) \<Longrightarrow>
    <bplustree_assn k t ti r z>
-     isin ti x
+     isin\<^sub>i ti x
    <\<lambda>y. bplustree_assn k t ti r z * \<up>(abs_split_set.isin t x = y)>\<^sub>t"
 proof(induction t x arbitrary: ti r z rule: abs_split_set.isin.induct)
   case (1 x r z)
   then show ?case
-    apply(subst isin.simps)
+    apply(subst isin\<^sub>i.simps)
     apply sep_auto
     done
 next
@@ -128,7 +128,7 @@ next
     (* NOTE: induction condition trivial here *)
     case [simp]: Nil
     show ?thesis
-      apply(subst isin.simps)
+      apply(subst isin\<^sub>i.simps)
       using ts_non_empty  apply(sep_auto)
       subgoal  using \<open>sorted_less (separators ts)\<close> by blast
       apply simp
@@ -156,7 +156,7 @@ next
       by (cases h)
       then show ?thesis
         apply(simp split: list.splits prod.splits)
-        apply(subst isin.simps)
+        apply(subst isin\<^sub>i.simps)
         using "2.prems" sorted_inorder_separators 
         apply(sep_auto)
           (* simplify towards induction step *)
@@ -266,23 +266,23 @@ definition Lnode\<^sub>i :: "nat \<Rightarrow> 'a btnode ref  \<Rightarrow> 'a b
 }"
 
 (* TODO Lnode\<^sub>i allocates a new node when invoked, do not invoke if array didn't grow *)
-partial_function (heap) ins :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btupi Heap"
+partial_function (heap) ins\<^sub>i :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btupi Heap"
   where
-    "ins k x p = do {
+    "ins\<^sub>i k x p = do {
   node \<leftarrow> !p;
   (case node of
     Btleaf ksi nxt \<Rightarrow> do {
-      ksi' \<leftarrow> imp_ins_list x ksi; 
+      ksi' \<leftarrow> ins_list\<^sub>i x ksi; 
       p := Btleaf ksi' nxt;
       Lnode\<^sub>i k p
     } |
     Btnode tsi ti \<Rightarrow> do {
-      i \<leftarrow> imp_split tsi x;
+      i \<leftarrow> split\<^sub>i tsi x;
       tsl \<leftarrow> pfa_length tsi;
       if i < tsl then do {
         s \<leftarrow> pfa_get tsi i;
         let (sub,sep) = s in do {
-          r \<leftarrow> ins k x (the sub);
+          r \<leftarrow> ins\<^sub>i k x (the sub);
           case r of (T\<^sub>i lp) \<Rightarrow> do {
             pfa_set tsi i (Some lp,sep);
             return (T\<^sub>i p)
@@ -296,7 +296,7 @@ partial_function (heap) ins :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref
         }
       }
       else do {
-        r \<leftarrow> ins k x ti;
+        r \<leftarrow> ins\<^sub>i k x ti;
         case r of (T\<^sub>i lp) \<Rightarrow> do {
             p := (Btnode tsi lp);
             return (T\<^sub>i p)
@@ -318,9 +318,9 @@ fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a bplustree \<Rightarrow> 'a bp
   "insert k x t = tree\<^sub>i (ins k x t)"
 *)
 
-definition insert :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref Heap" where
-  "insert \<equiv> \<lambda>k x ti. do {
-  ti' \<leftarrow> ins k x ti;
+definition insert\<^sub>i :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref Heap" where
+  "insert\<^sub>i \<equiv> \<lambda>k x ti. do {
+  ti' \<leftarrow> ins\<^sub>i k x ti;
   case ti' of
      T\<^sub>i sub \<Rightarrow> return sub |
      Up\<^sub>i l a r \<Rightarrow> do {
@@ -660,7 +660,7 @@ declare abs_split_set.Lnode\<^sub>i.simps [simp del]
 
 lemma Lnode\<^sub>i_rule_tree:
   assumes "k > 0"
-  shows "<bplustree_assn k (LNode xs) a r z>
+  shows "<bplustree_assn k (Leaf xs) a r z>
   Lnode\<^sub>i k a
   <\<lambda>a. btupi_assn k (abs_split_set.Lnode\<^sub>i k xs) a r z>\<^sub>t"
     using assms by (sep_auto heap add: Lnode\<^sub>i_rule)
@@ -668,7 +668,7 @@ lemma Lnode\<^sub>i_rule_tree:
 lemma node\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split_set.node\<^sub>i k ts t = abs_split_set.T\<^sub>i (Node ts t)"
   by (simp add: abs_split_set.node\<^sub>i.simps)
 
-lemma Lnode\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split_set.Lnode\<^sub>i k ts = abs_split_set.T\<^sub>i (LNode ts)"
+lemma Lnode\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split_set.Lnode\<^sub>i k ts = abs_split_set.T\<^sub>i (Leaf ts)"
   by (simp add: abs_split_set.Lnode\<^sub>i.simps)
 
 lemma id_assn_emp[simp]: "id_assn a a = emp"
@@ -837,18 +837,18 @@ lemma append_Cons_last: "last (xs@x#ys) = last (x#ys)"
   by (induction xs) auto
                                                                                             
 declare last.simps[simp del] butlast.simps[simp del]
-lemma ins_rule:
+lemma ins\<^sub>i_rule:
   "k > 0 \<Longrightarrow>
   sorted_less (inorder t) \<Longrightarrow>
   sorted_less (leaves t) \<Longrightarrow>
   root_order k t \<Longrightarrow>
   <bplustree_assn k t ti r z>
-  ins k x ti
+  ins\<^sub>i k x ti
   <\<lambda>a. btupi_assn k (abs_split_set.ins k x t) a r z>\<^sub>t"
 proof (induction k x t arbitrary: ti r z rule: abs_split_set.ins.induct)
   case (1 k x xs ti r z)
   then show ?case
-    apply(subst ins.simps)
+    apply(subst ins\<^sub>i.simps)
     apply (sep_auto heap: Lnode\<^sub>i_rule)
     done
 next
@@ -868,13 +868,13 @@ next
     proof (cases "abs_split_set.ins k x t")
       case (T\<^sub>i a)
       then show ?thesis
-        apply(subst ins.simps)
+        apply(subst ins\<^sub>i.simps)
         using Nil 
         apply(simp)
         apply vcg
         apply(simp)
         apply vcg
-        thm imp_split_rule
+        thm split\<^sub>i_rule
         apply sep_auto
           apply(rule hoare_triple_preI)
         using Nil split_rel_i list_split
@@ -901,7 +901,7 @@ next
     next
       case (Up\<^sub>i l a r)
       then show ?thesis
-        apply(subst ins.simps)
+        apply(subst ins\<^sub>i.simps)
         using Nil 
         apply(simp)
         apply vcg
@@ -948,7 +948,7 @@ next
         case (T\<^sub>i a')
         then show ?thesis
           apply(auto simp add: Cons list_split a_split)
-          apply(subst ins.simps)
+          apply(subst ins\<^sub>i.simps)
           apply vcg
            apply auto
           apply vcg
@@ -1047,7 +1047,7 @@ next
         case (Up\<^sub>i l w r)
         then show ?thesis
           apply(auto simp add: Cons list_split a_split)
-          apply(subst ins.simps)
+          apply(subst ins\<^sub>i.simps)
           apply vcg
            apply auto
           apply vcg
@@ -1225,23 +1225,23 @@ declare last.simps[simp add] butlast.simps[simp add]
 
 text "The imperative insert refines the abstract insert."
 
-lemma insert_rule:
+lemma insert\<^sub>i_rule:
   assumes "k > 0" "sorted_less (inorder t)" "sorted_less (leaves t)" "root_order k t"
   shows "<bplustree_assn k t ti r z>
-  insert k x ti
+  insert\<^sub>i k x ti
   <\<lambda>u. bplustree_assn k (abs_split_set.insert k x t) u r z>\<^sub>t"
 proof(cases "abs_split_set.ins k x t")
   case (T\<^sub>i x1)
   then show ?thesis
-  unfolding insert_def
+  unfolding insert\<^sub>i_def
    using assms
-    by (sep_auto split!: btupi.splits heap: ins_rule)
+    by (sep_auto split!: btupi.splits heap: ins\<^sub>i_rule)
 next
   case (Up\<^sub>i x21 x22 x23)
   then show ?thesis
-  unfolding insert_def
+  unfolding insert\<^sub>i_def
   using assms
-  apply (sep_auto eintros del: exI split!: btupi.splits heap: ins_rule)
+  apply (sep_auto eintros del: exI split!: btupi.splits heap: ins\<^sub>i_rule)
   subgoal for x21a x22a x23a newr a b xa
   apply(inst_existentials a b x23a "[(Some x21a, x22a)]" "[((Some x21a, r, newr),x22a)]" "[newr]")
     apply (auto simp add: prod_assn_def)
@@ -1251,14 +1251,14 @@ next
 qed
 
 text "The \"pure\" resulting rule follows automatically."
-lemma insert_rule':
+lemma insert\<^sub>i_rule':
   shows "<bplustree_assn (Suc k) t ti r z * \<up>(abs_split_set.invar_leaves (Suc k) t \<and> sorted_less (leaves t))>
-  insert (Suc k) x ti
+  insert\<^sub>i (Suc k) x ti
   <\<lambda>ri.\<exists>\<^sub>Au. bplustree_assn (Suc k) u ri r z * \<up>(abs_split_set.invar_leaves (Suc k) u \<and> sorted_less (leaves u) \<and> leaves u = (ins_list x (leaves t)))>\<^sub>t"
   using Laligned_sorted_inorder[of t top] sorted_wrt_append
   using abs_split_set.insert_bal[of t] abs_split_set.insert_order[of "Suc k" t]
   using abs_split_set.insert_Linorder_top[of "Suc k" t]
-  by (sep_auto heap: insert_rule simp add: sorted_ins_list)
+  by (sep_auto heap: insert\<^sub>i_rule simp add: sorted_ins_list)
 
 
 subsection "Deletion"
@@ -1392,7 +1392,7 @@ lemma btupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split_set.node\<^sub>i k 
   apply(auto simp add: abs_split_set.node\<^sub>i.simps split!: list.splits prod.splits)
   done
 
-lemma Lbtupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split_set.Lnode\<^sub>i k ts) (T\<^sub>i x) r z \<Longrightarrow> abs_split_set.Lnode\<^sub>i k ts = abs_split_set.T\<^sub>i (LNode ts)"
+lemma Lbtupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split_set.Lnode\<^sub>i k ts) (T\<^sub>i x) r z \<Longrightarrow> abs_split_set.Lnode\<^sub>i k ts = abs_split_set.T\<^sub>i (Leaf ts)"
   apply(cases "length ts \<le> 2*k")
   apply(auto simp add: abs_split_set.Lnode\<^sub>i.simps split!: list.splits prod.splits)
   done
@@ -1401,7 +1401,7 @@ lemma Lbtupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split_set.Lnode\<^sub>i 
   abs_split_set.Lnode\<^sub>i k ts = (
     case BPlusTree_Split.split_half ts of (ls,rs) \<Rightarrow> (
       case last ls of sep \<Rightarrow>
-        abs_split_set.Up\<^sub>i (LNode ls) sep (LNode rs)
+        abs_split_set.Up\<^sub>i (Leaf ls) sep (Leaf rs)
   )
 )"
   apply(auto simp add: abs_split_set.Lnode\<^sub>i.simps split!: list.splits prod.splits)
@@ -1423,12 +1423,12 @@ partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,
     "del k x tp = do {
   ti \<leftarrow> !tp;
   (case ti of Btleaf xs np \<Rightarrow> do { 
-      xs' \<leftarrow> imp_del_list x xs;
+      xs' \<leftarrow> del_list\<^sub>i x xs;
       tp := (Btleaf xs' np);
       return tp
 } |
    Btnode tsi tti \<Rightarrow> do {
-   i \<leftarrow> imp_split tsi x;
+   i \<leftarrow> split\<^sub>i tsi x;
    tsl \<leftarrow> pfa_length tsi;
    if i < tsl then do {
        (sub,sep) \<leftarrow> pfa_get tsi i;
@@ -1449,12 +1449,12 @@ partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,
 
 end
 
-context imp_split_list
+context split\<^sub>i_list
 begin
 
-definition imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
-  where "imp_isin_list x ks = do {
-    i \<leftarrow> imp_split_list ks x;
+definition isin_list\<^sub>i:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> bool Heap"
+  where "isin_list\<^sub>i x ks = do {
+    i \<leftarrow> split\<^sub>i_list ks x;
     xsl \<leftarrow> pfa_length ks;
     if i \<ge> xsl then return False
     else do {
@@ -1463,11 +1463,11 @@ definition imp_isin_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_t
   }
 }"
 
-lemma imp_isin_list_rule [sep_heap_rules]:
+lemma isin_list\<^sub>i_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows
    "<is_pfa c ks (a',n')> 
-    imp_isin_list x (a',n') 
+    isin_list\<^sub>i x (a',n') 
   <\<lambda>b. 
     is_pfa c ks (a',n')
     * \<up>(b = abs_split_list.isin_list x ks)>\<^sub>t"
@@ -1478,22 +1478,22 @@ proof -
   proof (cases rs)
     case Nil
     then show ?thesis
-      apply(subst imp_isin_list_def)
+      apply(subst isin_list\<^sub>i_def)
       using assms list_split apply(sep_auto simp add: split_relation_alt dest!: mod_starD list_assn_len)
       done
   next
   case (Cons a rrs)
   then show ?thesis
-      apply(subst imp_isin_list_def)
+      apply(subst isin_list\<^sub>i_def)
       using list_split apply simp
       using assms list_split  apply(sep_auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)
       done
   qed
 qed
 
-definition imp_ins_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
-  where "imp_ins_list x ks = do {
-    i \<leftarrow> imp_split_list ks x;
+definition ins_list\<^sub>i:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
+  where "ins_list\<^sub>i x ks = do {
+    i \<leftarrow> split\<^sub>i_list ks x;
     xsl \<leftarrow> pfa_length ks;
     if i \<ge> xsl then
       pfa_append_grow ks x
@@ -1506,11 +1506,11 @@ definition imp_ins_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_to
   }
 }"
 
-lemma imp_ins_list_rule [sep_heap_rules]:
+lemma ins_list\<^sub>i_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows
    "<is_pfa c ks (a',n')> 
-    imp_ins_list x (a',n') 
+    ins_list\<^sub>i x (a',n') 
   <\<lambda>(a'',n''). is_pfa (max c (length (abs_split_list.insert_list x ks))) (abs_split_list.insert_list x ks) (a'',n'')
     >\<^sub>t"
 proof -
@@ -1520,7 +1520,7 @@ proof -
   proof (cases rs)
     case Nil
     then show ?thesis
-      apply(subst imp_ins_list_def)
+      apply(subst ins_list\<^sub>i_def)
       apply vcg
       subgoal using assms by auto
       apply(rule hoare_triple_preI)
@@ -1549,7 +1549,7 @@ proof -
   proof (cases "a = x")
     case True
     then show ?thesis
-      apply(subst imp_ins_list_def)
+      apply(subst ins_list\<^sub>i_def)
       apply vcg
       subgoal using assms by auto
       apply(rule hoare_triple_preI)
@@ -1570,7 +1570,7 @@ proof -
   next
     case False
     then show ?thesis
-      apply(subst imp_ins_list_def)
+      apply(subst ins_list\<^sub>i_def)
       apply vcg
       subgoal using assms by auto
       apply(rule hoare_triple_preI)
@@ -1596,9 +1596,9 @@ qed
 qed
 qed
 
-definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
-  where "imp_del_list x ks = do {
-    i \<leftarrow> imp_split_list ks x;
+definition del_list\<^sub>i:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a pfarray Heap"
+  where "del_list\<^sub>i x ks = do {
+    i \<leftarrow> split\<^sub>i_list ks x;
     xsl \<leftarrow> pfa_length ks;
     if i \<ge> xsl then
       return ks
@@ -1611,10 +1611,10 @@ definition imp_del_list:: "'a \<Rightarrow> ('a::{heap,default,linorder,order_to
   }
 }"
 
-lemma imp_del_list_rule [sep_heap_rules]:
+lemma del_list\<^sub>i_rule [sep_heap_rules]:
   assumes "sorted_less ks"
   shows "<is_pfa c ks (a',n')> 
-    imp_del_list x (a',n') 
+    del_list\<^sub>i x (a',n') 
   <\<lambda>(a'',n''). is_pfa c (abs_split_list.delete_list x ks) (a'',n'')>\<^sub>t"
 proof -
   obtain ls rs where list_split: "split_list ks x = (ls, rs)"
@@ -1623,7 +1623,7 @@ proof -
   proof (cases rs)
     case Nil
     then show ?thesis
-      apply(subst imp_del_list_def)
+      apply(subst del_list\<^sub>i_def)
       apply vcg
       subgoal using assms by auto
       apply(rule hoare_triple_preI)
@@ -1636,7 +1636,7 @@ proof -
   proof (cases "a = x")
     case True
     then show ?thesis
-      apply(subst imp_del_list_def)
+      apply(subst del_list\<^sub>i_def)
       apply vcg
       subgoal using assms by auto
       apply(rule hoare_triple_preI)
@@ -1654,7 +1654,7 @@ proof -
   next
     case False
     then show ?thesis
-      apply(subst imp_del_list_def)
+      apply(subst del_list\<^sub>i_def)
       apply vcg
       subgoal using assms by auto
       apply(rule hoare_triple_preI)
@@ -1674,12 +1674,12 @@ qed
 
 end
 
-context imp_split_full
+context split\<^sub>i_full
 begin
 
-sublocale imp_split_set imp_split_list.abs_split_list.isin_list imp_split_list.abs_split_list.insert_list 
-  imp_split_list.abs_split_list.delete_list split imp_split imp_split_list.imp_isin_list imp_split_list.imp_ins_list imp_split_list.imp_del_list
-  using imp_split_list.abs_split_list.isin_list_set imp_split_list.abs_split_list.insert_list_set imp_split_list.abs_split_list.delete_list_set
+sublocale split\<^sub>i_set split\<^sub>i_list.abs_split_list.isin_list split\<^sub>i_list.abs_split_list.insert_list 
+  split\<^sub>i_list.abs_split_list.delete_list split split\<^sub>i split\<^sub>i_list.isin_list\<^sub>i split\<^sub>i_list.ins_list\<^sub>i split\<^sub>i_list.del_list\<^sub>i
+  using split\<^sub>i_list.abs_split_list.isin_list_set split\<^sub>i_list.abs_split_list.insert_list_set split\<^sub>i_list.abs_split_list.delete_list_set
   apply unfold_locales 
   apply sep_auto +
   done

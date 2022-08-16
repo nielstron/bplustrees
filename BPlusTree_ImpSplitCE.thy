@@ -18,11 +18,11 @@ the B-tree insertion and membership query with binary search splitting."
 
 
 
-global_interpretation bplustree_imp_binary_split_list: imp_split_list_smeq bin'_split
-  defines bplustree_isin_list = bplustree_imp_binary_split_list.imp_isin_list
-    and bplustree_ins_list = bplustree_imp_binary_split_list.imp_ins_list
-    and bplustree_del_list = bplustree_imp_binary_split_list.imp_del_list
-    and bplustree_lrange_list = bplustree_imp_binary_split_list.imp_lrange_list
+global_interpretation bplustree_imp_binary_split_list: split\<^sub>i_list_smeq bin'_split
+  defines bplustree_isin_list = bplustree_imp_binary_split_list.isin_list\<^sub>i
+    and bplustree_ins_list = bplustree_imp_binary_split_list.ins_list\<^sub>i
+    and bplustree_del_list = bplustree_imp_binary_split_list.del_list\<^sub>i
+    and bplustree_lrange_list = bplustree_imp_binary_split_list.lrange_list\<^sub>i
   apply unfold_locales
   apply(sep_auto heap: bin'_split_rule)
   done
@@ -30,15 +30,15 @@ global_interpretation bplustree_imp_binary_split_list: imp_split_list_smeq bin'_
 print_theorems
 
 global_interpretation bplustree_imp_binary_split: 
-  imp_split_full_smeq bin_split bin'_split 
-  defines bplustree_isin = bplustree_imp_binary_split.isin
-    and bplustree_ins = bplustree_imp_binary_split.ins
-    and bplustree_insert = bplustree_imp_binary_split.insert
+  split\<^sub>i_full_smeq bin_split bin'_split 
+  defines bplustree_isin = bplustree_imp_binary_split.isin\<^sub>i
+    and bplustree_ins = bplustree_imp_binary_split.ins\<^sub>i
+    and bplustree_insert = bplustree_imp_binary_split.insert\<^sub>i
     (*and bplustree_del = bplustree_imp_binary_split.del
     and bplustree_delete = bplustree_imp_binary_split.delete*)
-    and bplustree_empty = bplustree_imp_binary_split.empty
-    and bplustree_leafs_range = bplustree_imp_binary_split.leafs_range
-    and bplustree_lrange = bplustree_imp_binary_split.concat_leafs_range
+    and bplustree_empty = bplustree_imp_binary_split.empty\<^sub>i
+    and bplustree_leaf_nodes_lrange = bplustree_imp_binary_split.leaf_nodes_lrange\<^sub>i
+    and bplustree_lrange = bplustree_imp_binary_split.concat_leaf_nodes_lrange\<^sub>i
   apply unfold_locales
   apply(sep_auto heap: bin_split_rule)
   done
@@ -57,7 +57,7 @@ lemma [code]:
                     else bplustree_isin t x))
     | Btleaf xs xa \<Rightarrow> bplustree_isin_list x xs)"
   unfolding bplustree_isin_list_def
-  by (simp add: bplustree_imp_binary_split.isin.simps)
+  by (simp add: bplustree_imp_binary_split.isin\<^sub>i.simps)
 lemma [code]:
 "bplustree_ins k x p =
 !p \<bind>
@@ -93,19 +93,19 @@ lemma [code]:
          bplustree_ins_list x ksi \<bind>
         (\<lambda>ksi'. p := Btleaf ksi' nxt \<bind> (\<lambda>_. bplustree_imp_binary_split.Lnode\<^sub>i k p)))"
   unfolding bplustree_ins_list_def
-  by (simp add: bplustree_imp_binary_split.ins.simps)
+  by (simp add: bplustree_imp_binary_split.ins\<^sub>i.simps)
 
-declare bplustree_imp_binary_split.leafs_range.simps[code]
+declare bplustree_imp_binary_split.leaf_nodes_lrange\<^sub>i.simps[code]
 lemma [code]:
 "bplustree_lrange ti x =
-    bplustree_leafs_range ti x \<bind>
+    bplustree_leaf_nodes_lrange ti x \<bind>
     (\<lambda>lp. !the lp \<bind>
            (\<lambda>li. case li of
                   Btleaf xs nxt \<Rightarrow>
                     bplustree_lrange_list x xs \<bind>
                     (\<lambda>arr_it. leaf_values_adjust (nxt, None) arr_it \<bind> return)))"
   unfolding bplustree_lrange_list_def
-  by (simp add: bplustree_imp_binary_split.concat_leafs_range_def)
+  by (simp add: bplustree_imp_binary_split.concat_leaf_nodes_lrange\<^sub>i_def)
 
 export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_values_init leaf_values_next leaf_values_has_next checking OCaml SML Scala
 export_code bplustree_empty bplustree_isin bplustree_insert bplustree_lrange leaf_values_init leaf_values_next leaf_values_has_next in OCaml module_name BPlusTree

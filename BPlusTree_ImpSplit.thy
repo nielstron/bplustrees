@@ -84,36 +84,36 @@ lemma split_half_rule[sep_heap_rules]: "<
 
 subsection "The imperative split locale"
 
-locale imp_split_tree = abs_split_tree: BPlusTree_Split.split_tree split
+locale split\<^sub>i_tree = abs_split_tree: BPlusTree_Split.split_tree split
   for split::
     "('a::{heap,default,linorder,order_top} bplustree \<times> 'a) list \<Rightarrow> 'a
        \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list" +
-  fixes imp_split:: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
-  assumes imp_split_rule [sep_heap_rules]:"sorted_less (separators ts) \<Longrightarrow>
+  fixes split\<^sub>i:: "('a btnode ref option \<times> 'a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
+  assumes split\<^sub>i_rule [sep_heap_rules]:"sorted_less (separators ts) \<Longrightarrow>
   length tsi = length rs \<Longrightarrow>
   tsi'' = zip (zip (map fst tsi) (zip (butlast (r#rs)) (butlast (rs@[z])))) (map snd tsi) \<Longrightarrow>
  <is_pfa c tsi (a,n) 
   * blist_assn k ts tsi'' > 
-    imp_split (a,n) p 
+    split\<^sub>i (a,n) p 
   <\<lambda>i. 
     is_pfa c tsi (a,n)
     * blist_assn k ts tsi''
     * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
 
-locale imp_split_list = abs_split_list: split_list split_list
+locale split\<^sub>i_list = abs_split_list: split_list split_list
   for split_list::
     "('a::{heap,default,linorder,order_top}) list \<Rightarrow> 'a
        \<Rightarrow> 'a list \<times> 'a list" +
-  fixes imp_split_list:: "('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
-  assumes imp_split_list_rule [sep_heap_rules]: "sorted_less xs \<Longrightarrow>
+  fixes split\<^sub>i_list:: "('a::{heap,default,linorder,order_top}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
+  assumes split\<^sub>i_list_rule [sep_heap_rules]: "sorted_less xs \<Longrightarrow>
    <is_pfa c xs (a,n)> 
-    imp_split_list (a,n) p 
+    split\<^sub>i_list (a,n) p 
   <\<lambda>i. 
     is_pfa c xs (a,n)
     * \<up>(split_relation xs (split_list xs p) i)>\<^sub>t"
 
 
-locale imp_split_full = imp_split_tree: imp_split_tree split + imp_split_list: imp_split_list split_list
+locale split\<^sub>i_full = split\<^sub>i_tree: split\<^sub>i_tree split + split\<^sub>i_list: split\<^sub>i_list split_list
     for split::
       "('a bplustree \<times> 'a::{linorder,heap,default,order_top}) list \<Rightarrow> 'a
          \<Rightarrow> ('a bplustree \<times> 'a) list \<times> ('a bplustree \<times> 'a) list"
@@ -385,7 +385,7 @@ text \<open>Any function that yields the heap rule
 we have obtained for bin\_split and lin\_split also
 refines this abstract split.\<close>
 
-locale imp_split_tree_smeq =
+locale split\<^sub>i_tree_smeq =
   fixes split_fun :: "('a::{heap,default,linorder,order_top} btnode ref option \<times> 'a) array \<times> nat \<Rightarrow> 'a \<Rightarrow> nat Heap"
   assumes split_rule: "sorted_less (separators xs) \<Longrightarrow> 
  <is_pfa c xs (a, n)>
@@ -491,7 +491,7 @@ proof -
 qed
 
 
-sublocale imp_split_tree linear_split split_fun
+sublocale split\<^sub>i_tree linear_split split_fun
   apply(unfold_locales)
   unfolding linear_split.simps
   subgoal by (auto split: list.splits)
@@ -511,7 +511,7 @@ tsi''
 
 end
 
-locale imp_split_list_smeq =
+locale split\<^sub>i_list_smeq =
   fixes split_list_fun :: "('a::{heap,default,linorder,order_top} array \<times> nat) \<Rightarrow> 'a \<Rightarrow> nat Heap"
   assumes split_list_rule: "sorted_less xs \<Longrightarrow> 
  <is_pfa c xs (a, n)>
@@ -541,7 +541,7 @@ lemma split_list_rule_linear_split:
   done
 
 
-sublocale imp_split_list linear_split_list split_list_fun
+sublocale split\<^sub>i_list linear_split_list split_list_fun
   apply(unfold_locales)
   subgoal by (auto split: list.splits)
   subgoal
@@ -555,12 +555,12 @@ sublocale imp_split_list linear_split_list split_list_fun
 
 end
 
-locale imp_split_full_smeq = imp_split_tree_smeq split_fun + imp_split_list_smeq split_list_fun
+locale split\<^sub>i_full_smeq = split\<^sub>i_tree_smeq split_fun + split\<^sub>i_list_smeq split_list_fun
   for split_fun:: "('a::{heap,default,linorder,order_top} btnode ref option \<times> 'a) array \<times> nat \<Rightarrow> 'a \<Rightarrow> nat Heap"
   and split_list_fun :: "('a::{heap,default,linorder,order_top} array \<times> nat) \<Rightarrow> 'a \<Rightarrow> nat Heap"
 begin
 
-sublocale imp_split_full split_fun split_list_fun linear_split linear_split_list
+sublocale split\<^sub>i_full split_fun split_list_fun linear_split linear_split_list
   by (unfold_locales)
 
 end

@@ -527,8 +527,7 @@ The formal relation is shown in \cref{fig:btree-assn}.
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-relation]
 fun bplustree_assn :: nat $\Rightarrow$ 'a bplustree $\Rightarrow$ 'a btnode ref
       $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btnode ref option where
-      bplustree_assn k (Node ts t) a r z =
-  $\exists_A$ tsi ti tsi' rs.
+    bplustree_assn k (Node ts t) a r z = $\exists_A$ tsi ti tsi' rs.
       a $\mapsto_r$ Btnode tsi ti
       -- $\text{\emph{Obtain list with array contents for folding list\_assn}}$
     * is_pfa (2*k) tsi' tsi
@@ -538,8 +537,8 @@ fun bplustree_assn :: nat $\Rightarrow$ 'a bplustree $\Rightarrow$ 'a btnode ref
       -- $\text{\emph{Pointers to left/right sibling are obtained by offset zipping}}$
         zip (zip (map fst tsi') (zip (butlast (r#rs)) rs))) (map snd tsi')))
     * bplustree_assn k t ti (last (r#rs)) z)
-    | bplustree_assn k (Leaf xs) a r z =
-  $\exists_A$ xsi fwd.  a $\mapsto_r$ Btleaf xsi fwd * is_pfa (2*k) xs xsi * $\uparrow$(fwd = z) * $\uparrow$(r = Some a)
+  | bplustree_assn k (Leaf xs) a r z = $\exists_A$ xsi fwd. 
+        a $\mapsto_r$ Btleaf xsi fwd * is_pfa (2*k) xs xsi * $\uparrow$(fwd = z) * $\uparrow$(r = Some a)
 \end{lstlisting}
     \caption[Assertion describing the imperative \btree]{
         The \btree\ is specified by the split factor $k$, an abstract tree,

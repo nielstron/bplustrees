@@ -19,8 +19,8 @@ leafs are represented as None."
 
 (* Option as we need a default for non-initializeed entries *)
 datatype 'a btnode =
-  Btnode "('a btnode ref option *'a) pfarray" "'a btnode ref" |
-  Btleaf "'a pfarray" "'a btnode ref option"
+  Btleaf "'a pfarray" "'a btnode ref option" |
+  Btnode "('a btnode ref option *'a) pfarray" "'a btnode ref"
 
 
 text \<open>Selector Functions\<close>
@@ -60,7 +60,7 @@ find_theorems list_assn
 find_theorems id_assn
 
 fun bplustree_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
-  "bplustree_assn k (LNode xs) a r z = 
+  "bplustree_assn k (Leaf xs) a r z = 
  (\<exists>\<^sub>A xsi fwd.
       a \<mapsto>\<^sub>r Btleaf xsi fwd
     * is_pfa (2*k) xs xsi
@@ -89,7 +89,7 @@ also need to directly reason on nodes and not only on references
 to them."
 
 fun btnode_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
-  "btnode_assn k (LNode xs) (Btleaf xsi zi) r z = 
+  "btnode_assn k (Leaf xs) (Btleaf xsi zi) r z = 
  (\<exists>\<^sub>A xsi zi.
     is_pfa (2*k) xs xsi
     * \<up>(zi = z)

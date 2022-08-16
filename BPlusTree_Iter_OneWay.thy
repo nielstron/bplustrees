@@ -9,7 +9,7 @@ begin
 
 
 fun leaf_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
-  "leaf_nodes_assn k ((LNode xs)#lns) (Some r) z = 
+  "leaf_nodes_assn k ((Leaf xs)#lns) (Some r) z = 
  (\<exists>\<^sub>A xsi fwd.
       r \<mapsto>\<^sub>r Btleaf xsi fwd
     * is_pfa (2*k) xs xsi
@@ -20,7 +20,7 @@ fun leaf_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree list \<Rightarrow
 
 
 fun inner_nodes_assn :: "nat \<Rightarrow> ('a::heap) bplustree \<Rightarrow> 'a btnode ref \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
-  "inner_nodes_assn k (LNode xs) a r z = \<up>(r = Some a)" |
+  "inner_nodes_assn k (Leaf xs) a r z = \<up>(r = Some a)" |
   "inner_nodes_assn k (Node ts t) a r z = 
  (\<exists>\<^sub>A tsi ti tsi' tsi'' rs.
       a \<mapsto>\<^sub>r Btnode tsi ti
@@ -170,7 +170,7 @@ lemma bplustree_leaf_nodes:
   using bplustree_leaf_nodes_help[of k t ti r z] by simp
 
 fun leaf_node:: "('a::heap) bplustree \<Rightarrow> 'a list \<Rightarrow> assn" where
-  "leaf_node (LNode xs) xsi = \<up>(xs = xsi)" |
+  "leaf_node (Leaf xs) xsi = \<up>(xs = xsi)" |
   "leaf_node _ _ = false"
 
 fun leafs_assn :: "('a::heap) pfarray list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
@@ -398,7 +398,7 @@ lemma first_leaf_rule[sep_heap_rules]:
   <\<lambda>u. bplustree_assn k t ti r z * \<up>(u = r)>\<^sub>t"
   using assms
 proof(induction t arbitrary: ti z)
-  case (LNode x)
+  case (Leaf x)
   then show ?case
     apply(subst first_leaf.simps)
     apply (sep_auto dest!: mod_starD)
@@ -436,7 +436,7 @@ lemma last_leaf_rule[sep_heap_rules]:
   <\<lambda>u. bplustree_assn k t ti r z * \<up>(u = z)>\<^sub>t"
   using assms
 proof(induction t arbitrary: ti r)
-  case (LNode x)
+  case (Leaf x)
   then show ?case
     apply(subst last_leaf.simps)
     apply (sep_auto dest!: mod_starD)
